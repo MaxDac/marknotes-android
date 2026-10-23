@@ -86,30 +86,35 @@ in the [Dropbox App Console](https://www.dropbox.com/developers/apps) with "Full
 ### Building from source, like F-Droid
 
 F-Droid doesn't accept prebuilt binaries, so it builds marknotes-sync from source too. On Linux, with rustup, the
-Rust toolchain and NDK pinned in `scripts/build-sync-from-source.sh` and cargo-ndk:
+Rust toolchain and NDK pinned in `scripts/build-sync-from-source.sh` and cargo-ndk, from the `marknotes-sync/`
+submodule (checked out at the release tag `marknotesSync` in `gradle/libs.versions.toml` names):
 
 ```sh
 rustup toolchain install 1.99.1 --profile minimal --target aarch64-linux-android,x86_64-linux-android
 cargo +1.99.1 install cargo-ndk --version 4.1.2 --locked
 sdkmanager "ndk;27.3.13750724"
-scripts/build-sync-from-source.sh /tmp/marknotes-sync      # clones the pinned tag if the folder is missing
-./gradlew :app:assembleRelease --no-build-cache -Pmarknotes.sync.fromSource=/tmp/marknotes-sync
+git submodule update --init marknotes-sync
+scripts/build-sync-from-source.sh
+./gradlew :app:assembleRelease --no-build-cache -Pmarknotes.sync.fromSource=marknotes-sync
 ```
 
-The F-Droid recipe is [`.fdroid.yml`](.fdroid.yml) (with `fdroid/srclibs/marknotes-sync.yml`); see
+The F-Droid recipe is [`.fdroid.yml`](.fdroid.yml); see
 [docs/fdroid.md](docs/fdroid.md) for how the app is published there.
 
 ### CI
 
 The checks live in the reusable `.github/workflows/checks.yml` and are required by the `main` ruleset:
 "Lint (ktlint, detekt, Android Lint)", "Unit tests", "Instrumented tests (emulator)", "Build debug APK",
-"Parity (marknotes-spec fixtures)" and the two F-Droid checks:
+"Parity (marknotes-spec fixtures)" and the three F-Droid checks:
 
 - **F-Droid build** lints the recipe with `fdroid lint` (and checks it is in `fdroid rewritemeta` format and matches
   the app version and the pinned marknotes-sync version), builds marknotes-sync and the release APK from source the
   way F-Droid does, and scans the APK with `fdroid scanner`;
 - **Reproducible build** rebuilds the release APK on another runner, at another path, in another time zone, and
-  fails unless both APKs are identical.
+  fails unless both APKs are identical;
+- **F-Droid server build (fdroid build)** runs the real `fdroid build --on-server` with the recipe in F-Droid's
+  buildserver image (`scripts/fdroid-server-build.sh`, needs Docker), as fdroiddata's CI does, and fails unless its
+  APK is identical to the F-Droid build's. The Release workflow reruns all three before publishing.
 
 `pr-ci.yml` runs them on every pull request (plus "Dependency review" and "actionlint"), and `main-ci.yml` on
 `main`. `codeql.yml` runs CodeQL; `dependency-submission.yml` submits the resolved Gradle graph to feed Dependabot;

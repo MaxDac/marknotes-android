@@ -7,11 +7,12 @@
 #
 # Writes OUTPUT_DIR/unsigned.apk and OUTPUT_DIR/SHA256SUMS. Needs Docker and a full clone (fetch-depth: 0). F-Droid
 # clones the recipe's Repo from GitHub; here the build clones this checkout instead (same commit, same tree), so it
-# also works for unpushed commits and PR merge commits. FDROID_BUILDSERVER_IMAGE overrides the pinned image.
+# also works for unpushed commits and PR merge commits. FDROID_BUILDSERVER_IMAGE overrides the image.
 set -euo pipefail
 
-# The image fdroiddata's CI builds with (same pin as MaxDac/fpink). Bump the digest deliberately.
-readonly default_image="registry.gitlab.com/fdroid/fdroidserver:buildserver-trixie@sha256:9cb68105642ca4e7b295f0ceab10f069f5b3247dc18fa7c36046e9d81aa469a8"
+# The image fdroiddata's CI builds with. It follows the tag like fdroiddata does (old digests are deleted from the
+# registry); the digest used is logged.
+readonly default_image="registry.gitlab.com/fdroid/fdroidserver:buildserver-trixie"
 readonly app_id=io.github.maxdac.marknotes.libre
 
 [[ $# -eq 1 ]] || { echo "Usage: $0 OUTPUT_DIR" >&2; exit 2; }
@@ -27,9 +28,12 @@ version_name="$(sed -n 's/^ *versionName = "\(.*\)"$/\1/p' "$root/app/build.grad
 version_code="$(sed -n 's/^ *versionCode = \([0-9]*\)$/\1/p' "$root/app/build.gradle.kts")"
 [[ -n "$version_name" && -n "$version_code" ]] || { echo "No versionName/versionCode in app/build.gradle.kts" >&2; exit 1; }
 
+image="${FDROID_BUILDSERVER_IMAGE:-$default_image}"
+docker pull --quiet "$image"
+echo "Buildserver image: $(docker inspect --format '{{index .RepoDigests 0}}' "$image")"
 docker run --rm --volume "$root:/src:ro" --volume "$output:/out" \
   --env "APP_ID=$app_id" --env "COMMIT=$commit" --env "VERSION_NAME=$version_name" --env "VERSION_CODE=$version_code" \
-  "${FDROID_BUILDSERVER_IMAGE:-$default_image}" bash -euo pipefail -c '
+  "$image" bash -euo pipefail -c '
 set +u; source /etc/profile.d/bsenv.sh; set -u
 export ANDROID_HOME=/opt/android-sdk
 apt-get update && apt-get -y dist-upgrade
@@ -55,6 +59,8 @@ python3 - "$data/metadata/$APP_ID.yml" <<PY
 import sys, yaml
 recipe = yaml.safe_load(open("/src/.fdroid.yml"))
 build = recipe["Builds"][-1]
+# PyYAML 1.1 reads `gradle: [yes]` as a boolean; fdroidserver means the flavour list "yes".
+build["gradle"] = ["yes" if g is True else g for g in build.get("gradle", [])]
 build.update(versionName="$VERSION_NAME", versionCode=int("$VERSION_CODE"), commit="$COMMIT")
 recipe["Builds"] = [build]
 recipe["Repo"] = "$data/source.git"
