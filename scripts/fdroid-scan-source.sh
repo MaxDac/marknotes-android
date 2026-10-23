@@ -13,8 +13,9 @@ work="$(mktemp -d)"
 trap 'rm -rf "$work"' EXIT
 
 fdroid="$(command -v fdroid)" || { echo "fdroid not found (pip install fdroidserver)" >&2; exit 1; }
-python="$(sed -n '1s/^#!//p' "$fdroid")"
-[ -x "${python%% *}" ] || python=python3
+# fdroidserver's own interpreter (pipx or a venv), next to the real `fdroid` script.
+python="$(dirname "$(readlink -f "$fdroid")")/python"
+[ -x "$python" ] || python=python3
 
 mkdir -p "$work/app"
 git -C "$root" archive --format=tar HEAD | tar -x -C "$work/app"
