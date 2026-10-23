@@ -28,7 +28,7 @@ Builds:
       - yes
     srclibs:
       - rustup@1.29.2
-      - marknotes-sync@v0.1.1
+      - marknotes-sync@v0.1.2
     prebuild:
       - rm -rf $$marknotes-sync$$/bindings/npm
       - rm -f $$marknotes-sync$$/bindings/kotlin/gradle/wrapper/gradle-wrapper.jar

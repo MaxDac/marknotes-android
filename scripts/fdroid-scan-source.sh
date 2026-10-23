@@ -31,12 +31,11 @@ cd "$work"
 "$python" - "$root/.fdroid.yml" "${dirs[@]}" <<'PY'
 import sys
 
-import yaml
 from fdroidserver import common, metadata, scanner
 
 common.get_config()
-recipe = yaml.safe_load(open(sys.argv[1], encoding="utf-8"))
-build = metadata.Build(recipe["Builds"][-1])
+with open(sys.argv[1], encoding="utf-8") as recipe:
+    build = metadata.Build(metadata.parse_yaml_metadata(recipe)["Builds"][-1])
 problems = 0
 for path in sys.argv[2:]:
     count = scanner.scan_source(path, build if path.endswith("/app") else metadata.Build())
