@@ -150,6 +150,8 @@ jobs:
       # The same path as F-Droid's build server (.fdroid.yml): marknotes-sync from source, no prebuilt binaries.
       - name: Build marknotes-sync from source
         run: scripts/build-sync-from-source.sh "$RUNNER_TEMP/marknotes-sync"
+      - name: Scan the source for non-free code
+        run: scripts/fdroid-scan-source.sh "$RUNNER_TEMP/marknotes-sync"
       - name: Build the unsigned release APK
         run: >-
           ./gradlew :app:assembleRelease --no-build-cache

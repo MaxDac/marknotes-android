@@ -31,6 +31,7 @@ Builds:
       - marknotes-sync@v0.1.1
     prebuild:
       - rm -rf $$marknotes-sync$$/bindings/npm
+      - rm -f $$marknotes-sync$$/bindings/kotlin/gradle/wrapper/gradle-wrapper.jar
       - $$rustup$$/rustup-init.sh -y --default-toolchain none --profile minimal --no-modify-path
       - source $HOME/.cargo/env
       - rustup toolchain install 1.99.1 --profile minimal --target aarch64-linux-android,x86_64-linux-android
@@ -43,7 +44,7 @@ Builds:
     gradleprops:
       - marknotes.sync.fromSource=$$marknotes-sync$$
 
-AllowedAPKSigningKeys: dd8f0431d7b6fd06b85ce515c212ebc25475e925b8a4b827f3983560ddee6b58
+AllowedAPKSigningKeys: ffafda02fa9af06b1927095c8d843ae862173512d4cdaca09bbaaef84d1d70e4
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags ^v[0-9]+\.[0-9]+\.[0-9]+$
