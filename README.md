@@ -31,7 +31,8 @@ submodule) with OneDrive and Proton Drive sync added, released on GitHub only. T
   `.txt`/`.md`/`.html` files, Word documents (`.docx`), PDFs (text only) or images into a new note, optionally
   converted to Markdown. Conversion runs on the device.
 - **Chord sequences** (guitar and bass, ported from [ChordBuilder](https://github.com/MaxDac/ChordBuilder)): notes
-  with `type: chords` open in a chord editor with a fretboard builder and chord diagrams.
+  with `type: chords` open in a chord editor with a fretboard builder and chord diagrams. Create one with
+  **New chord sequence**, in the floating **New** menu next to **New note** and on the empty-folder screen.
 - **Appearance** (Settings): theme **System** (default), **Light** or **Dark**, and an accent colour chosen
   from 8 palettes or **Dynamic** (Material You, Android 12+).
 - **Dropbox two-way sync** (optional): connect Dropbox accounts (Settings → Add drive), browse to a folder and
