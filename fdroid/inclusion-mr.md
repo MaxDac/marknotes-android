@@ -28,7 +28,7 @@ MarkNotes (`io.github.maxdac.marknotes.libre`) is an offline-first Markdown note
 
 * The sync core is [marknotes-sync](https://github.com/MaxDac/marknotes-sync) (Rust, with UniFFI Kotlin bindings; GPL-3.0-or-later, same author), a git submodule at its release tag `v0.1.2`. It's built from source in `build` by upstream's `scripts/build-sync-from-source.sh`. That uses a pinned Rust toolchain (1.99.1, installed through the `rustup` srclib), cargo-ndk 4.1.2 and NDK r27d, with `--remap-path-prefix`, no build ID and `SOURCE_DATE_EPOCH`, so the native libraries are reproducible. Gradle then takes the bindings from that checkout (`gradleprops: marknotes.sync.fromSource=marknotes-sync`) instead of the GitHub release assets.
 * `rm` deletes what isn't built or isn't free: the `spec/` submodules (shared test fixtures, unlicensed), marknotes-sync's npm bindings and its Kotlin bindings' `gradle-wrapper.jar` (the build uses `gradle`).
-* Native code is arm64-v8a and x86_64; the APK is about <size> MB, so no ABI split.
+* Native code is arm64-v8a and x86_64, under 1 MB per ABI. The APK is about 68 MB, almost all of it uncompressed dex, so an ABI split wouldn't make it much smaller.
 
 ### Auto update and reproducible builds
 
@@ -74,7 +74,7 @@ MarkNotes (`io.github.maxdac.marknotes.libre`) is an offline-first Markdown note
 * [x] An AuthorName must be added. It doesn't need to be the real name.
 * [x] External repos are added as git submodules instead of srclibs. You can update git submodules without opening an MR in this repo and the submodule is covered by our scanner. marknotes-sync is a submodule; the only srclib is fdroiddata's `rustup`, for the Rust toolchain.
 * [x] Enable [Reproducible Builds](https://f-droid.org/docs/Reproducible_Builds). We'll use your signature for improved security/reliability, also allowing users to switch between different channels. Do note that if you don't enable reproducible build then the apk will be signed with our key so you can't enable it later. If you can't enable this, please add the reasons here.
-* [x] Setup abi split if the APK is large and the splitted ones can be much smaller. Not needed: the APK is small.
+* [x] Setup abi split if the APK is large and the splitted ones can be much smaller. Not needed: the native libraries are under 1 MB per ABI.
 * [x] Only the latest versions should be kept in the metadata before it's merged. If you update the metadata, please replace the old versions with the new ones.
 * [x] Don't add any disabled versions in the metadata.
 * [x] The `commit` field should be the full hash. Please don't use tag or branch in commit.
