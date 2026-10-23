@@ -21,6 +21,7 @@ Builds:
     versionCode: 100
     commit: v0.1.0
     subdir: app
+    submodules: true
     sudo:
       - apt-get update
       - apt-get install -y gcc libc-dev
@@ -28,10 +29,12 @@ Builds:
       - yes
     srclibs:
       - rustup@1.29.2
-      - marknotes-sync@v0.1.2
+    rm:
+      - spec
+      - marknotes-sync/spec
+      - marknotes-sync/bindings/npm
+      - marknotes-sync/bindings/kotlin/gradle/wrapper/gradle-wrapper.jar
     prebuild:
-      - rm -rf $$marknotes-sync$$/bindings/npm
-      - rm -f $$marknotes-sync$$/bindings/kotlin/gradle/wrapper/gradle-wrapper.jar
       - $$rustup$$/rustup-init.sh -y --default-toolchain none --profile minimal --no-modify-path
       - source $HOME/.cargo/env
       - rustup toolchain install 1.99.1 --profile minimal --target aarch64-linux-android,x86_64-linux-android
@@ -39,10 +42,9 @@ Builds:
     build:
       - source $HOME/.cargo/env
       - ANDROID_NDK_HOME=$$NDK$$ GRADLE=gradle ../scripts/build-sync-from-source.sh
-        $$marknotes-sync$$
     ndk: r27d
     gradleprops:
-      - marknotes.sync.fromSource=$$marknotes-sync$$
+      - marknotes.sync.fromSource=marknotes-sync
 
 AllowedAPKSigningKeys: ffafda02fa9af06b1927095c8d843ae862173512d4cdaca09bbaaef84d1d70e4
 

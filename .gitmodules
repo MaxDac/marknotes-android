@@ -1,3 +1,7 @@
 [submodule "spec"]
 	path = spec
 	url = https://github.com/MaxDac/marknotes-spec
+[submodule "marknotes-sync"]
+	path = marknotes-sync
+	url = https://github.com/MaxDac/marknotes-sync
+	ignore = dirty

@@ -141,6 +141,8 @@ jobs:
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
+        with:
+          submodules: true
       - name: Install fdroidserver
         run: pipx install fdroidserver==2.4.5
       - name: Lint the F-Droid recipe (.fdroid.yml)
@@ -149,13 +151,11 @@ jobs:
       - uses: ./.github/actions/setup-sync-toolchain
       # The same path as F-Droid's build server (.fdroid.yml): marknotes-sync from source, no prebuilt binaries.
       - name: Build marknotes-sync from source
-        run: scripts/build-sync-from-source.sh "$RUNNER_TEMP/marknotes-sync"
+        run: scripts/build-sync-from-source.sh
       - name: Scan the source for non-free code
-        run: scripts/fdroid-scan-source.sh "$RUNNER_TEMP/marknotes-sync"
+        run: scripts/fdroid-scan-source.sh
       - name: Build the unsigned release APK
-        run: >-
-          ./gradlew :app:assembleRelease --no-build-cache
-          "-Pmarknotes.sync.fromSource=$RUNNER_TEMP/marknotes-sync"
+        run: ./gradlew :app:assembleRelease --no-build-cache -Pmarknotes.sync.fromSource=marknotes-sync
       - name: Scan the APK for non-free code
         run: fdroid scanner --exit-code app/build/outputs/apk/release/app-release-unsigned.apk
       - name: Upload the unsigned release APK
@@ -182,14 +182,13 @@ jobs:
       - uses: actions/checkout@v7
         with:
           path: rebuild/marknotes-android
+          submodules: true
       - uses: ./rebuild/marknotes-android/.github/actions/setup-android-build
       - uses: ./rebuild/marknotes-android/.github/actions/setup-sync-toolchain
       - name: Build marknotes-sync from source
-        run: scripts/build-sync-from-source.sh "$RUNNER_TEMP/elsewhere/sync"
+        run: scripts/build-sync-from-source.sh
       - name: Build the unsigned release APK
-        run: >-
-          ./gradlew :app:assembleRelease --no-build-cache
-          "-Pmarknotes.sync.fromSource=$RUNNER_TEMP/elsewhere/sync"
+        run: ./gradlew :app:assembleRelease --no-build-cache -Pmarknotes.sync.fromSource=marknotes-sync
       - uses: actions/download-artifact@v8
         with:
           name: fdroid-unsigned-apk
@@ -207,3 +206,47 @@ jobs:
           sudo apt-get install -y -qq diffoscope-minimal > /dev/null
           diffoscope --text - --max-text-report-size 200000 "$first" "$second" || true
           exit 1
+
+  fdroidserver-build:
+    name: F-Droid server build (fdroid build)
+    needs: fdroid-build
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    # What fdroiddata's CI does with the recipe: the real `fdroid build --on-server` in F-Droid's buildserver image
+    # (Debian, its JDK, gradlew-fdroid, NDK from the recipe). Its unsigned APK must match the F-Droid build above,
+    # which the release is checked against, or F-Droid won't publish the signed release APK.
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: Free disk space
+        run: |
+          sudo rm -rf /usr/share/dotnet /opt/ghc /usr/local/.ghcup /opt/hostedtoolcache/CodeQL /usr/share/swift \
+            /usr/local/lib/android
+          df -h /
+      - name: Build with fdroid build in the buildserver image
+        run: scripts/fdroid-server-build.sh "$RUNNER_TEMP/fdroidserver-build"
+      - uses: actions/download-artifact@v8
+        with:
+          name: fdroid-unsigned-apk
+          path: ${{ runner.temp }}/fdroid-build
+      - name: Compare with the F-Droid build
+        run: |
+          first="$RUNNER_TEMP/fdroid-build/app-release-unsigned.apk"
+          second="$RUNNER_TEMP/fdroidserver-build/unsigned.apk"
+          sha256sum "$first" "$second"
+          if cmp -s "$first" "$second"; then
+            echo "fdroid build reproduces the F-Droid build."
+            exit 0
+          fi
+          echo "::error::fdroid build differs from the F-Droid build; F-Droid could not verify the release APK."
+          sudo apt-get install -y -qq diffoscope-minimal > /dev/null
+          diffoscope --text - --max-text-report-size 200000 "$first" "$second" || true
+          exit 1
+      - name: Upload the fdroid build APK
+        if: always()
+        uses: actions/upload-artifact@v7
+        with:
+          name: fdroidserver-unsigned-apk
+          path: ${{ runner.temp }}/fdroidserver-build/
+          if-no-files-found: ignore
