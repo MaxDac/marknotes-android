@@ -83,6 +83,14 @@ The on-disk note format (IDs, note links, images, chord sequences) is shared wit
 described in [marknotes-spec](https://github.com/MaxDac/marknotes-spec/blob/main/note-format.md), checked out at
 `spec/` as a git submodule (`git submodule update --init`).
 
+## Support
+
+If you would like to support development, you can [leave an optional one-off tip on Ko-fi](https://ko-fi.com/maxdac).
+Tips unlock no features: MarkNotes remains free software with all features available without payment.
+**Settings → About → Leave a tip** opens the same page in your external browser only when tapped.
+There is no in-app payment processing, payment SDK or automatic contact with Ko-fi; any payment happens on
+the external website under its own terms and privacy policy.
+
 ## Project layout
 
 | Module | What it contains |
