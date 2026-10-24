@@ -1,16 +1,17 @@
 # fdroiddata merge request: New app: MarkNotes
 
-Title, description and checklist for the first fdroiddata merge request, in the format the reviewers accepted for
-[FPInk](https://gitlab.com/fdroid/fdroiddata/-/merge_requests/50122). See `docs/fdroid.md`, "First submission".
-Fill in the `<...>` placeholders (commit hash, pipeline and job links) before opening it, and keep the description
-in sync with the recipe and the latest release afterwards: reviewers check it.
+The live description of the open inclusion merge request,
+[fdroid/fdroiddata!54034](https://gitlab.com/fdroid/fdroiddata/-/merge_requests/54034), in the format the
+reviewers accepted for [FPInk](https://gitlab.com/fdroid/fdroiddata/-/merge_requests/50122). Keep it identical to
+the MR description and in sync with the recipe and the latest release: reviewers check it. The
+`fdroid-inclusion-mr` skill (`.claude/skills/fdroid-inclusion-mr/SKILL.md`) explains how to maintain the MR.
 
-**Source branch**: `io.github.maxdac.marknotes.libre`
+**Source branch**: `io.github.maxdac.marknotes.libre` on [MaxDac/fdroiddata](https://gitlab.com/MaxDac/fdroiddata)
 
 **Title**: `New app: MarkNotes`
 
 **Files** (nothing else): `metadata/io.github.maxdac.marknotes.libre.yml`, a copy of `.fdroid.yml` with
-`commit: v0.1.0` replaced by `git rev-parse v0.1.0^{commit}`.
+`commit: vX.Y.Z` replaced by the tag's full commit hash (`git rev-parse "vX.Y.Z^{commit}"`).
 
 **Description**:
 
@@ -20,9 +21,10 @@ in sync with the recipe and the latest release afterwards: reviewers check it.
 MarkNotes (`io.github.maxdac.marknotes.libre`) is an offline-first Markdown notes app. Notes are plain `.md` files in folders, with note links, images, chord sheets and a rendered preview. Optional Dropbox sync shares the same notes folder with the MarkNotes desktop and web apps.
 
 * Upstream: https://github.com/MaxDac/marknotes-android (GPL-3.0-or-later). I am the upstream author.
-* Release: [`v0.1.0`](https://github.com/MaxDac/marknotes-android/releases/tag/v0.1.0), commit `<full commit hash of v0.1.0>`, versionCode 100.
+* Release: [`v0.1.3`](https://github.com/MaxDac/marknotes-android/releases/tag/v0.1.3), commit `8c2e44f12650b4b3b2f1d9f7c1a7221ceb2f89ae`, versionCode 103.
 * Fastlane metadata (en-US title, summary, description, icon, screenshots, changelogs) lives upstream in `fastlane/metadata/android/en-US/`.
-* Anti-features: NonFreeNet. Sync is optional and uses Dropbox (OAuth PKCE, no client secret). There is no tracking, analytics, ads or Google Play Services.
+* Anti-features: NonFreeNet. Sync is optional and uses Dropbox (OAuth PKCE, no client secret), only at start-up or on *Sync now*. There is no tracking, analytics, ads or Google Play Services. Error diagnostics stay on the device unless the user reviews a report and sends it themselves.
+* Permissions: `INTERNET` (Dropbox sync) and `USE_BIOMETRIC` (optional app lock), plus AndroidX's own `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`. Upstream CI fails if the APK requests anything else.
 
 ### Build notes
 
@@ -38,7 +40,7 @@ MarkNotes (`io.github.maxdac.marknotes.libre`) is an offline-first Markdown note
 ### Validation
 
 * `fdroid lint` and `fdroid rewritemeta` produce no changes.
-* All jobs in the fork pipeline pass: <pipeline URL>. `fdroid build` ([job](<job URL>)) reports "compared built binary to supplied reference binary successfully".
+* All jobs in the fork pipeline pass: https://gitlab.com/MaxDac/fdroiddata/-/pipelines/2984983349. `fdroid build` ([job](https://gitlab.com/MaxDac/fdroiddata/-/jobs/17440415945)) builds versionCode 103 from `8c2e44f12650b4b3b2f1d9f7c1a7221ceb2f89ae` and reports "compared built binary to supplied reference binary successfully".
 
 ## Checklist
 

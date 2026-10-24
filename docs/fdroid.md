@@ -11,7 +11,7 @@ checking that its own build matches it. The same APK is on F-Droid and GitHub, s
 | --- | --- |
 | `.fdroid.yml` | The build recipe, in `fdroid rewritemeta` format so it can be copied to fdroiddata (only `commit:` changes, see below). |
 | `marknotes-sync/` | Git submodule with [marknotes-sync](https://github.com/MaxDac/marknotes-sync) at the release tag `marknotesSync` in `gradle/libs.versions.toml` names, built from source by `scripts/build-sync-from-source.sh`. fdroiddata prefers submodules to srclibs. |
-| `fdroid/inclusion-mr.md` | Title, description and checklist for the first fdroiddata merge request. |
+| `fdroid/inclusion-mr.md` | Title, description and checklist of the open inclusion merge request, [fdroid/fdroiddata!54034](https://gitlab.com/fdroid/fdroiddata/-/merge_requests/54034). The `fdroid-inclusion-mr` agent skill (`.claude/skills/`) maintains it until it's merged. |
 | `fastlane/metadata/android/en-US/` | Store listing: title, descriptions, icon, screenshots (`images/phoneScreenshots/1.png`...) and one changelog per versionCode. F-Droid reads it from the tagged commit; it doesn't go in the MR. |
 | `scripts/fdroid-lint.sh` | Runs `fdroid lint` and `fdroid rewritemeta` against a minimal fdroiddata checkout, and checks the recipe matches the app version and the submodule is the `marknotesSync` tag. |
 | `scripts/fdroid-scan-source.sh` | Runs fdroidserver's source scanner (what F-Droid runs before building) on a clean `git archive` copy of this repo with the marknotes-sync submodule, after the recipe's `rm:`. |

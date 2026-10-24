@@ -102,6 +102,10 @@ F-Droid builds the app from source with the recipe in [`.fdroid.yml`](.fdroid.ym
   off, keep the Rust/NDK/cargo-ndk pins in `scripts/build-sync-from-source.sh`, `.fdroid.yml` and
   `.github/actions/setup-sync-toolchain` identical, and don't add build inputs that depend on time, paths or the
   machine. The Checks / Reproducible build job catches regressions.
+- **Inclusion MR**: while [fdroid/fdroiddata!54034](https://gitlab.com/fdroid/fdroiddata/-/merge_requests/54034)
+  is open, use the `fdroid-inclusion-mr` skill (`.claude/skills/fdroid-inclusion-mr/SKILL.md`, read by Claude Code
+  and Copilot) to handle reviewer comments and to move the MR to each new release. Issue #21 removes it after the
+  merge.
 - **Version literals**: F-Droid reads `versionCode`/`versionName` from `app/build.gradle.kts`, so they stay literals
   (set by the Prepare release workflow). Store metadata is in `fastlane/metadata/android/en-US/` (one changelog per
   versionCode).
