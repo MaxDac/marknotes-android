@@ -3,8 +3,10 @@
 # from source, for the version pinned in gradle/libs.versions.toml, so the app can be built without the prebuilt
 # GitHub release artifacts:
 #
-#   scripts/build-sync-from-source.sh [marknotes-sync checkout]   # default: build/marknotes-sync (cloned if missing)
-#   ./gradlew assembleRelease -Pmarknotes.sync.fromSource=<same checkout>
+#   scripts/build-sync-from-source.sh [marknotes-sync checkout]   # default: the marknotes-sync submodule
+#   ./gradlew assembleRelease -Pmarknotes.sync.fromSource=<same checkout>   # e.g. =marknotes-sync
+#
+# The marknotes-sync/ submodule is checked out at tag v<marknotesSync>: bump both together.
 #
 # This is the build path of F-Droid (.fdroid.yml) and of the release workflow. Needs Linux, rustup with the pinned
 # toolchain and the aarch64-linux-android/x86_64-linux-android targets, cargo-ndk, the pinned NDK (ANDROID_NDK_HOME)
@@ -14,13 +16,15 @@ set -euo pipefail
 root="$(cd "$(dirname "$0")/.." && pwd)"
 version="$(tr -d '\r' < "$root/gradle/libs.versions.toml" | sed -n 's/^marknotesSync = "\(.*\)"$/\1/p')"
 [ -n "$version" ] || { echo "marknotesSync is missing from gradle/libs.versions.toml" >&2; exit 1; }
-dir="${1:-$root/build/marknotes-sync}"
+dir="${1:-$root/marknotes-sync}"
 
 # Pinned so rebuilds (F-Droid, the reproducible-build check) produce identical libraries.
 export RUSTUP_TOOLCHAIN="${RUSTUP_TOOLCHAIN:-1.99.1}"
 export MARKNOTES_NDK_VERSION="${MARKNOTES_NDK_VERSION:-27.3.13750724}"
 
-if [ ! -f "$dir/Cargo.toml" ]; then
+if [ ! -f "$dir/Cargo.toml" ] && [ "$dir" = "$root/marknotes-sync" ]; then
+  git -C "$root" submodule update --init marknotes-sync
+elif [ ! -f "$dir/Cargo.toml" ]; then
   git clone --quiet --depth 1 --branch "v$version" https://github.com/MaxDac/marknotes-sync "$dir"
 fi
 dir="$(cd "$dir" && pwd)"

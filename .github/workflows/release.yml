@@ -74,12 +74,14 @@ jobs:
       APK: marknotes-libre-${{ needs.validate.outputs.version }}.apk
     steps:
       - uses: actions/checkout@v7
+        with:
+          submodules: true
       - uses: ./.github/actions/setup-android-build
       - uses: ./.github/actions/setup-sync-toolchain
       - name: Install apksigcopier
         run: pipx install apksigcopier==1.1.1
       - name: Build marknotes-sync from source
-        run: scripts/build-sync-from-source.sh "$RUNNER_TEMP/marknotes-sync"
+        run: scripts/build-sync-from-source.sh
       - name: Decode signing keystore
         env:
           RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
@@ -98,7 +100,7 @@ jobs:
           MARKNOTES_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
         run: >-
           ./gradlew :app:assembleRelease --no-build-cache
-          "-Pmarknotes.sync.fromSource=$RUNNER_TEMP/marknotes-sync"
+          -Pmarknotes.sync.fromSource=marknotes-sync
       - name: Remove signing keystore
         if: always()
         run: rm -f "$RUNNER_TEMP/release.keystore"

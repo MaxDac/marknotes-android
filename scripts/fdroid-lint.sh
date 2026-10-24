@@ -17,7 +17,6 @@ cd "$work/fdroiddata"
 git sparse-checkout set --no-cone /config /srclibs/rustup.yml
 mkdir -p metadata
 cp "$root/.fdroid.yml" "metadata/$appid.yml"
-cp "$root"/fdroid/srclibs/*.yml srclibs/
 
 fdroid lint "$appid"
 fdroid rewritemeta "$appid"
@@ -37,11 +36,17 @@ check() {
     fail=1
   fi
 }
-check "      - marknotes-sync@v$sync" "marknotesSync in gradle/libs.versions.toml"
 check "  - versionName: $name" "the last build must be versionName in app/build.gradle.kts"
 check "    versionCode: $code" "the last build must be versionCode in app/build.gradle.kts"
 check "    commit: v$name" "the last build must build the release tag"
 check "CurrentVersion: $name" "versionName in app/build.gradle.kts"
 check "CurrentVersionCode: $code" "versionCode in app/build.gradle.kts"
+# The marknotes-sync/ submodule (built by the recipe) must be the release tag marknotesSync names.
+pinned="$(git -C "$root" ls-tree HEAD marknotes-sync | awk '{print $3}')"
+tagged="$(git ls-remote https://github.com/MaxDac/marknotes-sync "refs/tags/v$sync" "refs/tags/v$sync^{}" | awk '{print $1}' | tail -n 1)"
+if [ -z "$tagged" ] || [ "$pinned" != "$tagged" ]; then
+  echo "::error::the marknotes-sync submodule ($pinned) is not tag v$sync (${tagged:-missing}) from gradle/libs.versions.toml" >&2
+  fail=1
+fi
 [ "$fail" = 0 ] || exit 1
 echo "F-Droid recipe OK"
