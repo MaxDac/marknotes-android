@@ -20,7 +20,7 @@ dir="${1:-$root/marknotes-sync}"
 
 # Pinned so rebuilds (F-Droid, the reproducible-build check) produce identical libraries.
 export RUSTUP_TOOLCHAIN="${RUSTUP_TOOLCHAIN:-1.99.1}"
-export MARKNOTES_NDK_VERSION="${MARKNOTES_NDK_VERSION:-27.3.13750724}"
+export MARKNOTES_NDK_VERSION="${MARKNOTES_NDK_VERSION:-30.0.16248370}"
 
 if [ ! -f "$dir/Cargo.toml" ] && [ "$dir" = "$root/marknotes-sync" ]; then
   git -C "$root" submodule update --init marknotes-sync

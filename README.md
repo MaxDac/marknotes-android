@@ -144,7 +144,7 @@ submodule (checked out at the release tag `marknotesSync` in `gradle/libs.versio
 ```sh
 rustup toolchain install 1.99.1 --profile minimal --target aarch64-linux-android,x86_64-linux-android
 cargo +1.99.1 install cargo-ndk --version 4.1.2 --locked
-sdkmanager "ndk;27.3.13750724"
+sdkmanager "ndk;30.0.16248370"
 git submodule update --init marknotes-sync
 scripts/build-sync-from-source.sh
 ./gradlew :app:assembleRelease --no-build-cache -Pmarknotes.sync.fromSource=marknotes-sync

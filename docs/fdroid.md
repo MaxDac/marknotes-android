@@ -102,7 +102,7 @@ synchronize donation metadata.
 F-Droid compares its unsigned build with our signed APK using `apksigcopier compare`. Anything that differs between
 builds breaks this and F-Droid then stops publishing updates. What keeps the build reproducible:
 
-- the native library: a pinned Rust toolchain (`1.99.1`), cargo-ndk (`4.1.2`) and NDK (`r27d`, `27.3.13750724`),
+- the native library: a pinned Rust toolchain (`1.99.1`), cargo-ndk (`4.1.2`) and NDK (`r30`, `30.0.16248370`),
   with `--remap-path-prefix` for the source and cargo paths, no build ID, and `SOURCE_DATE_EPOCH`
   (`scripts/build-sync-from-source.sh`);
 - the APK: no VCS info (`vcsInfo.include = false`) and no dependency metadata block (`dependenciesInfo`), so
