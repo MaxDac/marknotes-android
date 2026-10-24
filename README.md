@@ -70,8 +70,10 @@ Dropbox account the app is fully local.
   locks on start, after a time without use (Immediately, 1, 5 or 15 minutes; 5 by default), when the screen turns
   off and with "Lock now"; the lock screen keeps the screen you were on. Turning the lock on or off asks for the same
   credential, it needs a device screen lock, and it is turned off (with a message) if the device's screen lock is
-  removed. The lock only hides the app: the notes on the device are protected by Android's file-based encryption,
-  as above.
+  removed. The app lock is a privacy screen over the UI, not encryption: it keeps someone holding your unlocked
+  phone out of the app, but it does not protect notes on a rooted or compromised device, or against apps or tools
+  with privileged access that can hook the app or read its storage. The notes on the device are protected by
+  Android's file-based encryption, as above.
 - **Hide notes in Recents and block screenshots** (Settings → Privacy) sets `FLAG_SECURE` on the app's windows, so
   Recents shows a blank card and screenshots and screen recordings are blocked. It is turned on with the app lock
   and can be switched on or off on its own.

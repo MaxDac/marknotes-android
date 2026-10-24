@@ -11,11 +11,11 @@ import android.os.CancellationSignal
  * Biometric prompt with the device credential (PIN, pattern or password) as fallback, through the framework
  * [BiometricPrompt]: no extra dependency and no FragmentActivity.
  *
- * The prompt is deliberately not bound to a Keystore CryptoObject. The app lock is a privacy gate over the UI,
- * not encryption: notes are plain files in app storage (as on desktop and in the shared drive), so whoever can
- * hook this callback (root, instrumentation) can already read them directly, and a key would protect nothing.
- * A CryptoObject would also require BIOMETRIC_STRONG (dropping weak face unlock) and, on API 29, rule out the
- * device-credential fallback.
+ * The app lock is only a privacy lock over the UI, not protection against a rooted or compromised device or
+ * privileged hooking, so the prompt is deliberately not bound to a Keystore CryptoObject: notes are plain files
+ * in app storage (as on desktop and in the shared drive), so whoever can hook this callback can already read them
+ * directly, and a key would protect nothing. A CryptoObject would also require BIOMETRIC_STRONG (dropping weak
+ * face unlock) and, on API 29, rule out the device-credential fallback.
  */
 object DeviceAuth {
     /** Whether the device has a screen lock; the app lock needs one (it is the fallback for biometrics). */
