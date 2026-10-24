@@ -1,5 +1,8 @@
 package io.github.maxdac.marknotes.ui.settings
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.net.Uri
 import android.text.format.DateUtils
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -52,6 +55,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
@@ -68,6 +72,7 @@ import io.github.maxdac.marknotes.data.LockTimeout
 import io.github.maxdac.marknotes.data.ThemeColor
 import io.github.maxdac.marknotes.data.ThemeMode
 import io.github.maxdac.marknotes.security.DeviceAuth
+import io.github.maxdac.marknotes.shared.R
 import io.github.maxdac.marknotes.sync.DriveStatus
 import io.github.maxdac.marknotes.sync.SyncManager
 import io.github.maxdac.marknotes.ui.MarkNotesLogo
@@ -165,6 +170,7 @@ fun SettingsScreen(
                     "\"Sync now\"; there is no background polling.",
                 style = MaterialTheme.typography.bodySmall
             )
+            TipSection()
         }
     }
 
@@ -175,6 +181,32 @@ fun SettingsScreen(
             syncManager = syncManager,
             onDismiss = { removing = null },
             onLocalDataDeleted = onLocalDataDeleted
+        )
+    }
+}
+
+@Composable
+private fun TipSection() {
+    val context = LocalContext.current
+    var error by remember { mutableStateOf<Int?>(null) }
+    Text(stringResource(R.string.tip_description), style = MaterialTheme.typography.bodySmall)
+    OutlinedButton(onClick = {
+        error = null
+        try {
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://ko-fi.com/maxdac")))
+        } catch (_: ActivityNotFoundException) {
+            error = R.string.tip_no_browser
+        } catch (_: SecurityException) {
+            error = R.string.tip_browser_blocked
+        }
+    }) {
+        Text(stringResource(R.string.leave_a_tip))
+    }
+    error?.let {
+        Text(
+            stringResource(it),
+            color = MaterialTheme.colorScheme.error,
+            style = MaterialTheme.typography.bodySmall
         )
     }
 }
