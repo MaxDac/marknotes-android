@@ -3,6 +3,8 @@ name: PR CI
 on:
   pull_request:
     branches: [main]
+  # Prepare release dispatches it on the release branch: PRs it opens with GITHUB_TOKEN don't trigger pull_request.
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -28,16 +30,19 @@ jobs:
       - uses: actions/checkout@v7
       # GitHub can't resolve Gradle version catalogs or transitive dependencies statically, so submit the
       # resolved graph for the PR head first. Fork PRs get a read-only token and fall back to static parsing.
-      - if: github.event.pull_request.head.repo.full_name == github.repository
+      - if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
         uses: ./.github/actions/setup-android-build
         with:
           setup-gradle: "false"
-      - if: github.event.pull_request.head.repo.full_name == github.repository
+      - if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
         uses: gradle/actions/dependency-submission@v6
+      # On workflow_dispatch there is no PR event: compare the dispatched commit against main.
       - uses: actions/dependency-review-action@v5
         with:
+          base-ref: ${{ github.event_name == 'workflow_dispatch' && 'main' || '' }}
+          head-ref: ${{ github.event_name == 'workflow_dispatch' && github.sha || '' }}
           fail-on-severity: high
-          comment-summary-in-pr: on-failure
+          comment-summary-in-pr: ${{ github.event_name == 'pull_request' && 'on-failure' || 'never' }}
           retry-on-snapshot-warnings: true
 
   actionlint:
