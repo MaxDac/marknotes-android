@@ -24,6 +24,20 @@ enum class ThemeColor(val label: String) {
     PURPLE("Purple")
 }
 
+/** How long the app can stay unused before the app lock locks it; [IMMEDIATELY] locks when you leave the app. */
+enum class LockTimeout(val minutes: Int, val label: String) {
+    IMMEDIATELY(0, "Immediately"),
+    ONE_MINUTE(1, "1 minute"),
+    FIVE_MINUTES(5, "5 minutes"),
+    FIFTEEN_MINUTES(15, "15 minutes");
+
+    val millis: Long get() = minutes * 60_000L
+
+    companion object {
+        val DEFAULT = FIVE_MINUTES
+    }
+}
+
 /** Small non-secret preferences. */
 class AppSettings(context: Context, private val dynamicColorSupported: Boolean) {
     private val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
@@ -94,6 +108,36 @@ class AppSettings(context: Context, private val dynamicColorSupported: Boolean) 
         _themeColor.value = color
     }
 
+    private val _appLockEnabled = MutableStateFlow(prefs.getBoolean(KEY_APP_LOCK, false))
+
+    /** Whether opening the app asks for biometrics or the device credential (see `security/AppLock`). */
+    val appLockEnabled: StateFlow<Boolean> = _appLockEnabled
+
+    private val _lockTimeout = MutableStateFlow(
+        enumValueOrNull<LockTimeout>(prefs.getString(KEY_LOCK_TIMEOUT, null)) ?: LockTimeout.DEFAULT
+    )
+    val lockTimeout: StateFlow<LockTimeout> = _lockTimeout
+
+    private val _secureScreen = MutableStateFlow(prefs.getBoolean(KEY_SECURE_SCREEN, false))
+
+    /** Whether the window is FLAG_SECURE: hidden in Recents, no screenshots or screen recording. */
+    val secureScreen: StateFlow<Boolean> = _secureScreen
+
+    fun setAppLockEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_APP_LOCK, enabled).apply()
+        _appLockEnabled.value = enabled
+    }
+
+    fun setLockTimeout(timeout: LockTimeout) {
+        prefs.edit().putString(KEY_LOCK_TIMEOUT, timeout.name).apply()
+        _lockTimeout.value = timeout
+    }
+
+    fun setSecureScreen(secure: Boolean) {
+        prefs.edit().putBoolean(KEY_SECURE_SCREEN, secure).apply()
+        _secureScreen.value = secure
+    }
+
     companion object {
         const val DEFAULT_REMOTE_FOLDER = "MarkNotes"
         private const val KEY_REMOTE_FOLDER = "remote_folder"
@@ -103,6 +147,9 @@ class AppSettings(context: Context, private val dynamicColorSupported: Boolean) 
         private const val KEY_THEME_MODE = "theme_mode"
         private const val KEY_THEME_COLOR = "theme_color"
         private const val KEY_CHORD_SEQUENCES = "chord_sequences_enabled"
+        private const val KEY_APP_LOCK = "app_lock"
+        private const val KEY_LOCK_TIMEOUT = "lock_timeout"
+        private const val KEY_SECURE_SCREEN = "secure_screen"
 
         private inline fun <reified T : Enum<T>> enumValueOrNull(name: String?): T? =
             enumValues<T>().firstOrNull { it.name == name }

@@ -57,13 +57,16 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.maxdac.marknotes.AppContainer
 import io.github.maxdac.marknotes.appContainer
 import io.github.maxdac.marknotes.core.notes.Attachments
 import io.github.maxdac.marknotes.data.AppSettings
+import io.github.maxdac.marknotes.data.LockTimeout
 import io.github.maxdac.marknotes.data.ThemeColor
 import io.github.maxdac.marknotes.data.ThemeMode
+import io.github.maxdac.marknotes.security.DeviceAuth
 import io.github.maxdac.marknotes.sync.DriveStatus
 import io.github.maxdac.marknotes.sync.SyncManager
 import io.github.maxdac.marknotes.ui.MarkNotesLogo
@@ -77,6 +80,13 @@ const val NO_DRIVES_TEXT = "No drives connected. Notes are only stored on this d
 const val CHORD_SEQUENCES_SWITCH_TAG = "chord-sequences-switch"
 const val DELETE_ALL_LOCAL_DATA_TEXT = "Delete all local data"
 const val DELETE_LOCAL_NOTES_TEXT = "Also delete the notes stored on this device"
+const val TURN_ON_APP_LOCK_TEXT = "Turn on app lock"
+const val TURN_OFF_APP_LOCK_TEXT = "Turn off app lock"
+const val LOCK_NOW_TEXT = "Lock now"
+const val LOCK_AFTER_INACTIVITY_TEXT = "Lock after inactivity"
+const val SECURE_SCREEN_TEXT = "Hide notes in Recents and block screenshots"
+const val NO_SCREEN_LOCK_TEXT =
+    "Set a screen lock (PIN, pattern or password) in the device settings to use the app lock."
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -135,6 +145,7 @@ fun SettingsScreen(
 
             HorizontalDivider()
             PrivacySection(syncManager, enabled = !state.running, onDeleted = onLocalDataDeleted)
+            AppLockSection(container)
 
             HorizontalDivider()
             Text("About", style = MaterialTheme.typography.titleMedium)
@@ -417,5 +428,84 @@ private fun PrivacySection(syncManager: SyncManager, enabled: Boolean, onDeleted
             },
             dismissButton = { TextButton(onClick = { confirming = false }) { Text("Cancel") } }
         )
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun AppLockSection(container: AppContainer) {
+    val context = LocalContext.current
+    val settings = container.settings
+    val appLock = container.appLock
+    val lockEnabled by settings.appLockEnabled.collectAsStateWithLifecycle()
+    val timeout by settings.lockTimeout.collectAsStateWithLifecycle()
+    val secureScreen by settings.secureScreen.collectAsStateWithLifecycle()
+    var deviceSecure by remember { mutableStateOf(DeviceAuth.isDeviceSecure(context)) }
+    // A screen lock set up in the device settings meanwhile enables the button when coming back.
+    LifecycleResumeEffect(Unit) {
+        deviceSecure = DeviceAuth.isDeviceSecure(context)
+        onPauseOrDispose {}
+    }
+    var error by remember { mutableStateOf<CharSequence?>(null) }
+
+    // Turning the lock on or off needs the same biometrics or screen lock that unlock the app.
+    fun authenticateThen(title: String, action: () -> Unit) {
+        if (!appLock.beginAuthentication()) return
+        error = null
+        DeviceAuth.authenticate(context, title) { success, message ->
+            appLock.endAuthentication(success)
+            if (success) action() else error = message
+        }
+    }
+
+    Text("App lock", style = MaterialTheme.typography.labelLarge)
+    Text(
+        "Ask for your fingerprint, face or screen lock to open MarkNotes, and lock it after a time without use.",
+        style = MaterialTheme.typography.bodySmall
+    )
+    if (lockEnabled) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            OutlinedButton(onClick = {
+                authenticateThen(TURN_OFF_APP_LOCK_TEXT) {
+                    settings.setAppLockEnabled(false)
+                    appLock.onEnabledChanged()
+                }
+            }) { Text(TURN_OFF_APP_LOCK_TEXT) }
+            OutlinedButton(onClick = appLock::lock) { Text(LOCK_NOW_TEXT) }
+        }
+        Text(LOCK_AFTER_INACTIVITY_TEXT, style = MaterialTheme.typography.labelLarge)
+        FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            LockTimeout.entries.forEach { option ->
+                FilterChip(
+                    selected = timeout == option,
+                    onClick = { settings.setLockTimeout(option) },
+                    label = { Text(option.label) }
+                )
+            }
+        }
+    } else {
+        Button(
+            onClick = {
+                authenticateThen(TURN_ON_APP_LOCK_TEXT) {
+                    settings.setAppLockEnabled(true)
+                    settings.setSecureScreen(true)
+                    appLock.onEnabledChanged()
+                }
+            },
+            enabled = deviceSecure
+        ) { Text(TURN_ON_APP_LOCK_TEXT) }
+        if (!deviceSecure) Text(NO_SCREEN_LOCK_TEXT, style = MaterialTheme.typography.bodySmall)
+    }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .toggleable(value = secureScreen, role = Role.Switch) { settings.setSecureScreen(it) },
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Text(SECURE_SCREEN_TEXT, Modifier.weight(1f).padding(end = 8.dp))
+        Switch(checked = secureScreen, onCheckedChange = null)
+    }
+    error?.let {
+        Text(it.toString(), color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
     }
 }

@@ -1,13 +1,19 @@
 package io.github.maxdac.marknotes
 
 import android.app.Application
+import android.content.BroadcastReceiver
 import android.content.Context
+import android.content.Intent
+import android.content.IntentFilter
 import android.os.Build
+import android.os.SystemClock
+import androidx.core.content.ContextCompat
 import io.github.maxdac.marknotes.auth.CredentialStore
 import io.github.maxdac.marknotes.core.notes.LocalNoteStore
 import io.github.maxdac.marknotes.core.sync.DriveProvider
 import io.github.maxdac.marknotes.data.AppSettings
 import io.github.maxdac.marknotes.data.MarkNotesDatabase
+import io.github.maxdac.marknotes.security.AppLock
 import io.github.maxdac.marknotes.sync.DriveConnector
 import io.github.maxdac.marknotes.sync.DropboxConnector
 import io.github.maxdac.marknotes.sync.PendingSaves
@@ -60,6 +66,22 @@ class AppContainer(
     val notes = LocalNoteStore(notesRoot)
     val imageImporter = ImageImporter(context.applicationContext)
     val settings = AppSettings(context, dynamicColorSupported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
+
+    /** The optional app lock (Settings, Privacy); locked on cold start when enabled. */
+    val appLock = AppLock(
+        enabled = { settings.appLockEnabled.value },
+        timeoutMillis = { settings.lockTimeout.value.millis },
+        clock = SystemClock::elapsedRealtime
+    ).also { lock ->
+        ContextCompat.registerReceiver(
+            context.applicationContext,
+            object : BroadcastReceiver() {
+                override fun onReceive(context: Context, intent: Intent) = lock.onScreenOff()
+            },
+            IntentFilter(Intent.ACTION_SCREEN_OFF),
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
+    }
     private val database = MarkNotesDatabase.create(context)
     private val credentials = CredentialStore(context)
 

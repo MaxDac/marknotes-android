@@ -116,6 +116,8 @@ class EditorViewModel(private val container: AppContainer, val path: String) : V
         val textChanged = value.text != _state.value.text
         _state.value = _state.value.copy(value = value, dirty = _state.value.dirty || textChanged)
         if (!textChanged) return
+        // Typing through the keyboard app doesn't reach Activity.onUserInteraction: keep the app lock's timer fresh.
+        container.appLock.onUserInteraction()
         saveJob?.cancel()
         saveJob = viewModelScope.launch {
             delay(AUTOSAVE_DELAY_MS)
