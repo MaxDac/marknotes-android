@@ -98,7 +98,7 @@ jobs:
           sudo udevadm trigger --name-match=kvm
       - uses: ./.github/actions/setup-android-build
       - name: Build test APKs
-        run: ./gradlew :app:assembleDebug :app:assembleDebugAndroidTest
+        run: ./gradlew :app:assembleDebug :app:assembleDebugAndroidTest :app-shared:assembleDebugAndroidTest
       - name: Run instrumented tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -110,7 +110,7 @@ jobs:
           disk-size: 4096M
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
-          script: ./gradlew --continue :app:connectedDebugAndroidTest
+          script: ./gradlew --continue :app:connectedDebugAndroidTest :app-shared:connectedDebugAndroidTest
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v7

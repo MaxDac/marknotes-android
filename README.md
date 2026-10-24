@@ -145,7 +145,7 @@ Requirements: JDK 21+ (Android Studio's bundled JBR works) and the Android SDK w
 ./gradlew ktlintCheck detekt lintDebug       # ktlint, detekt and Android Lint (ktlintFormat auto-fixes style)
 ./gradlew testDebugUnitTest :core:test       # unit tests (:core is a plain JVM module)
 ./gradlew :core:parityTest                   # marknotes-spec fixtures (git submodule update --init first)
-./gradlew :app:connectedDebugAndroidTest     # Compose UI tests on a running emulator/device
+./gradlew :app:connectedDebugAndroidTest :app-shared:connectedDebugAndroidTest # UI and image-loader tests on a device
 ```
 
 By default the build downloads marknotes-sync (the Kotlin bindings and the native library) from its
