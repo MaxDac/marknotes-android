@@ -96,6 +96,8 @@ dependencies {
     testImplementation(libs.junit)
     // marknotes-spec fixture loader (core/src/testFixtures).
     testImplementation(testFixtures(project(":core")))
+    androidTestImplementation(libs.androidx.test.ext.junit)
+    androidTestImplementation(libs.androidx.test.runner)
 }
 
 // The spec/ submodule sits next to this module, both in marknotes-android and when the Pro app includes it.
