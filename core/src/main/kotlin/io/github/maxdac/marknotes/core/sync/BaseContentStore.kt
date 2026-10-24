@@ -2,6 +2,7 @@ package io.github.maxdac.marknotes.core.sync
 
 import java.io.File
 import java.io.IOException
+import java.nio.file.Files
 
 /**
  * Keeps, per drive, the content of every note as it was the last time it was in sync. It is the
@@ -11,6 +12,7 @@ interface BaseContentStore {
     fun get(path: String): ByteArray?
     fun put(path: String, bytes: ByteArray)
     fun delete(path: String)
+    fun rename(path: String, toPath: String)
     fun clear()
 }
 
@@ -31,6 +33,17 @@ class FileBaseContentStore(private val root: File) : BaseContentStore {
         file(path).deleteRecursively()
     }
 
+    override fun rename(path: String, toPath: String) {
+        val source = file(path)
+        if (!source.exists()) return
+        val target = file(toPath)
+        if (target.exists() && Files.isSameFile(source.toPath(), target.toPath())) {
+            if (!source.renameTo(target)) throw IOException("Cannot rename base copy $path")
+        } else {
+            Files.move(source.toPath(), target.toPath())
+        }
+    }
+
     override fun clear() {
         root.deleteRecursively()
     }
@@ -47,6 +60,14 @@ class InMemoryBaseContentStore : BaseContentStore {
 
     override fun delete(path: String) {
         synchronized(items) { items.keys.removeAll { it == path || it.startsWith("$path/") } }
+    }
+
+    override fun rename(path: String, toPath: String) {
+        synchronized(items) {
+            val moved = items.filterKeys { it == path || it.startsWith("$path/") }
+            moved.forEach { (key, bytes) -> items[toPath + key.removePrefix(path)] = bytes }
+            moved.keys.forEach(items::remove)
+        }
     }
 
     override fun clear() {

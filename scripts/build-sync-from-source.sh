@@ -7,6 +7,7 @@
 #   ./gradlew assembleRelease -Pmarknotes.sync.fromSource=<same checkout>   # e.g. =marknotes-sync
 #
 # The marknotes-sync/ submodule is checked out at tag v<marknotesSync>: bump both together.
+# Development integrations may instead name an exact commit in gradle/marknotes-sync-source.properties.
 #
 # This is the build path of F-Droid (.fdroid.yml) and of the release workflow. Needs Linux, rustup with the pinned
 # toolchain and the aarch64-linux-android/x86_64-linux-android targets, cargo-ndk, the pinned NDK (ANDROID_NDK_HOME)
@@ -20,7 +21,7 @@ dir="${1:-$root/marknotes-sync}"
 
 # Pinned so rebuilds (F-Droid, the reproducible-build check) produce identical libraries.
 export RUSTUP_TOOLCHAIN="${RUSTUP_TOOLCHAIN:-1.99.1}"
-export MARKNOTES_NDK_VERSION="${MARKNOTES_NDK_VERSION:-27.3.13750724}"
+export MARKNOTES_NDK_VERSION="${MARKNOTES_NDK_VERSION:-30.0.16248370}"
 
 if [ ! -f "$dir/Cargo.toml" ] && [ "$dir" = "$root/marknotes-sync" ]; then
   git -C "$root" submodule update --init marknotes-sync
@@ -29,6 +30,7 @@ elif [ ! -f "$dir/Cargo.toml" ]; then
 fi
 dir="$(cd "$dir" && pwd)"
 cd "$dir"
+"$root/scripts/check-sync-pin.sh"
 grep -q "^version = \"$version\"" Cargo.toml \
   || { echo "$dir is not marknotes-sync $version (check out tag v$version)" >&2; exit 1; }
 

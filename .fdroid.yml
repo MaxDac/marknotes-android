@@ -42,7 +42,7 @@ Builds:
     build:
       - source $HOME/.cargo/env
       - ANDROID_NDK_HOME=$$NDK$$ GRADLE=gradle ../scripts/build-sync-from-source.sh
-    ndk: r27d
+    ndk: r30
     gradleprops:
       - marknotes.sync.fromSource=marknotes-sync
 

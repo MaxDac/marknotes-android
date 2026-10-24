@@ -376,7 +376,7 @@ class SyncEngineTest {
     }
 
     @Test
-    fun localFolderDeletionTrashesRemoteFolderOnce() = runTest {
+    fun localFolderDeletionRemovesKnownChildrenBeforeEmptyFolders() = runTest {
         local.write("a/x.md", "x")
         local.write("a/b/y.md", "y")
         syncClean()
@@ -385,7 +385,10 @@ class SyncEngineTest {
 
         syncClean()
 
-        assertEquals(listOf("delete:a"), remote.calls)
+        assertEquals(
+            listOf("delete:a/b/y.md", "delete:a/x.md", "deleteFolderIfEmpty:a/b", "deleteFolderIfEmpty:a"),
+            remote.calls
+        )
         assertFalse(remote.exists("a"))
         assertTrue(metadata.all().isEmpty())
         assertStable()
@@ -584,6 +587,96 @@ class SyncEngineTest {
     }
 
     @Test
+    fun anUploadRacingAnotherDevicesCreateNeverOverwritesIt() = runTest {
+        local.write("new.md", "mine")
+        remote.afterSnapshot = { remote.putFile("new.md", "theirs") }
+
+        val result = engine.sync()
+
+        assertEquals(1, result.errors.size)
+        assertEquals("theirs", remote.content("new.md"))
+        assertEquals("mine", local.read("new.md"))
+        assertEquals(null, record("new.md"))
+    }
+
+    @Test
+    fun plannedFolderCreationNeverAdoptsARacingRemoteFolder() = runTest {
+        local.createFolder("folder")
+        remote.afterSnapshot = { remote.putFolder("folder") }
+
+        val result = engine.sync()
+
+        assertEquals(1, result.errors.size)
+        assertTrue(remote.isFolder("folder"))
+        assertEquals(null, record("folder"))
+        syncClean()
+        assertTrue(record("folder") != null)
+    }
+
+    @Test
+    fun plannedFolderCreationNeverAdoptsARacingLocalFolder() = runTest {
+        remote.putFolder("folder")
+        remote.afterSnapshot = { local.createFolder("folder") }
+
+        val result = engine.sync()
+
+        assertEquals(1, result.errors.size)
+        assertEquals(0, result.createdLocalFolders)
+        assertTrue(local.isFolder("folder"))
+        assertEquals(null, record("folder"))
+    }
+
+    @Test
+    fun remoteFolderDeletionNeverDeletesUnseenChildren() = runTest {
+        local.createFolder("folder")
+        syncClean()
+        local.delete("folder")
+        remote.afterSnapshot = { remote.putFile("folder/new.md", "unseen") }
+
+        val result = engine.sync()
+
+        assertEquals(1, result.errors.size)
+        assertEquals(0, result.deletedRemote)
+        assertEquals("unseen", remote.content("folder/new.md"))
+        assertTrue(record("folder") != null)
+    }
+
+    @Test
+    fun unsupportedSafeFolderDeletionReportsAnErrorAndRetainsState() = runTest {
+        local.createFolder("folder")
+        syncClean()
+        local.delete("folder")
+        remote.supportsSafeFolderDeletion = false
+
+        val result = engine.sync()
+
+        assertTrue(result.errors.single().contains("Safe empty-folder deletion is not supported"))
+        assertEquals(0, result.deletedRemote)
+        assertTrue(remote.isFolder("folder"))
+        assertTrue(record("folder") != null)
+    }
+
+    @Test
+    fun localFolderDeletionKeepsHiddenAndUnsupportedChildrenAndState() = runTest {
+        for (child in listOf(".hidden", "unsupported.txt")) {
+            local.createFolder("folder")
+            syncClean()
+            remote.remove("folder")
+            val file = File(dir, "folder/$child")
+            file.writeText("unseen")
+
+            val result = engine.sync()
+
+            assertEquals(1, result.errors.size)
+            assertEquals(0, result.deletedLocal)
+            assertEquals("unseen", file.readText())
+            assertTrue(record("folder") != null)
+            local.delete("folder")
+            metadata.clear()
+        }
+    }
+
+    @Test
     fun theConflictedCopyIsSavedBeforeTheNoteIsOverwritten() = runTest {
         local.write("n.md", "local")
         remote.putFile("n.md", "remote")
@@ -610,5 +703,74 @@ class SyncEngineTest {
         assertEquals(123_000L, remote.entry("up.md")!!.modifiedMillis)
         assertEquals(456_000L, local.modifiedMillis("down.md"))
         assertStable()
+    }
+
+    @Test
+    fun remoteCaseRenameMigratesLocalPathsAndOnlyThisDrivesState() = runTest {
+        val base = InMemoryBaseContentStore()
+        engine = SyncEngine(local, remote, metadata, base) { 1000L }
+        local.write("Note.md", "same")
+        syncClean()
+        val old = record("Note.md")!!
+        remote.rename(remote.entry("Note.md")!!, "note.md")
+
+        val result = syncClean()
+
+        assertEquals(listOf("note.md"), local.listAll().map { it.path })
+        assertEquals(old.localHash, record("note.md")!!.localHash)
+        assertEquals(null, record("Note.md"))
+        assertEquals("same", base.get("note.md")!!.toString(Charsets.UTF_8))
+        assertEquals(null, base.get("Note.md"))
+        assertEquals(1, result.renamedLocal)
+        assertStable()
+    }
+
+    @Test
+    fun localCaseRenameMovesRemoteIdentityWithoutChangingBytesOrTime() = runTest {
+        local.write("Note.md", "same")
+        local.file("Note.md").setLastModified(123_000L)
+        syncClean()
+        val old = remote.entry("Note.md")!!
+        local.renameCase("Note.md", "note.md")
+
+        syncClean()
+
+        assertEquals(old.copy(path = "note.md"), remote.entry("note.md"))
+        assertEquals("same", remote.content("note.md"))
+        assertEquals(null, record("Note.md"))
+        assertStable()
+    }
+
+    @Test
+    fun remoteFolderCaseRenameMigratesDescendantRecordsAndBaseCopies() = runTest {
+        val base = InMemoryBaseContentStore()
+        engine = SyncEngine(local, remote, metadata, base) { 1000L }
+        local.write("Folder/child.md", "same")
+        syncClean()
+        remote.rename(remote.entry("Folder")!!, "folder")
+
+        syncClean()
+
+        assertEquals(listOf("folder", "folder/child.md"), local.listAll().map { it.path })
+        assertEquals(setOf("folder", "folder/child.md"), metadata.all().map { it.path }.toSet())
+        assertEquals("same", base.get("folder/child.md")!!.toString(Charsets.UTF_8))
+        assertEquals(null, base.get("Folder/child.md"))
+        assertStable()
+    }
+
+    @Test
+    fun editedStaleCaseRenameReportsAnErrorWithoutMovingEitherVersion() = runTest {
+        local.write("Note.md", "same")
+        syncClean()
+        remote.rename(remote.entry("Note.md")!!, "note.md")
+        local.write("Note.md", "edited")
+
+        val result = engine.sync()
+
+        assertTrue(result.errors.isNotEmpty())
+        assertEquals(listOf("Note.md"), local.listAll().map { it.path })
+        assertEquals("edited", local.read("Note.md"))
+        assertEquals("same", remote.content("note.md"))
+        assertTrue(record("Note.md") != null)
     }
 }

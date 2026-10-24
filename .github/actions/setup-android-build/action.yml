@@ -26,3 +26,17 @@ runs:
         sdkmanager="${ANDROID_HOME:-$ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager"
         yes | "$sdkmanager" --licenses > /dev/null || true
         "$sdkmanager" --install "platforms;android-37.0" > /dev/null
+
+    - name: Initialize the development sync source
+      if: hashFiles('gradle/marknotes-sync-source.properties') != ''
+      shell: bash
+      run: git submodule update --init marknotes-sync
+
+    - name: Set up the development sync source toolchain
+      if: hashFiles('gradle/marknotes-sync-source.properties') != ''
+      uses: ./.github/actions/setup-sync-toolchain
+
+    - name: Build the development sync source
+      if: hashFiles('gradle/marknotes-sync-source.properties') != ''
+      shell: bash
+      run: scripts/build-sync-from-source.sh

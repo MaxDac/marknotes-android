@@ -7,7 +7,9 @@ import io.github.maxdac.marknotes.core.sync.DriveAccount
 import io.github.maxdac.marknotes.core.sync.DriveProvider
 import io.github.maxdac.marknotes.core.sync.DriveSyncTarget
 import io.github.maxdac.marknotes.core.sync.FileBaseContentStore
+import io.github.maxdac.marknotes.core.sync.FileConflictCopyStore
 import io.github.maxdac.marknotes.core.sync.FileConflictStore
+import io.github.maxdac.marknotes.core.sync.FileRenameStore
 import io.github.maxdac.marknotes.core.sync.MultiDriveSync
 import io.github.maxdac.marknotes.core.sync.SyncConflict
 import io.github.maxdac.marknotes.core.sync.UserFacingError
@@ -202,7 +204,11 @@ class SyncManager(
     private suspend fun forget(account: DriveAccount) {
         signOut(account.provider, account.id)
         records.clear(account.id)
-        withContext(Dispatchers.IO) { baseStore(account.id).clear() }
+        withContext(Dispatchers.IO) {
+            baseStore(account.id).clear()
+            pendingStore(account.id).clear()
+            renameStore(account.id).clear()
+        }
         accounts.delete(account.id)
     }
 
@@ -216,6 +222,7 @@ class SyncManager(
         withContext(Dispatchers.IO) {
             notes.deleteAll()
             File(context.filesDir, BASE_DIR).deleteRecursively()
+            File(context.filesDir, PENDING_DIR).deleteRecursively()
             conflictStore.save(emptyList())
             // Import previews and camera captures; caches only hold copies, so all of it can go.
             context.cacheDir.listFiles()?.forEach { it.deleteRecursively() }
@@ -342,11 +349,19 @@ class SyncManager(
             driveId = account.id,
             remote = connector.store(account),
             metadata = RoomSyncMetadataStore(records, account.id),
-            base = baseStore(account.id)
+            base = baseStore(account.id),
+            pending = pendingStore(account.id),
+            renames = renameStore(account.id)
         )
     }
 
     private fun baseStore(driveId: String) = FileBaseContentStore(File(context.filesDir, "$BASE_DIR/$driveId"))
+
+    private fun pendingStore(driveId: String) =
+        FileConflictCopyStore(File(context.filesDir, "$PENDING_DIR/$driveId.json"))
+
+    private fun renameStore(driveId: String) =
+        FileRenameStore(File(context.filesDir, "$PENDING_DIR/$driveId-renames.json"))
 
     private suspend fun signOut(provider: DriveProvider, accountId: String) {
         try {
@@ -377,5 +392,6 @@ class SyncManager(
     private companion object {
         /** Base copies of the last synced version of each file, per drive, for three-way merges. */
         const val BASE_DIR = "sync-base"
+        const val PENDING_DIR = "sync-pending"
     }
 }

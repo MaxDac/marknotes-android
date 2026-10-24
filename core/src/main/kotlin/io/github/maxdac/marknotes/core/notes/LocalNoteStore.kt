@@ -1,10 +1,16 @@
 package io.github.maxdac.marknotes.core.notes
 
 import java.io.File
+import java.io.FileOutputStream
 import java.io.IOException
+import java.nio.ByteBuffer
+import java.nio.channels.FileChannel
 import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
+import java.nio.file.StandardOpenOption
+import java.nio.file.attribute.BasicFileAttributes
+import java.nio.file.attribute.FileTime
 
 data class NoteEntry(
     val path: String,
@@ -85,8 +91,13 @@ class LocalNoteStore(val root: File) {
         val parent = target.parentFile ?: throw IOException("Invalid path: $path")
         if (!parent.isDirectory && !parent.mkdirs()) throw IOException("Cannot create folder for $path")
         val temp = File(parent, ".${target.name}.tmp")
-        temp.writeBytes(bytes)
-        if (modifiedMillis != null && modifiedMillis > 0) temp.setLastModified(modifiedMillis)
+        FileOutputStream(temp).use {
+            it.write(bytes)
+            if (modifiedMillis != null) {
+                Files.setLastModifiedTime(temp.toPath(), FileTime.fromMillis(modifiedMillis))
+            }
+            it.fd.sync()
+        }
         try {
             Files.move(
                 temp.toPath(),
@@ -104,6 +115,26 @@ class LocalNoteStore(val root: File) {
         val dir = file(normalized)
         if (!dir.isDirectory && !dir.mkdirs()) throw IOException("Cannot create folder $path")
         return normalized
+    }
+
+    /** Creates a planned sync folder without adopting an existing directory. */
+    fun createFolderNew(path: String) {
+        val target = file(path)
+        require(target != root) { "Cannot create the root folder" }
+        Files.createDirectory(target.toPath())
+    }
+
+    /** Create-only sync write. An interrupted write is recovered from the conflict journal, never overwritten. */
+    fun writeNewBytes(path: String, bytes: ByteArray, modifiedMillis: Long) {
+        val target = file(path)
+        require(target != root) { "Cannot write to the root folder" }
+        Files.createDirectories(target.parentFile.toPath())
+        FileChannel.open(target.toPath(), StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE).use {
+            val buffer = ByteBuffer.wrap(bytes)
+            while (buffer.hasRemaining()) it.write(buffer)
+            Files.setLastModifiedTime(target.toPath(), FileTime.fromMillis(modifiedMillis))
+            it.force(true)
+        }
     }
 
     /**
@@ -187,6 +218,36 @@ class LocalNoteStore(val root: File) {
         val target = file(path)
         require(target != root) { "Cannot delete the root folder" }
         if (target.exists() && !target.deleteRecursively()) throw IOException("Cannot delete $path")
+    }
+
+    /** Deletes an empty sync folder atomically; even hidden and unsupported children prevent deletion. */
+    fun deleteEmptyFolder(path: String) {
+        val target = file(path)
+        require(target != root) { "Cannot delete the root folder" }
+        if (target.exists() && !target.isDirectory) throw IOException("Not a folder: $path")
+        Files.deleteIfExists(target.toPath())
+    }
+
+    fun identity(path: String): String =
+        Files.readAttributes(file(path).toPath(), BasicFileAttributes::class.java).fileKey()?.toString()
+            ?: throw IOException("Cannot verify the local file identity: $path")
+
+    /** A single no-clobber case rename; no temporary name can be stranded by a crash. */
+    fun renameCase(path: String, toPath: String) {
+        val source = file(path)
+        val target = file(toPath)
+        require(source != root && target != root) { "Cannot rename the root folder" }
+        require(source.parentFile.canonicalFile == target.parentFile.canonicalFile) { "Not a case-only rename" }
+        val identity = Files.readAttributes(source.toPath(), BasicFileAttributes::class.java).fileKey()
+        if (target.exists() && Files.isSameFile(source.toPath(), target.toPath())) {
+            if (!source.renameTo(target)) throw IOException("Cannot rename $path to $toPath")
+        } else {
+            Files.move(source.toPath(), target.toPath())
+        }
+        check(target.parentFile.list()?.contains(target.name) == true) { "Rename did not preserve exact case: $toPath" }
+        check(identity == Files.readAttributes(target.toPath(), BasicFileAttributes::class.java).fileKey()) {
+            "Rename changed the file identity: $toPath"
+        }
     }
 
     /**

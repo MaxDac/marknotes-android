@@ -1,7 +1,6 @@
 package io.github.maxdac.marknotes.sync
 
 import com.dropbox.core.v2.DbxClientV2
-import com.dropbox.core.v2.files.CreateFolderErrorException
 import com.dropbox.core.v2.files.DeleteErrorException
 import com.dropbox.core.v2.files.DeletedMetadata
 import com.dropbox.core.v2.files.DownloadErrorException
@@ -148,35 +147,26 @@ class DropboxDriveStore(private val client: DbxClientV2, syncFolder: String) : R
             val metadata = client.files().uploadBuilder(absolute(path))
                 .withMode(mode)
                 .withAutorename(false)
-                .withClientModified(if (modifiedMillis > 0L) Date(modifiedMillis) else null)
+                .withStrictConflict(true)
+                .withClientModified(Date(modifiedMillis))
                 .uploadAndFinish(bytes.inputStream())
             remember(metadata)
         }
 
     override suspend fun createFolder(path: String): RemoteEntry = withContext(Dispatchers.IO) {
-        val metadata = try {
-            client.files().createFolderV2(absolute(path)).metadata
-        } catch (e: CreateFolderErrorException) {
-            if (!(e.errorValue.isPath && e.errorValue.pathValue.isConflict)) throw e
-            client.files().getMetadata(absolute(path))
-        }
-        remember(metadata)
+        remember(client.files().createFolderV2(absolute(path)).metadata)
     }
 
     override suspend fun delete(entry: RemoteEntry): Unit = withContext(Dispatchers.IO) {
+        require(!entry.isFolder) { "Dropbox cannot safely delete a folder without deleting unseen descendants" }
         val path = absolute(entry.path)
         try {
             // parent_rev: Dropbox only deletes the file if it is still the revision this device saw.
-            if (entry.isFolder) client.files().deleteV2(path) else client.files().deleteV2(path, entry.version)
+            client.files().deleteV2(path, entry.version)
         } catch (e: DeleteErrorException) {
-            val notFound = e.errorValue.isPathLookup && e.errorValue.pathLookupValue.isNotFound
-            if (entry.isFolder) {
-                if (!notFound) throw e
-            } else {
-                val current = currentMetadata(path)
-                if (current is FileMetadata && current.rev != entry.version) throw RemoteChangedException(entry.path)
-                if (current != null) throw e
-            }
+            val current = currentMetadata(path)
+            if (current is FileMetadata && current.rev != entry.version) throw RemoteChangedException(entry.path)
+            if (current != null) throw e
         }
         val key = entry.path.lowercase(Locale.ROOT)
         entries.keys.removeAll { it == key || it.startsWith("$key/") }

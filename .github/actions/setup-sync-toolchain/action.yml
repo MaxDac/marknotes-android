@@ -5,12 +5,12 @@ description: >-
 runs:
   using: composite
   steps:
-    - name: Install NDK r27d
+    - name: Install NDK r30
       shell: bash
       run: |
         sdkmanager="${ANDROID_HOME:-$ANDROID_SDK_ROOT}/cmdline-tools/latest/bin/sdkmanager"
-        "$sdkmanager" --install "ndk;27.3.13750724" > /dev/null
-        echo "ANDROID_NDK_HOME=${ANDROID_HOME:-$ANDROID_SDK_ROOT}/ndk/27.3.13750724" >> "$GITHUB_ENV"
+        "$sdkmanager" --install "ndk;30.0.16248370" > /dev/null
+        echo "ANDROID_NDK_HOME=${ANDROID_HOME:-$ANDROID_SDK_ROOT}/ndk/30.0.16248370" >> "$GITHUB_ENV"
 
     - name: Install Rust 1.99.1
       shell: bash

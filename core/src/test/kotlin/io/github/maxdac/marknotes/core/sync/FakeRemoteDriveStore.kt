@@ -17,6 +17,8 @@ class FakeRemoteDriveStore : RemoteDriveStore {
     /** Paths whose [uploadRevision] fails. */
     val failingRevisions = mutableSetOf<String>()
 
+    var supportsSafeFolderDeletion = true
+
     /** Runs once after the next [snapshot] is taken, e.g. to simulate another device or an editor save. */
     var afterSnapshot: (() -> Unit)? = null
 
@@ -91,6 +93,9 @@ class FakeRemoteDriveStore : RemoteDriveStore {
         calls += "uploadRevision:${entry.path}"
         if (entry.path in failingRevisions) error("upload refused")
         val current = items[entry.path] ?: error("Not found: ${entry.path}")
+        if (current.entry.id != entry.id || current.entry.version != entry.version) {
+            throw RemoteChangedException(entry.path)
+        }
         val updated = current.entry.copy(version = nextVersion(), modifiedMillis = modifiedMillis)
         items[entry.path] = Item(updated, bytes)
         return updated
@@ -98,8 +103,18 @@ class FakeRemoteDriveStore : RemoteDriveStore {
 
     override suspend fun createFolder(path: String): RemoteEntry {
         calls += "createFolder:$path"
+        check(path !in items) { "Already exists: $path" }
         putFolder(path)
         return items.getValue(path).entry
+    }
+
+    override suspend fun deleteFolderIfEmpty(entry: RemoteEntry) {
+        if (!supportsSafeFolderDeletion) return super.deleteFolderIfEmpty(entry)
+        calls += "deleteFolderIfEmpty:${entry.path}"
+        val current = items[entry.path]?.entry ?: return
+        check(current.isFolder && current.id == entry.id) { "Folder changed: ${entry.path}" }
+        check(items.keys.none { NotePaths.isAncestor(entry.path, it) }) { "Folder is not empty: ${entry.path}" }
+        items.remove(entry.path)
     }
 
     override suspend fun delete(entry: RemoteEntry) {
@@ -107,6 +122,20 @@ class FakeRemoteDriveStore : RemoteDriveStore {
         val current = items[entry.path]?.entry ?: return
         if (!entry.isFolder && current.version != entry.version) throw RemoteChangedException(entry.path)
         remove(entry.path)
+    }
+
+    override suspend fun rename(entry: RemoteEntry, toPath: String): RemoteEntry {
+        calls += "rename:${entry.path}:$toPath"
+        val current = items[entry.path]?.entry
+        if (current != entry) throw RemoteChangedException(entry.path)
+        check(toPath !in items) { "Already exists: $toPath" }
+        val moved = items.filterKeys { it == entry.path || NotePaths.isAncestor(entry.path, it) }
+        moved.keys.forEach(items::remove)
+        moved.forEach { (path, item) ->
+            val newPath = toPath + path.removePrefix(entry.path)
+            items[newPath] = Item(item.entry.copy(path = newPath), item.bytes)
+        }
+        return items.getValue(toPath).entry
     }
 
     var manifest: ByteArray? = null

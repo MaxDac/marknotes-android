@@ -74,6 +74,31 @@ class LocalNoteStoreTest {
     }
 
     @Test
+    fun plannedFolderCreationNeverAdoptsAnExistingDirectoryOrFile() {
+        store.createFolderNew("fresh")
+        assertThrows(IOException::class.java) { store.createFolderNew("fresh") }
+        store.write("existing.md", "keep")
+        assertThrows(IOException::class.java) { store.createFolderNew("existing.md") }
+        assertEquals("keep", store.read("existing.md"))
+    }
+
+    @Test
+    fun syncFolderDeletionRejectsEveryDescendant() {
+        for (child in listOf(".hidden", "unsupported.txt", "nested/n.md")) {
+            val file = File(dir, "folder/$child")
+            file.parentFile.mkdirs()
+            file.writeText("keep")
+            assertThrows(IOException::class.java) { store.deleteEmptyFolder("folder") }
+            assertEquals("keep", file.readText())
+            store.delete("folder")
+        }
+        store.createFolder("folder")
+        store.deleteEmptyFolder("folder")
+        store.deleteEmptyFolder("folder")
+        assertFalse(store.exists("folder"))
+    }
+
+    @Test
     fun renameKeepsExtensionAndFolder() {
         store.write("a/old.md", "x")
         val newPath = store.rename("a/old.md", "new")
