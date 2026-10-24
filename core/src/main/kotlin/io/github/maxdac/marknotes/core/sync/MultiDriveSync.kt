@@ -1,5 +1,7 @@
 package io.github.maxdac.marknotes.core.sync
 
+import io.github.maxdac.marknotes.core.diagnostics.DiagnosticCode
+import io.github.maxdac.marknotes.core.diagnostics.DiagnosticReporter
 import io.github.maxdac.marknotes.core.notes.LocalNoteStore
 import io.github.maxdac.marknotes.sync.LocalEntry
 import io.github.maxdac.marknotes.sync.SyncScheduler
@@ -38,12 +40,15 @@ class MultiDriveSync(
     private val maxPassesPerDrive: Int = 3,
     private val clock: () -> Long = System::currentTimeMillis
 ) {
+    var diagnostics: DiagnosticReporter = DiagnosticReporter.NONE
 
     fun engine(target: DriveSyncTarget) =
         SyncEngine(
             local, target.remote, target.metadata, target.base, target.driveId, deviceId, target.pending,
             target.renames, clock
-        )
+        ).also {
+            it.diagnostics = diagnostics
+        }
 
     suspend fun sync(targets: List<DriveSyncTarget>): MultiDriveSyncResult {
         val byId = targets.associateBy { it.driveId }
@@ -60,6 +65,7 @@ class MultiDriveSync(
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
+                    diagnostics.report(DiagnosticCode.SYNC, e)
                     DriveSyncOutcome(driveId, null, e.message ?: e.javaClass.simpleName)
                 }
                 outcomes[driveId] = outcome

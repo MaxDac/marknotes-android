@@ -1,5 +1,8 @@
 package io.github.maxdac.marknotes.ui.settings
 
+import android.content.ActivityNotFoundException
+import android.content.Intent
+import android.net.Uri
 import android.text.format.DateUtils
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
@@ -52,6 +55,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
@@ -61,12 +65,14 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.maxdac.marknotes.AppContainer
 import io.github.maxdac.marknotes.appContainer
+import io.github.maxdac.marknotes.core.diagnostics.DiagnosticCode
 import io.github.maxdac.marknotes.core.notes.Attachments
 import io.github.maxdac.marknotes.data.AppSettings
 import io.github.maxdac.marknotes.data.LockTimeout
 import io.github.maxdac.marknotes.data.ThemeColor
 import io.github.maxdac.marknotes.data.ThemeMode
 import io.github.maxdac.marknotes.security.DeviceAuth
+import io.github.maxdac.marknotes.shared.R
 import io.github.maxdac.marknotes.sync.DriveStatus
 import io.github.maxdac.marknotes.sync.SyncManager
 import io.github.maxdac.marknotes.ui.MarkNotesLogo
@@ -148,6 +154,9 @@ fun SettingsScreen(
             AppLockSection(container)
 
             HorizontalDivider()
+            DiagnosticsSection(container.diagnostics)
+
+            HorizontalDivider()
             Text("About", style = MaterialTheme.typography.titleMedium)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 MarkNotesLogo(size = 48.dp)
@@ -161,6 +170,7 @@ fun SettingsScreen(
                     "\"Sync now\"; there is no background polling.",
                 style = MaterialTheme.typography.bodySmall
             )
+            TipSection()
         }
     }
 
@@ -171,6 +181,32 @@ fun SettingsScreen(
             syncManager = syncManager,
             onDismiss = { removing = null },
             onLocalDataDeleted = onLocalDataDeleted
+        )
+    }
+}
+
+@Composable
+private fun TipSection() {
+    val context = LocalContext.current
+    var error by remember { mutableStateOf<Int?>(null) }
+    Text(stringResource(R.string.tip_description), style = MaterialTheme.typography.bodySmall)
+    OutlinedButton(onClick = {
+        error = null
+        try {
+            context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse("https://ko-fi.com/maxdac")))
+        } catch (_: ActivityNotFoundException) {
+            error = R.string.tip_no_browser
+        } catch (_: SecurityException) {
+            error = R.string.tip_browser_blocked
+        }
+    }) {
+        Text(stringResource(R.string.leave_a_tip))
+    }
+    error?.let {
+        Text(
+            stringResource(it),
+            color = MaterialTheme.colorScheme.error,
+            style = MaterialTheme.typography.bodySmall
         )
     }
 }
@@ -315,7 +351,10 @@ private fun ImagesSection(container: AppContainer, enabled: Boolean) {
                                 1 -> "Deleted 1 unused image."
                                 else -> "Deleted ${deleted.size} unused images."
                             }
+                        } catch (e: CancellationException) {
+                            throw e
                         } catch (e: Exception) {
+                            container.diagnostics.report(DiagnosticCode.IMAGE_IMPORT, e)
                             "Could not clean images: ${e.message}"
                         }
                         cleaning = false
@@ -374,6 +413,7 @@ private fun RemoveDriveDialog(
 
 @Composable
 private fun PrivacySection(syncManager: SyncManager, enabled: Boolean, onDeleted: () -> Unit) {
+    val diagnostics = LocalContext.current.appContainer.diagnostics
     val scope = rememberCoroutineScope()
     var confirming by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf(false) }
@@ -414,6 +454,7 @@ private fun PrivacySection(syncManager: SyncManager, enabled: Boolean, onDeleted
                             } catch (e: CancellationException) {
                                 throw e
                             } catch (e: Exception) {
+                                diagnostics.report(DiagnosticCode.LOCAL_DATA_DELETE, e)
                                 error = "Could not delete the local data: ${e.message ?: e.javaClass.simpleName}"
                                 false
                             } finally {

@@ -6,6 +6,8 @@ import com.dropbox.core.android.Auth
 import com.dropbox.core.oauth.DbxCredential
 import com.dropbox.core.v2.DbxClientV2
 import io.github.maxdac.marknotes.auth.CredentialStore
+import io.github.maxdac.marknotes.core.diagnostics.DiagnosticCode
+import io.github.maxdac.marknotes.core.diagnostics.DiagnosticReporter
 import io.github.maxdac.marknotes.core.sync.DriveAccount
 import io.github.maxdac.marknotes.core.sync.DriveProvider
 import io.github.maxdac.marknotes.core.sync.RemoteDriveStore
@@ -18,7 +20,11 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /** Dropbox through the official SDK. Sign-in uses OAuth with PKCE; the refresh token is stored encrypted. */
-class DropboxConnector(private val credentials: CredentialStore, private val appKey: String) : DriveConnector {
+class DropboxConnector(
+    private val credentials: CredentialStore,
+    private val appKey: String,
+    private val diagnostics: DiagnosticReporter = DiagnosticReporter.NONE
+) : DriveConnector {
     override val provider = DriveProvider.DROPBOX
 
     private val config = DbxRequestConfig.newBuilder("MarkNotes").build()
@@ -72,6 +78,7 @@ class DropboxConnector(private val credentials: CredentialStore, private val app
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+            diagnostics.report(DiagnosticCode.SIGN_OUT, e)
             // The credentials are forgotten regardless.
         }
         credentials.remove(accountId)

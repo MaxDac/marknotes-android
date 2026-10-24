@@ -8,6 +8,8 @@ import android.graphics.ImageDecoder
 import android.net.Uri
 import android.os.Build
 import android.provider.OpenableColumns
+import io.github.maxdac.marknotes.core.diagnostics.DiagnosticCode
+import io.github.maxdac.marknotes.core.diagnostics.DiagnosticReporter
 import io.github.maxdac.marknotes.core.notes.Attachments
 import java.io.ByteArrayOutputStream
 import java.io.IOException
@@ -24,7 +26,10 @@ class ImageImportException(message: String) : IOException(message)
  * accepted, images are downscaled so their longest side is at most [Attachments.MAX_DIMENSION] (keeping
  * their format; GIFs are left untouched) and anything still over [Attachments.MAX_BYTES] is rejected.
  */
-class ImageImporter(private val context: Context) {
+class ImageImporter(
+    private val context: Context,
+    private val diagnostics: DiagnosticReporter = DiagnosticReporter.NONE
+) {
 
     fun import(uri: Uri, fallbackName: String, mimeHint: String? = null): ImportedImage {
         val mime = context.contentResolver.getType(uri) ?: mimeHint
@@ -73,8 +78,10 @@ class ImageImporter(private val context: Context) {
             if (it.moveToFirst() && !it.isNull(0)) it.getString(0) else null
         }
     } catch (e: SecurityException) {
+        diagnostics.report(DiagnosticCode.IMAGE_IMPORT, e)
         null
     } catch (e: IllegalArgumentException) {
+        diagnostics.report(DiagnosticCode.IMAGE_IMPORT, e)
         null
     }
 
@@ -110,6 +117,7 @@ class ImageImporter(private val context: Context) {
         val orientation = exif.getAttributeInt(TAG_ORIENTATION, ORIENTATION_NORMAL)
         orientation != ORIENTATION_NORMAL && orientation != ORIENTATION_UNDEFINED
     } catch (e: IOException) {
+        diagnostics.report(DiagnosticCode.IMAGE_IMPORT, e)
         false
     }
 

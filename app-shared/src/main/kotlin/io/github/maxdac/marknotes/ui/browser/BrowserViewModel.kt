@@ -3,8 +3,10 @@ package io.github.maxdac.marknotes.ui.browser
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.maxdac.marknotes.AppContainer
+import io.github.maxdac.marknotes.core.diagnostics.DiagnosticCode
 import io.github.maxdac.marknotes.core.notes.ChordSequences
 import io.github.maxdac.marknotes.core.notes.NoteEntry
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -57,8 +59,14 @@ class BrowserViewModel(private val container: AppContainer, val folder: String) 
         }
     }
 
-    private fun isChordFile(path: String): Boolean =
-        runCatching { ChordSequences.isChordFile(notes, path) }.getOrDefault(false)
+    private fun isChordFile(path: String): Boolean = try {
+        ChordSequences.isChordFile(notes, path)
+    } catch (e: CancellationException) {
+        throw e
+    } catch (e: Exception) {
+        container.diagnostics.report(DiagnosticCode.NOTE_READ, e)
+        false
+    }
 
     fun createNote(name: String, onCreated: (String) -> Unit) = act {
         val path = notes.createNote(folder, name)
@@ -88,7 +96,10 @@ class BrowserViewModel(private val container: AppContainer, val folder: String) 
         viewModelScope.launch {
             try {
                 withContext(Dispatchers.IO) { block() }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
+                container.diagnostics.report(DiagnosticCode.NOTE_OPERATION, e)
                 _error.value = e.message ?: "Operation failed"
             }
             // Refreshes every open folder screen, since moves change two folders.

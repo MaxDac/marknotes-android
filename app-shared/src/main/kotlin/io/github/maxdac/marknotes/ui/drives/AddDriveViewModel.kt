@@ -4,6 +4,7 @@ import androidx.activity.ComponentActivity
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.maxdac.marknotes.AppContainer
+import io.github.maxdac.marknotes.core.diagnostics.DiagnosticCode
 import io.github.maxdac.marknotes.core.sync.DriveAccount
 import io.github.maxdac.marknotes.core.sync.DriveProvider
 import io.github.maxdac.marknotes.core.sync.RemoteFolder
@@ -44,6 +45,7 @@ data class AddDriveState(
 )
 
 class AddDriveViewModel(container: AppContainer) : ViewModel() {
+    private val diagnostics = container.diagnostics
     private val syncManager = container.syncManager
     private val _state = MutableStateFlow(AddDriveState())
     val state: StateFlow<AddDriveState> = _state
@@ -110,6 +112,7 @@ class AddDriveViewModel(container: AppContainer) : ViewModel() {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                diagnostics.report(DiagnosticCode.SIGN_IN, e)
                 _state.update {
                     it.copy(step = AddDriveStep.ChooseProvider, error = "Sign-in failed: ${describe(e)}")
                 }
@@ -127,6 +130,7 @@ class AddDriveViewModel(container: AppContainer) : ViewModel() {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                diagnostics.report(DiagnosticCode.FOLDER_LIST, e)
                 Result.failure(e)
             }
             _state.update { s ->

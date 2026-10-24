@@ -6,6 +6,8 @@ import android.hardware.biometrics.BiometricManager.Authenticators
 import android.hardware.biometrics.BiometricPrompt
 import android.os.Build
 import android.os.CancellationSignal
+import io.github.maxdac.marknotes.appContainer
+import io.github.maxdac.marknotes.core.diagnostics.DiagnosticCode
 
 /**
  * Biometric prompt with the device credential (PIN, pattern or password) as fallback, through the framework
@@ -44,6 +46,7 @@ object DeviceAuth {
             override fun onAuthenticationError(errorCode: Int, errString: CharSequence?) {
                 val cancelled = errorCode == BiometricPrompt.BIOMETRIC_ERROR_USER_CANCELED ||
                     errorCode == BiometricPrompt.BIOMETRIC_ERROR_CANCELED
+                if (!cancelled) context.appContainer.diagnostics.report(DiagnosticCode.AUTHENTICATION, null)
                 onResult(false, if (cancelled) null else errString ?: "Authentication failed")
             }
             // onAuthenticationFailed (a fingerprint or face that doesn't match) keeps the prompt open.
@@ -51,8 +54,10 @@ object DeviceAuth {
         try {
             builder.build().authenticate(CancellationSignal(), context.mainExecutor, callback)
         } catch (e: IllegalArgumentException) {
+            context.appContainer.diagnostics.report(DiagnosticCode.AUTHENTICATION, e)
             onResult(false, e.message ?: "Authentication is not available")
         } catch (e: SecurityException) {
+            context.appContainer.diagnostics.report(DiagnosticCode.AUTHENTICATION, e)
             onResult(false, e.message ?: "Authentication is not available")
         }
     }

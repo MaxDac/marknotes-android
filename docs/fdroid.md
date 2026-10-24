@@ -19,6 +19,12 @@ checking that its own build matches it. The same APK is on F-Droid and GitHub, s
 
 ## Prerequisites
 
+- **Diagnostics**: the local logger and user-reviewed report/export flow use only existing free software
+  dependencies and Android APIs. They require no new permissions, trackers, upload service or crash SDK. Runtime
+  log timestamps are not APK build inputs. Keep diagnostics out of the notes/sync tree and preserve the narrow,
+  non-exported FileProvider grants. The user explicitly consents before opening a GitHub draft (which sends its
+  URL payload before submission); local capture/export works offline. This introduces no automatic telemetry
+  and does not change the existing Dropbox `NonFreeNet` anti-feature or source-build recipe.
 - **Licences**: F-Droid only builds free software, including every submodule. This app is GPL-3.0-or-later and
   marknotes-sync is GPL-3.0-or-later from v0.1.2 (its `LICENSE` file); keep both licensed. The `spec/` submodules
   (marknotes-spec, test fixtures only) have no licence, so the recipe deletes them with `rm:` before building.
@@ -75,6 +81,21 @@ Update fdroiddata by hand (a small MR) when the build itself changes:
 
 `scripts/fdroid-lint.sh` fails in CI when `.fdroid.yml` drifts from the app version or the submodule from
 `marknotesSync`.
+
+## Donation link metadata
+
+The optional **Settings → About → Leave a tip** entry opens `https://ko-fi.com/maxdac` in an external browser
+only after a tap. Tips unlock nothing; there are no payment SDKs, embedded payment pages, reminders or automatic
+requests to Ko-fi. Payments are handled by the external website, not the app.
+
+`.fdroid.yml` includes the same URL in its `Donate` field (a scalar for one URL, as required by the pinned
+fdroidserver formatter). The upstream README and `.github/FUNDING.yml` also
+identify this support destination so F-Droid reviewers can verify it. Changing the local recipe does **not**
+publish or update the F-Droid listing: the official metadata is maintained separately in fdroiddata at
+`metadata/io.github.maxdac.marknotes.libre.yml`. Include the `Donate` field in the inclusion submission if it is
+still pending, or submit a metadata update if the app has already been accepted. Preserve fdroiddata's current
+build entries and commit hashes; do not overwrite them with the local recipe. A new release tag alone does not
+synchronize donation metadata.
 
 ## Reproducibility
 

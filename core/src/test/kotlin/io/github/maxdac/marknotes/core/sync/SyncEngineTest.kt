@@ -1,5 +1,7 @@
 package io.github.maxdac.marknotes.core.sync
 
+import io.github.maxdac.marknotes.core.diagnostics.DiagnosticCode
+import io.github.maxdac.marknotes.core.diagnostics.DiagnosticReporter
 import io.github.maxdac.marknotes.core.notes.FrontMatter
 import io.github.maxdac.marknotes.core.notes.LocalNoteStore
 import io.github.maxdac.marknotes.core.notes.NoteIds
@@ -426,6 +428,8 @@ class SyncEngineTest {
 
     @Test
     fun aFailedStepIsReportedAndTheSyncGoesOn() = runTest {
+        val codes = mutableListOf<DiagnosticCode>()
+        engine.diagnostics = DiagnosticReporter { code, _ -> codes += code }
         local.write("a.md", "a")
         local.write("b.md", "b")
         remote.failingUploads += "a.md"
@@ -433,6 +437,7 @@ class SyncEngineTest {
         val result = engine.sync()
 
         assertEquals(listOf("a.md: upload refused"), result.errors)
+        assertEquals(listOf(DiagnosticCode.SYNC), codes)
         assertEquals("b", remote.content("b.md"))
         remote.failingUploads.clear()
         syncClean()

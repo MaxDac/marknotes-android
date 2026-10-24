@@ -3,6 +3,7 @@ package io.github.maxdac.marknotes.ui.chords
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.maxdac.marknotes.AppContainer
+import io.github.maxdac.marknotes.core.diagnostics.DiagnosticCode
 import io.github.maxdac.marknotes.core.notes.Chord
 import io.github.maxdac.marknotes.core.notes.ChordParseResult
 import io.github.maxdac.marknotes.core.notes.ChordSequence
@@ -11,6 +12,7 @@ import io.github.maxdac.marknotes.core.notes.FrontMatter
 import io.github.maxdac.marknotes.core.notes.Instrument
 import io.github.maxdac.marknotes.core.notes.NoteIds
 import io.github.maxdac.marknotes.core.notes.StringSelection
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
@@ -135,7 +137,10 @@ class ChordEditorViewModel(private val container: AppContainer, val path: String
                         parseError = describe(result)
                     )
                 }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
+                container.diagnostics.report(DiagnosticCode.NOTE_READ, e)
                 _state.value = _state.value.copy(loaded = true, error = e.message)
             }
         }
@@ -273,7 +278,10 @@ class ChordEditorViewModel(private val container: AppContainer, val path: String
                     notes.write(path, FrontMatter.join(header, body))
                     wrote = true
                     if (pending == body) pending = null
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Exception) {
+                    container.diagnostics.report(DiagnosticCode.NOTE_WRITE, e)
                     _state.value = _state.value.copy(error = "Could not save: ${e.message}")
                 }
             }

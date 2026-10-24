@@ -71,7 +71,7 @@ fun ImportScreen(content: SharedContent, onSaved: (String) -> Unit, onCancel: ()
         val container = context.appContainer
         ImportViewModel(
             container = container,
-            reader = SharedContentReader(context.applicationContext, container.imageImporter),
+            reader = SharedContentReader(context.applicationContext, container.imageImporter, container.diagnostics),
             imageImporter = container.imageImporter,
             content = content,
             previewRoot = File(context.cacheDir, "import-preview/$previewId")

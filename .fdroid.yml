@@ -9,6 +9,7 @@ AuthorName: MaxDac
 SourceCode: https://github.com/MaxDac/marknotes-android
 IssueTracker: https://github.com/MaxDac/marknotes-android/issues
 Changelog: https://github.com/MaxDac/marknotes-android/releases
+Donate: https://ko-fi.com/maxdac
 
 AutoName: MarkNotes
 
@@ -17,9 +18,9 @@ Repo: https://github.com/MaxDac/marknotes-android.git
 Binaries: https://github.com/MaxDac/marknotes-android/releases/download/v%v/marknotes-libre-%v.apk
 
 Builds:
-  - versionName: 0.1.1
-    versionCode: 101
-    commit: v0.1.1
+  - versionName: 0.1.2
+    versionCode: 102
+    commit: v0.1.2
     subdir: app
     submodules: true
     sudo:
@@ -50,5 +51,5 @@ AllowedAPKSigningKeys: ffafda02fa9af06b1927095c8d843ae862173512d4cdaca09bbaaef84
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags ^v[0-9]+\.[0-9]+\.[0-9]+$
-CurrentVersion: 0.1.1
-CurrentVersionCode: 101
+CurrentVersion: 0.1.2
+CurrentVersionCode: 102
