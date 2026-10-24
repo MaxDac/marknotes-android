@@ -59,9 +59,6 @@ object SyncParity {
             "marknotes-sync executor contract suite; Android adapters and restart recovery: SyncEngineTest"
         ),
         "sync/multi-drive" to ParityMapping.Run { c -> scheduleJson(c.input) },
-        // marknotes-sync 0.2 has no local_deletions: every case is an Android knownDivergence until the
-        // localDeleted flag lands (marknotes-spec#37, features.md item 31).
-        "sync/local-deletions" to ParityMapping.Run { buildJsonObject { put("unsupported", true) } },
         "manifest/parse" to ParityMapping.Run { c ->
             buildJsonObject { put("manifest", parseManifest(c.string("json"))?.let(::manifestJson) ?: JsonNull) }
         },
