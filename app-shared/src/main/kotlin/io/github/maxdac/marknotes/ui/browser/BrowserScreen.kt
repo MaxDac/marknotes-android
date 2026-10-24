@@ -74,6 +74,7 @@ import io.github.maxdac.marknotes.core.notes.NoteEntry
 import io.github.maxdac.marknotes.core.notes.NotePaths
 import io.github.maxdac.marknotes.sync.SyncState
 import io.github.maxdac.marknotes.ui.MarkNotesLogo
+import io.github.maxdac.marknotes.ui.chords.EnableChordSequencesDialog
 import kotlinx.coroutines.launch
 
 const val NEW_NOTE_FAB_TAG = "new-note-fab"
@@ -85,6 +86,7 @@ const val EMPTY_NEW_CHORDS_TAG = "empty-new-chords"
 private sealed interface BrowserDialog {
     data object NewNote : BrowserDialog
     data object NewChords : BrowserDialog
+    data class EnableChords(val path: String) : BrowserDialog
     data object NewFolder : BrowserDialog
     data class Rename(val entry: NoteEntry) : BrowserDialog
     data class Move(val entry: NoteEntry) : BrowserDialog
@@ -114,6 +116,7 @@ fun BrowserScreen(
     val vm: BrowserViewModel = viewModel { BrowserViewModel(container, folder) }
     val entries by vm.entries.collectAsStateWithLifecycle()
     val chordPaths by vm.chordPaths.collectAsStateWithLifecycle()
+    val chordsEnabled by container.settings.chordSequencesEnabled.collectAsStateWithLifecycle()
     val folders by vm.folders.collectAsStateWithLifecycle()
     val error by vm.error.collectAsStateWithLifecycle()
     val sync by vm.syncState.collectAsStateWithLifecycle()
@@ -176,16 +179,23 @@ fun BrowserScreen(
                 )
             },
             floatingActionButton = {
-                NewEntryFab(onDialog = { dialog = it })
+                NewEntryFab(chordsEnabled = chordsEnabled, onDialog = { dialog = it })
             }
         ) { padding ->
             BrowserContent(
                 padding = padding,
                 entries = entries,
                 chordPaths = chordPaths,
+                chordsEnabled = chordsEnabled,
                 sync = sync,
                 onOpenConflicts = onOpenConflicts,
-                onOpen = { entry -> if (entry.isFolder) onOpenFolder(entry.path) else onOpenNote(entry.path) },
+                onOpen = { entry ->
+                    when {
+                        entry.isFolder -> onOpenFolder(entry.path)
+                        entry.path in chordPaths && !chordsEnabled -> dialog = BrowserDialog.EnableChords(entry.path)
+                        else -> onOpenNote(entry.path)
+                    }
+                },
                 onDialog = { dialog = it }
             )
         }
@@ -196,6 +206,7 @@ fun BrowserScreen(
         folders = sortedFolders,
         vm = vm,
         onOpenNote = onOpenNote,
+        onEnableChords = { container.settings.setChordSequencesEnabled(true) },
         onDismiss = { dialog = null }
     )
 
@@ -209,18 +220,21 @@ fun BrowserScreen(
     }
 }
 
-/** The floating "New" button: opens a small menu to create a note or a chord sequence. */
+/**
+ * The floating "New" button: opens a small menu to create a note or a chord sequence, or directly asks for a new
+ * note's name while the Chord sequences setting is off.
+ */
 @Composable
-private fun NewEntryFab(onDialog: (BrowserDialog) -> Unit) {
+private fun NewEntryFab(chordsEnabled: Boolean, onDialog: (BrowserDialog) -> Unit) {
     var expanded by remember { mutableStateOf(false) }
     Box {
         ExtendedFloatingActionButton(
-            onClick = { expanded = true },
+            onClick = { if (chordsEnabled) expanded = true else onDialog(BrowserDialog.NewNote) },
             modifier = Modifier.testTag(NEW_NOTE_FAB_TAG),
             icon = { Icon(Icons.Filled.Add, contentDescription = null) },
             text = { Text("New") }
         )
-        DropdownMenu(expanded = expanded, onDismissRequest = { expanded = false }) {
+        DropdownMenu(expanded = expanded && chordsEnabled, onDismissRequest = { expanded = false }) {
             DropdownMenuItem(
                 text = { Text("New note") },
                 leadingIcon = { Icon(Icons.Filled.Edit, contentDescription = null) },
@@ -248,6 +262,7 @@ private fun BrowserContent(
     padding: PaddingValues,
     entries: List<NoteEntry>,
     chordPaths: Set<String>,
+    chordsEnabled: Boolean,
     sync: SyncState,
     onOpenConflicts: () -> Unit,
     onOpen: (NoteEntry) -> Unit,
@@ -290,16 +305,18 @@ private fun BrowserContent(
                         Icon(Icons.Filled.Edit, contentDescription = null, modifier = Modifier.padding(end = 8.dp))
                         Text("New note")
                     }
-                    OutlinedButton(
-                        onClick = { onDialog(BrowserDialog.NewChords) },
-                        modifier = Modifier.testTag(EMPTY_NEW_CHORDS_TAG)
-                    ) {
-                        Icon(
-                            Icons.Filled.LibraryMusic,
-                            contentDescription = null,
-                            modifier = Modifier.padding(end = 8.dp)
-                        )
-                        Text("New chord sequence")
+                    if (chordsEnabled) {
+                        OutlinedButton(
+                            onClick = { onDialog(BrowserDialog.NewChords) },
+                            modifier = Modifier.testTag(EMPTY_NEW_CHORDS_TAG)
+                        ) {
+                            Icon(
+                                Icons.Filled.LibraryMusic,
+                                contentDescription = null,
+                                modifier = Modifier.padding(end = 8.dp)
+                            )
+                            Text("New chord sequence")
+                        }
                     }
                 }
             }
@@ -326,6 +343,7 @@ private fun BrowserDialogs(
     folders: List<String>,
     vm: BrowserViewModel,
     onOpenNote: (String) -> Unit,
+    onEnableChords: () -> Unit,
     onDismiss: () -> Unit
 ) {
     when (dialog) {
@@ -338,6 +356,15 @@ private fun BrowserDialogs(
             onDismiss()
             vm.createChordSequence(name, onOpenNote)
         }
+
+        is BrowserDialog.EnableChords -> EnableChordSequencesDialog(
+            onEnable = {
+                onDismiss()
+                onEnableChords()
+                onOpenNote(dialog.path)
+            },
+            onDismiss = onDismiss
+        )
 
         BrowserDialog.NewFolder -> NameDialog("New folder", "", onDismiss = onDismiss) { name ->
             onDismiss()

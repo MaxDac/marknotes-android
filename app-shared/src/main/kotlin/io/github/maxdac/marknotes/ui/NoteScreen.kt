@@ -7,20 +7,25 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.maxdac.marknotes.appContainer
 import io.github.maxdac.marknotes.core.notes.ChordParseResult
 import io.github.maxdac.marknotes.core.notes.ChordSequences
 import io.github.maxdac.marknotes.core.notes.FrontMatter
 import io.github.maxdac.marknotes.core.notes.LocalNoteStore
 import io.github.maxdac.marknotes.ui.chords.ChordEditorScreen
+import io.github.maxdac.marknotes.ui.chords.EnableChordSequencesDialog
 import io.github.maxdac.marknotes.ui.chords.describeParseError
 import io.github.maxdac.marknotes.ui.editor.EditorScreen
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 
 /** Which editor a note opens in. */
-private sealed interface NoteKind {
+internal sealed interface NoteKind {
     data object Chords : NoteKind
+
+    /** A chord sequence while the Chord sequences setting is off: ask to turn it on first. */
+    data object AskToEnableChords : NoteKind
 
     /** The markdown editor; [notice] says why a chord sequence couldn't be opened as chords. */
     data class Markdown(val notice: String? = null) : NoteKind
@@ -29,17 +34,27 @@ private sealed interface NoteKind {
 /**
  * Opens the note at [path] in the chord editor when it is a chord sequence (front-matter `type: chords`) whose body
  * parses, else in the markdown editor, with the parse error shown when it is a chord sequence that doesn't parse.
+ * While the Chord sequences setting is off, a chord sequence first asks to turn it on; declining goes back.
  */
 @Composable
 fun NoteScreen(path: String, onBack: () -> Unit, onOpenNote: (String) -> Unit) {
     val container = LocalContext.current.appContainer
-    val kind by produceState<NoteKind?>(null, path) {
+    val chordsEnabled by container.settings.chordSequencesEnabled.collectAsStateWithLifecycle()
+    val kind by produceState<NoteKind?>(null, path, chordsEnabled) {
         value = withContext(Dispatchers.IO) {
-            runCatching { kindOf(container.notes, path) }.getOrDefault(NoteKind.Markdown())
+            runCatching { kindOf(container.notes, path, chordsEnabled) }.getOrDefault(NoteKind.Markdown())
         }
     }
     when (val current = kind) {
         null -> Box(Modifier.fillMaxSize())
+
+        NoteKind.AskToEnableChords -> {
+            Box(Modifier.fillMaxSize())
+            EnableChordSequencesDialog(
+                onEnable = { container.settings.setChordSequencesEnabled(true) },
+                onDismiss = onBack
+            )
+        }
 
         NoteKind.Chords -> ChordEditorScreen(path = path, onBack = onBack)
 
@@ -52,8 +67,9 @@ fun NoteScreen(path: String, onBack: () -> Unit, onOpenNote: (String) -> Unit) {
     }
 }
 
-private fun kindOf(notes: LocalNoteStore, path: String): NoteKind {
+internal fun kindOf(notes: LocalNoteStore, path: String, chordsEnabled: Boolean): NoteKind {
     if (!ChordSequences.isChordFile(notes, path)) return NoteKind.Markdown()
+    if (!chordsEnabled) return NoteKind.AskToEnableChords
     return when (val result = ChordSequences.parse(FrontMatter.parse(notes.read(path)).body)) {
         is ChordParseResult.Ok -> NoteKind.Chords
 

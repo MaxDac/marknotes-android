@@ -71,6 +71,19 @@ class AppSettings(context: Context, private val dynamicColorSupported: Boolean) 
     val availableColors: List<ThemeColor>
         get() = ThemeColor.entries.filter { it != ThemeColor.DYNAMIC || dynamicColorSupported }
 
+    private val _chordSequencesEnabled = MutableStateFlow(prefs.getBoolean(KEY_CHORD_SEQUENCES, false))
+
+    /**
+     * Whether chord sequences can be created and opened in the chord editor. Off by default and kept on this device
+     * only (never synced); it doesn't change how notes are detected, parsed or synced.
+     */
+    val chordSequencesEnabled: StateFlow<Boolean> = _chordSequencesEnabled
+
+    fun setChordSequencesEnabled(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_CHORD_SEQUENCES, enabled).apply()
+        _chordSequencesEnabled.value = enabled
+    }
+
     fun setThemeMode(mode: ThemeMode) {
         prefs.edit().putString(KEY_THEME_MODE, mode.name).apply()
         _themeMode.value = mode
@@ -89,6 +102,7 @@ class AppSettings(context: Context, private val dynamicColorSupported: Boolean) 
         private const val KEY_DEVICE_ID = "device_id"
         private const val KEY_THEME_MODE = "theme_mode"
         private const val KEY_THEME_COLOR = "theme_color"
+        private const val KEY_CHORD_SEQUENCES = "chord_sequences_enabled"
 
         private inline fun <reified T : Enum<T>> enumValueOrNull(name: String?): T? =
             enumValues<T>().firstOrNull { it.name == name }
