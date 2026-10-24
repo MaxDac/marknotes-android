@@ -110,6 +110,8 @@ jobs:
         run: |
           sdk="${ANDROID_HOME:-$ANDROID_SDK_ROOT}"
           build_tools=$(find "$sdk/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)
+          # apksigcopier (next steps) calls apksigner from PATH.
+          echo "$build_tools" >> "$GITHUB_PATH"
           certs=$("$build_tools/apksigner" verify --verbose --print-certs app/build/outputs/apk/release/app-release.apk)
           echo "$certs"
           actual=$(echo "$certs" | grep -m 1 -E '^(Signer #1|V[0-9.]+ Signer:) certificate SHA-256 digest: ' | sed 's/.*digest: //' | tr -d ': ' | tr 'A-F' 'a-f')
