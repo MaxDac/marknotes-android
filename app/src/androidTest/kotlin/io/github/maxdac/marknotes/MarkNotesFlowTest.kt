@@ -2,6 +2,7 @@ package io.github.maxdac.marknotes
 
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
@@ -9,10 +10,12 @@ import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.printToString
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -268,18 +271,34 @@ class MarkNotesFlowTest {
 
     @Test
     fun deleteAllLocalDataEmptiesTheNotesFolder() {
+        scenario.close()
         File(notesDir, "Folder").mkdirs()
         File(notesDir, "Folder/Note.md").writeText("secret")
         File(notesDir, "attachments").mkdirs()
         File(notesDir, "attachments/a.png").writeBytes(byteArrayOf(1))
+        scenario = ActivityScenario.launch(MainActivity::class.java)
+        compose.waitUntilAtLeastOneExists(hasText("Folder"), timeoutMillis = 5_000)
 
         compose.onNodeWithContentDescription("Settings").performClick()
         compose.onNodeWithText(DELETE_ALL_LOCAL_DATA_TEXT).performScrollTo().performClick()
-        compose.waitUntilExactlyOneExists(hasText("Delete all local data?"))
-        compose.onNodeWithText("Delete").performClick()
+        compose.waitUntilExactlyOneExists(hasText("Delete all local data?"), timeoutMillis = 5_000)
+        compose.onNode(hasText("Delete") and hasClickAction()).performClick()
 
-        compose.waitUntilExactlyOneExists(hasText("No notes here yet"), timeoutMillis = 10_000)
-        assertTrue(notesDir.isDirectory)
+        // Either the wipe finishes or the screen reports why it failed; dump the screen if neither happens.
+        val failed = hasText("Could not delete the local data", substring = true)
+        val settled = runCatching {
+            compose.waitUntil(timeoutMillis = 15_000) {
+                notesDir.list().isNullOrEmpty() || compose.onAllNodes(failed).fetchSemanticsNodes().isNotEmpty()
+            }
+        }
+        val screen = { compose.onRoot(useUnmergedTree = true).printToString() }
+        assertTrue("Local data not deleted: ${notesDir.list()?.toList()}\n${screen()}", settled.isSuccess)
+        assertTrue("Deletion failed:\n${screen()}", compose.onAllNodes(failed).fetchSemanticsNodes().isEmpty())
         assertEquals(emptyList<String>(), notesDir.list()!!.toList())
+
+        val browserShown = runCatching {
+            compose.waitUntilExactlyOneExists(hasText("No notes here yet"), timeoutMillis = 10_000)
+        }
+        assertTrue("Empty note list not shown:\n${screen()}", browserShown.isSuccess)
     }
 }
