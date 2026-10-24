@@ -41,10 +41,11 @@ fi
 grep -q "Pkg.Revision = $MARKNOTES_NDK_VERSION" "$ANDROID_NDK_HOME/source.properties" \
   || echo "warning: $ANDROID_NDK_HOME is not NDK $MARKNOTES_NDK_VERSION; the build won't be reproducible" >&2
 
-# Reproducibility: no absolute build paths or build ids in the binaries, fixed timestamps.
-cargo_home="${CARGO_HOME:-$HOME/.cargo}"
-export RUSTFLAGS="--remap-path-prefix=$dir=/marknotes-sync --remap-path-prefix=$cargo_home=/cargo \
--C link-arg=-Wl,--build-id=none"
+# The upstream scripts remap paths using encoded flags (including Windows paths and paths with spaces).
+# GNU build-id flags cannot be passed to the Windows host's MSVC linker.
+case "$(uname -s)" in
+  Linux*) export RUSTFLAGS="-Clink-arg=-Wl,--build-id=none" ;;
+esac
 SOURCE_DATE_EPOCH="$(git log -1 --format=%ct 2>/dev/null || echo 1)"
 export SOURCE_DATE_EPOCH
 

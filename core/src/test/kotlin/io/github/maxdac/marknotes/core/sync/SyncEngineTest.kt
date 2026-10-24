@@ -627,6 +627,23 @@ class SyncEngineTest {
     }
 
     @Test
+    fun failedConditionalChildDeletionKeepsTheChangedChildAndBothRecords() = runTest {
+        local.write("folder/known.md", "before")
+        syncClean()
+        local.delete("folder")
+        remote.afterSnapshot = { remote.putFile("folder/known.md", "concurrent edit") }
+
+        val result = engine.sync()
+
+        assertEquals(2, result.errors.size)
+        assertEquals(0, result.deletedRemote)
+        assertEquals("concurrent edit", remote.content("folder/known.md"))
+        assertTrue(remote.isFolder("folder"))
+        assertTrue(record("folder/known.md") != null)
+        assertTrue(record("folder") != null)
+    }
+
+    @Test
     fun remoteFolderDeletionNeverDeletesUnseenChildren() = runTest {
         local.createFolder("folder")
         syncClean()
