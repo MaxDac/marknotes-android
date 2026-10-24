@@ -149,7 +149,11 @@ private fun MarkNotesNavHost(
             SettingsScreen(
                 onAddDrive = { navController.navigate(Routes.ADD_DRIVE) },
                 onOpenConflicts = { navController.navigate(Routes.CONFLICTS) },
-                onBack = { navController.navigateUp() }
+                onBack = { navController.navigateUp() },
+                // Editors of deleted notes must not stay open: back to the (now empty) note list.
+                onLocalDataDeleted = {
+                    navController.popBackStack(navController.graph.startDestinationId, inclusive = false)
+                }
             )
         }
         composable(Routes.ADD_DRIVE) {
