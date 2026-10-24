@@ -23,15 +23,13 @@ jobs:
     runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
+      actions: write
       contents: write
       pull-requests: write
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
-          # PRs opened with GITHUB_TOKEN don't trigger the required checks; RELEASE_PR_TOKEN (a fine-grained PAT with
-          # contents and pull-requests write) avoids having to close and reopen the PR to start them.
-          token: ${{ secrets.RELEASE_PR_TOKEN || github.token }}
       - name: Set the version
         env:
           VERSION: ${{ inputs.version }}
@@ -85,7 +83,7 @@ jobs:
           echo "VERSION_CODE=$code" >> "$GITHUB_ENV"
       - name: Open the release PR
         env:
-          GH_TOKEN: ${{ secrets.RELEASE_PR_TOKEN || github.token }}
+          GH_TOKEN: ${{ github.token }}
           VERSION: ${{ inputs.version }}
         run: |
           branch="release/v$VERSION"
@@ -106,3 +104,6 @@ jobs:
 
           None: version bump only.
           EOF
+          # GITHUB_TOKEN events don't trigger pull_request workflows, but workflow_dispatch does: run PR CI on the
+          # release branch so the required checks report on the PR's head commit.
+          gh workflow run pr-ci.yml --ref "$branch"
