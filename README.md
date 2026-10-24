@@ -212,8 +212,8 @@ between the F-Droid and GitHub APKs without reinstalling.
    characters). It opens a PR that sets `versionName`/`versionCode` (`X*10000 + Y*100 + Z`) in
    `app/build.gradle.kts`, the build entry in `.fdroid.yml` and
    `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`. PRs opened with the default `GITHUB_TOKEN` don't
-   start CI: set the `RELEASE_PR_TOKEN` secret (a fine-grained token with contents and pull-requests write), or
-   close and reopen the PR.
+      trigger `pull_request` workflows, so it also dispatches PR CI on the release branch; its checks report on the
+      PR's head commit.
 2. Merge it, then run Actions → **Release** on `main`. It reruns the checks, builds marknotes-sync and the APK
    from source, signs it, checks the signer against `AllowedAPKSigningKeys` in `.fdroid.yml` and the
    `RELEASE_CERT_SHA256` variable, checks with `apksigcopier compare` that F-Droid's build (the Checks' F-Droid
@@ -221,7 +221,7 @@ between the F-Droid and GitHub APKs without reinstalling.
 3. F-Droid's checkupdates bot sees the new tag (`UpdateCheckMode: Tags`) and builds it within a few days.
 
 **Repository secrets**: `RELEASE_KEYSTORE_BASE64` (`base64 -w0 release.keystore`), `RELEASE_KEYSTORE_PASSWORD`,
-`RELEASE_KEY_ALIAS`, `RELEASE_KEY_PASSWORD`, and optionally `RELEASE_PR_TOKEN`. **Variable**:
+`RELEASE_KEY_ALIAS` and `RELEASE_KEY_PASSWORD`. **Variable**:
 `RELEASE_CERT_SHA256`, the SHA-256 of the signing certificate. The signing key must never change: F-Droid only
 accepts the key in `AllowedAPKSigningKeys`, and Android refuses updates signed with another key.
 
