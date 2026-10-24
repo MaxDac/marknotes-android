@@ -13,8 +13,8 @@ android {
         minSdk = 29
         targetSdk = 36
         // Set by the "Prepare release" workflow (versionCode = X*10000 + Y*100 + Z); F-Droid reads these literals.
-        versionCode = 102
-        versionName = "0.1.2"
+        versionCode = 103
+        versionName = "0.1.3"
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         // marknotes-sync's native library is built for devices (arm64) and emulators (x86_64) only.
         ndk {

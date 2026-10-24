@@ -1,0 +1,1 @@
+Removes the phone-state and storage permissions that the sync library requested by mistake (marknotes-sync 0.2.1).
