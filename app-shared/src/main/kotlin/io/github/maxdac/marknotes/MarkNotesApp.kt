@@ -8,6 +8,7 @@ import android.content.IntentFilter
 import android.os.Build
 import android.os.SystemClock
 import androidx.core.content.ContextCompat
+import io.github.maxdac.marknotes.about.MarkNotesEdition
 import io.github.maxdac.marknotes.auth.CredentialStore
 import io.github.maxdac.marknotes.auth.KeystoreCrypto
 import io.github.maxdac.marknotes.core.diagnostics.DiagnosticReporter
@@ -42,6 +43,9 @@ abstract class MarkNotesApp : Application() {
 
     protected open val issueRepository: String = "MaxDac/marknotes-android"
 
+    /** Which build this is; Settings → About links to the other MarkNotes apps, never this one. */
+    protected abstract val edition: MarkNotesEdition
+
     /** Available before extraConnectors is called, unlike container which is still being constructed. */
     protected lateinit var diagnosticReporter: DiagnosticReporter
         private set
@@ -65,7 +69,7 @@ abstract class MarkNotesApp : Application() {
         val diagnostics = AndroidDiagnostics(this, issueRepository)
         diagnosticBackend = diagnostics
         diagnosticReporter = diagnostics
-        container = AppContainer(this, dropboxAppKey, ::extraConnectors) { deleteExtraLocalData(this) }
+        container = AppContainer(this, dropboxAppKey, edition, ::extraConnectors) { deleteExtraLocalData(this) }
     }
 }
 
@@ -73,6 +77,7 @@ abstract class MarkNotesApp : Application() {
 class AppContainer(
     context: Context,
     dropboxAppKey: String,
+    val edition: MarkNotesEdition,
     extraConnectors: (Context, CredentialStore) -> List<DriveConnector> = { _, _ -> emptyList() },
     deleteExtraLocalData: suspend () -> Unit = {}
 ) {
