@@ -21,16 +21,20 @@ internal fun fileIdentity(file: File): String =
 /** Never use Java moves here: Unix implementations may check existence then perform a replacing rename. */
 internal fun renameCaseFile(source: File, target: File) {
     val identity = fileIdentity(source)
-    when {
-        windows -> WindowsFiles.rename(source, target)
-        System.getProperty("os.name").equals("Linux", ignoreCase = true) -> LinuxFiles.rename(source, target)
-        else -> throw IOException("Atomic no-replace case rename is unsupported on this platform")
-    }
+    moveFileNoReplace(source, target)
     val names = target.parentFile.list().orEmpty().toList()
     check(names.contains(target.name)) { "Rename did not preserve exact case: $target; names=$names" }
     val movedIdentity = fileIdentity(target)
     check(movedIdentity == identity) {
         "Rename did not preserve identity: $target; identity=$identity -> $movedIdentity"
+    }
+}
+
+internal fun moveFileNoReplace(source: File, target: File) {
+    when {
+        windows -> WindowsFiles.rename(source, target)
+        System.getProperty("os.name").equals("Linux", ignoreCase = true) -> LinuxFiles.rename(source, target)
+        else -> throw IOException("Atomic no-replace rename is unsupported on this platform")
     }
 }
 

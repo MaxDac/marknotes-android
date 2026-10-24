@@ -52,7 +52,8 @@ submodule) with OneDrive and Proton Drive sync added, released on GitHub only. T
     of attempting an unsafe temporary rename. Ambiguous or edited case collisions remain errors;
   - local case renames use kernel-enforced no-replace operations (Linux/Android `renameat2`, or an opened-file
     Windows rename), never a Java existence-check followed by a replacing move. Unsupported kernels/filesystems
-    fail explicitly without moving anything. New local sync copies use exclusive creation;
+    fail explicitly without moving anything. New local sync files/copies are privately staged with their exact
+    edit time and flushed before kernel no-replace publication, so a partial copy is never mistaken for an edit;
   - folder removal never recursively deletes unseen entries. Dropbox has no atomic empty-only deletion API,
     so remote folder removal reports an explicit error and keeps its sync record for retry; known files are
     still deleted conditionally. Local sync folder removal is nonrecursive, including for hidden files;

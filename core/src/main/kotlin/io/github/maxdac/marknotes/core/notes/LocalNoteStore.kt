@@ -4,12 +4,9 @@ import io.github.maxdac.marknotes.sync.foldCase
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
-import java.nio.ByteBuffer
-import java.nio.channels.FileChannel
 import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
-import java.nio.file.StandardOpenOption
 import java.nio.file.attribute.FileTime
 
 data class NoteEntry(
@@ -129,12 +126,7 @@ class LocalNoteStore(val root: File) {
         val target = file(path)
         require(target != root) { "Cannot write to the root folder" }
         Files.createDirectories(target.parentFile.toPath())
-        FileChannel.open(target.toPath(), StandardOpenOption.CREATE_NEW, StandardOpenOption.WRITE).use {
-            val buffer = ByteBuffer.wrap(bytes)
-            while (buffer.hasRemaining()) it.write(buffer)
-            Files.setLastModifiedTime(target.toPath(), FileTime.fromMillis(modifiedMillis))
-            it.force(true)
-        }
+        writeNewFile(target, bytes, modifiedMillis)
     }
 
     /**

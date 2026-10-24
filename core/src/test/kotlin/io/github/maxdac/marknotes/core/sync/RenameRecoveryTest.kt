@@ -92,6 +92,45 @@ class RenameRecoveryTest {
     }
 
     @Test
+    fun unsupportedRemoteFolderRenameDoesNotBlockTheNextPassAfterUserReverts() = runTest {
+        val local = LocalNoteStore(File(dir, "notes"))
+        val remote = FakeRemoteDriveStore()
+        val metadata = InMemorySyncMetadataStore()
+        val base = InMemoryBaseContentStore()
+        val journal = FileRenameStore(File(dir, "renames.json"))
+        local.write("Folder/Child.md", "same")
+        assertTrue(SyncEngine(local, remote, metadata, base).sync().errors.isEmpty())
+        val original = remote.entry("Folder")!!
+        val originalRecords = metadata.all()
+        val unsupported = object : RemoteDriveStore by remote {
+            override suspend fun rename(entry: RemoteEntry, toPath: String): RemoteEntry =
+                throw UnsupportedRemoteOperationException("Direct case rename is unsupported")
+        }
+        local.renameCase("Folder", "folder")
+        local.write("unrelated.md", "first")
+
+        val failedRename = SyncEngine(local, unsupported, metadata, base, renames = journal).sync()
+
+        assertFalse(failedRename.errors.isEmpty())
+        assertTrue(journal.all().isEmpty())
+        assertEquals(original, remote.entry("Folder"))
+        assertEquals(
+            originalRecords,
+            metadata.all().filter { it.path != "unrelated.md" }.map { it.copy(localDeleted = false) }
+        )
+        assertEquals("first", remote.content("unrelated.md"))
+
+        local.renameCase("folder", "Folder")
+        local.write("unrelated.md", "second")
+        val next = SyncEngine(local, unsupported, metadata, base, renames = journal).sync()
+
+        assertEquals(emptyList<String>(), next.errors)
+        assertTrue(journal.all().isEmpty())
+        assertEquals(original, remote.entry("Folder"))
+        assertEquals("second", remote.content("unrelated.md"))
+    }
+
+    @Test
     fun recoveredFolderRenameKeepsChildSpellingAndModificationTime() = runTest {
         val local = LocalNoteStore(File(dir, "notes"))
         val remote = FakeRemoteDriveStore()

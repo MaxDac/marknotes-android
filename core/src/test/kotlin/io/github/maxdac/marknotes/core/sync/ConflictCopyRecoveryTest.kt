@@ -2,6 +2,8 @@ package io.github.maxdac.marknotes.core.sync
 
 import io.github.maxdac.marknotes.core.notes.FrontMatter
 import io.github.maxdac.marknotes.core.notes.LocalNoteStore
+import io.github.maxdac.marknotes.core.notes.NewFileStage
+import io.github.maxdac.marknotes.core.notes.writeNewFile
 import java.io.File
 import java.nio.file.Files
 import kotlinx.coroutines.test.runTest
@@ -24,6 +26,52 @@ class ConflictCopyRecoveryTest {
     @After
     fun tearDown() {
         dir.deleteRecursively()
+    }
+
+    @Test
+    fun internalCopyPublicationCrashesKeepTheDurableIdAndExactLosingTimestamp() = runTest {
+        for (stage in NewFileStage.entries) {
+            val root = File(dir, stage.name)
+            val local = LocalNoteStore(File(root, "notes"))
+            val remote = FakeRemoteDriveStore()
+            val metadata = InMemorySyncMetadataStore()
+            val journal = File(root, "pending.json")
+            val durable = FileConflictCopyStore(journal)
+            local.writeNewBytes("n.md", "local".toByteArray(), 2000L)
+            remote.putFile("n.md", "remote", 0L)
+            val pending = object : ConflictCopyStore by durable {
+                override fun put(pending: PendingConflictCopy) {
+                    durable.put(pending)
+                    throw SimulatedCrash()
+                }
+            }
+            try {
+                SyncEngine(local, remote, metadata, pending = pending).sync()
+                throw AssertionError("Intent crash was not exercised")
+            } catch (_: SimulatedCrash) {
+                assertEquals(1, durable.all().size)
+            }
+            val saved = durable.all().single()
+            assertThrows(SimulatedCrash::class.java) {
+                writeNewFile(
+                    local.file(saved.intent.copyPath),
+                    saved.copyText.toByteArray(),
+                    saved.intent.copyModifiedMillis
+                ) { if (it == stage) throw SimulatedCrash() }
+            }
+            assertEquals(stage == NewFileStage.PUBLISHED, local.exists(saved.intent.copyPath))
+
+            val result = SyncEngine(local, remote, metadata, pending = FileConflictCopyStore(journal)).sync()
+
+            assertEquals("$stage errors", emptyList<String>(), result.errors)
+            val copies = local.listAll().filter { it.path.contains("(conflicted copy)") }
+            assertEquals(listOf(saved.intent.copyPath), copies.map { it.path })
+            assertEquals(saved.intent.newId, FrontMatter.parse(local.read(saved.intent.copyPath)).id)
+            assertEquals(saved.copyText, local.read(saved.intent.copyPath))
+            assertEquals(0L, local.modifiedMillis(saved.intent.copyPath))
+            assertEquals(0L, remote.entry(saved.intent.copyPath)!!.modifiedMillis)
+            assertTrue(durable.all().isEmpty())
+        }
     }
 
     @Test

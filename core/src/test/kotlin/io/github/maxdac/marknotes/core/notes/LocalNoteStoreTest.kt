@@ -27,6 +27,18 @@ class LocalNoteStoreTest {
     }
 
     @Test
+    fun stagedCopyNeverReplacesADestinationCreatedBeforePublication() {
+        val target = File(dir, "copy.md")
+        assertThrows(IOException::class.java) {
+            writeNewFile(target, "copy".toByteArray(), 0L) {
+                if (it == NewFileStage.FLUSHED) target.writeText("edited destination")
+            }
+        }
+        assertEquals("edited destination", target.readText())
+        assertEquals(listOf("copy.md"), dir.list()!!.toList())
+    }
+
+    @Test
     fun caseRenamesAndNewCopiesNeverClobberConcurrentDestinationCreators() {
         assertLocalMutationRaces(dir)
     }
