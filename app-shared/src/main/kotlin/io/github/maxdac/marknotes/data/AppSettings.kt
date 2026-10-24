@@ -40,6 +40,14 @@ class AppSettings(context: Context, private val dynamicColorSupported: Boolean) 
         get() = prefs.getString(KEY_LAST_SYNC_SUMMARY, "") ?: ""
         set(value) = prefs.edit().putString(KEY_LAST_SYNC_SUMMARY, value).apply()
 
+    /**
+     * Forgets the sync state kept in the settings (last sync, legacy folder), when the local data is deleted.
+     * Settings about the app itself (theme, device id) are kept.
+     */
+    fun clearSyncState() {
+        prefs.edit().remove(KEY_LAST_SYNC).remove(KEY_LAST_SYNC_SUMMARY).remove(KEY_REMOTE_FOLDER).apply()
+    }
+
     /** Stable random id of this installation, written to the drive manifests. */
     val deviceId: String by lazy {
         prefs.getString(KEY_DEVICE_ID, null) ?: UUID.randomUUID().toString().also {

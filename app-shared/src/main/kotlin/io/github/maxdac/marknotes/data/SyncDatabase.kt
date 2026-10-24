@@ -72,6 +72,9 @@ interface SyncRecordDao {
 
     @Query("DELETE FROM sync_records WHERE driveId = :driveId")
     suspend fun clear(driveId: String)
+
+    @Query("DELETE FROM sync_records")
+    suspend fun clearAll()
 }
 
 @Dao
@@ -93,6 +96,9 @@ interface DriveAccountDao {
 
     @Query("DELETE FROM drive_accounts WHERE id = :id")
     suspend fun delete(id: String)
+
+    @Query("DELETE FROM drive_accounts")
+    suspend fun deleteAll()
 }
 
 @Database(entities = [SyncRecordEntity::class, DriveAccountEntity::class], version = 2, exportSchema = false)

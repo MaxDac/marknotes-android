@@ -190,6 +190,15 @@ class LocalNoteStore(val root: File) {
     }
 
     /**
+     * Deletes every note, folder, attachment and hidden file below the root, keeping the (empty) root. Only local
+     * files are touched: callers make sure no drive is connected, so the deletion is never synced.
+     */
+    fun deleteAll() {
+        val failed = root.listFiles().orEmpty().filterNot { it.deleteRecursively() }
+        if (failed.isNotEmpty()) throw IOException("Cannot delete ${failed.joinToString { it.name }}")
+    }
+
+    /**
      * Returns a free sibling path for [path] by appending [suffix] (and a counter if needed)
      * before the extension, e.g. "a/b.md" -> "a/b (conflicted copy).md".
      */

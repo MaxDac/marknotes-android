@@ -48,9 +48,24 @@ submodule) with OneDrive and Proton Drive sync added, released on GitHub only. T
   - the sync algorithm is the shared Rust core [marknotes-sync](https://github.com/MaxDac/marknotes-sync), also
     used by the desktop and web apps. Dropbox sign-in uses the official Dropbox SDK (OAuth 2 PKCE); tokens are
     stored encrypted with an Android Keystore AES-GCM key.
+- **Delete local data** (Settings → Privacy): **Delete all local data** disconnects every drive, then deletes the
+  notes, images, sync state and cached files stored on this device. When you disconnect the last drive you can
+  also tick **Also delete the notes stored on this device**. Nothing is ever deleted from a drive: the deletion is
+  local only and is not synced.
 
 Dropbox is a proprietary network service, so F-Droid marks the app with the *NonFreeNet* anti-feature. Without a
 Dropbox account the app is fully local.
+
+### Security and privacy
+
+- Notes live in the app's private storage, which other apps can't read. Android (10 and later, the minimum this
+  app supports) encrypts it with file-based encryption tied to your screen lock. The app doesn't add its own note
+  encryption on top: the notes stay plain files that the sync core and the other MarkNotes apps read, and a lost
+  Keystore key would make them unreadable.
+- App data is excluded from Android backups and device transfers, so notes and Dropbox tokens don't leave the
+  device that way.
+- The preview never loads remote images: it only shows image files stored on the device.
+- R8/ProGuard is off on purpose, so F-Droid can reproduce the release APK byte for byte.
 
 The on-disk note format (IDs, note links, images, chord sequences) is shared with the desktop and web apps and
 described in [marknotes-spec](https://github.com/MaxDac/marknotes-spec/blob/main/note-format.md), checked out at

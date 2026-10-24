@@ -93,6 +93,11 @@ class ChordEditorViewModel(private val container: AppContainer, val path: String
 
     private val unregisterSave = container.pendingSaves.register(::saveNow)
 
+    /** Edits are dropped once the local data has been deleted, see [io.github.maxdac.marknotes.sync.PendingSaves]. */
+    private val generation = container.pendingSaves.generation
+
+    private fun writable() = container.pendingSaves.current(generation)
+
     init {
         load()
         // Reload when a sync changed the file, unless there are unsaved edits.
@@ -108,7 +113,7 @@ class ChordEditorViewModel(private val container: AppContainer, val path: String
             try {
                 val doc = withContext(Dispatchers.IO) {
                     val parsed = FrontMatter.parse(if (notes.exists(path)) notes.read(path) else "")
-                    if (parsed.id != null) {
+                    if (parsed.id != null || !writable()) {
                         parsed
                     } else {
                         FrontMatter.withId(parsed, NoteIds.generate()).also { notes.write(path, it.text) }
@@ -258,6 +263,10 @@ class ChordEditorViewModel(private val container: AppContainer, val path: String
         withContext(Dispatchers.IO + NonCancellable) {
             writeLock.withLock {
                 val body = pending ?: return@withLock
+                if (!writable()) {
+                    pending = null
+                    return@withLock
+                }
                 try {
                     notes.write(path, FrontMatter.join(header, body))
                     wrote = true
