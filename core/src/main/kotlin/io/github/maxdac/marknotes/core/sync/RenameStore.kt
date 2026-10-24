@@ -1,5 +1,7 @@
 package io.github.maxdac.marknotes.core.sync
 
+import io.github.maxdac.marknotes.core.notes.NotePaths
+import io.github.maxdac.marknotes.sync.foldCase
 import java.io.File
 import java.nio.file.Files
 import kotlinx.serialization.json.Json
@@ -19,7 +21,15 @@ data class PendingRename(
     val local: Boolean,
     val remote: RemoteEntry,
     val localIdentity: String?
-)
+) {
+    init {
+        require(path.isNotEmpty() && NotePaths.normalize(path) == path) { "Invalid rename source" }
+        require(toPath.isNotEmpty() && NotePaths.normalize(toPath) == toPath) { "Invalid rename destination" }
+        require(path != toPath && foldCase(path) == foldCase(toPath)) { "Not a case-only rename" }
+        require(remote.path == path || remote.path == toPath) { "Remote rename identity has an unrelated path" }
+        require(remote.id.isNotBlank() && (!local || !localIdentity.isNullOrBlank())) { "Missing rename identity" }
+    }
+}
 
 interface RenameStore {
     fun all(): List<PendingRename>

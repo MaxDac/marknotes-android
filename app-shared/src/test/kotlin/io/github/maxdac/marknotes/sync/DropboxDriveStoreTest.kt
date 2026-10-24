@@ -23,7 +23,7 @@ class DropboxDriveStoreTest {
                 "rev":"123456789","size":4}"""
         )
 
-        store(http).uploadNew("n.md", "note".toByteArray(), 1_577_836_800_000L)
+        store(http).uploadNew("n.md", "note".toByteArray(), 0L)
 
         assertEquals(1, http.urls.size)
         assertTrue(http.urls.single().endsWith("/files/upload"))
@@ -31,6 +31,7 @@ class DropboxDriveStoreTest {
         assertTrue(args.contains("\"strict_conflict\":true"))
         assertTrue(args.contains("\"autorename\":false"))
         assertTrue(args.contains("\"mode\":\"add\""))
+        assertTrue(args.contains("\"client_modified\":\"1970-01-01T00:00:00Z\""))
     }
 
     @Test

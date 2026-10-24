@@ -1,5 +1,6 @@
 package io.github.maxdac.marknotes.core.notes
 
+import io.github.maxdac.marknotes.sync.foldCase
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException
@@ -9,7 +10,6 @@ import java.nio.file.AtomicMoveNotSupportedException
 import java.nio.file.Files
 import java.nio.file.StandardCopyOption
 import java.nio.file.StandardOpenOption
-import java.nio.file.attribute.BasicFileAttributes
 import java.nio.file.attribute.FileTime
 
 data class NoteEntry(
@@ -228,26 +228,24 @@ class LocalNoteStore(val root: File) {
         Files.deleteIfExists(target.toPath())
     }
 
-    fun identity(path: String): String =
-        Files.readAttributes(file(path).toPath(), BasicFileAttributes::class.java).fileKey()?.toString()
-            ?: throw IOException("Cannot verify the local file identity: $path")
+    /** Sync file removals must never recurse if a concurrent edit replaces the path with a folder. */
+    fun deleteFile(path: String) {
+        val target = file(path)
+        require(target != root) { "Cannot delete the root folder" }
+        if (target.isDirectory) throw IOException("Not a file: $path")
+        Files.deleteIfExists(target.toPath())
+    }
+
+    fun identity(path: String): String = fileIdentity(file(path))
 
     /** A single no-clobber case rename; no temporary name can be stranded by a crash. */
     fun renameCase(path: String, toPath: String) {
+        require(path != toPath && foldCase(path) == foldCase(toPath)) { "Not a case-only rename" }
         val source = file(path)
         val target = file(toPath)
         require(source != root && target != root) { "Cannot rename the root folder" }
         require(source.parentFile.canonicalFile == target.parentFile.canonicalFile) { "Not a case-only rename" }
-        val identity = Files.readAttributes(source.toPath(), BasicFileAttributes::class.java).fileKey()
-        if (target.exists() && Files.isSameFile(source.toPath(), target.toPath())) {
-            if (!source.renameTo(target)) throw IOException("Cannot rename $path to $toPath")
-        } else {
-            Files.move(source.toPath(), target.toPath())
-        }
-        check(target.parentFile.list()?.contains(target.name) == true) { "Rename did not preserve exact case: $toPath" }
-        check(identity == Files.readAttributes(target.toPath(), BasicFileAttributes::class.java).fileKey()) {
-            "Rename changed the file identity: $toPath"
-        }
+        renameCaseFile(source, target)
     }
 
     /**

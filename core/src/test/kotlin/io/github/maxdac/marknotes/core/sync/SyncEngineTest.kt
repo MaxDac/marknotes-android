@@ -667,7 +667,7 @@ class SyncEngineTest {
 
             val result = engine.sync()
 
-            assertEquals(1, result.errors.size)
+            if (child.startsWith(".")) assertEquals(1, result.errors.size) else assertTrue(result.errors.isEmpty())
             assertEquals(0, result.deletedLocal)
             assertEquals("unseen", file.readText())
             assertTrue(record("folder") != null)
@@ -735,7 +735,11 @@ class SyncEngineTest {
 
         syncClean()
 
-        assertEquals(old.copy(path = "note.md"), remote.entry("note.md"))
+        assertEquals(
+            "calls=${remote.calls}; records=${metadata.all()}; local=${local.listAll()}",
+            old.copy(path = "note.md"),
+            remote.entry("note.md")
+        )
         assertEquals("same", remote.content("note.md"))
         assertEquals(null, record("Note.md"))
         assertStable()
@@ -755,6 +759,51 @@ class SyncEngineTest {
         assertEquals(setOf("folder", "folder/child.md"), metadata.all().map { it.path }.toSet())
         assertEquals("same", base.get("folder/child.md")!!.toString(Charsets.UTF_8))
         assertEquals(null, base.get("Folder/child.md"))
+        assertStable()
+    }
+
+    @Test
+    fun alreadyAgreedFileSpellingMigratesOldHistoryBeforeDownloadingTheChangedRemoteRevision() = runTest {
+        val base = InMemoryBaseContentStore()
+        engine = SyncEngine(local, remote, metadata, base) { 1000L }
+        local.write("Note.md", "old")
+        syncClean()
+        remote.rename(remote.entry("Note.md")!!, "note.md")
+        local.renameCase("Note.md", "note.md")
+        val changed = remote.putFile("note.md", "new remote", 2000L)
+        remote.calls.clear()
+
+        syncClean()
+
+        assertEquals(listOf("note.md"), local.listAll().map { it.path })
+        assertEquals("new remote", local.read("note.md"))
+        assertEquals(changed.version, record("note.md")!!.remoteVersion)
+        assertEquals("new remote", base.get("note.md")!!.toString(Charsets.UTF_8))
+        assertFalse(remote.calls.any { it.startsWith("rename:") || it.startsWith("upload") })
+        assertStable()
+    }
+
+    @Test
+    fun alreadyRenamedFolderMigratesOnlyHistoryWithoutMovingOrOverwritingTheDesiredTree() = runTest {
+        val base = InMemoryBaseContentStore()
+        engine = SyncEngine(local, remote, metadata, base) { 1000L }
+        local.write("Folder/Child.md", "same")
+        syncClean()
+        val previous = metadata.all().associateBy { it.path }
+        remote.rename(remote.entry("Folder")!!, "folder")
+        local.renameCase("Folder", "folder")
+        val identity = local.identity("folder/Child.md")
+        remote.calls.clear()
+
+        syncClean()
+
+        assertEquals(listOf("folder", "folder/Child.md"), local.listAll().map { it.path })
+        assertEquals(identity, local.identity("folder/Child.md"))
+        assertEquals(previous.getValue("Folder/Child.md").localHash, record("folder/Child.md")!!.localHash)
+        assertEquals(previous.getValue("Folder/Child.md").remoteVersion, record("folder/Child.md")!!.remoteVersion)
+        assertEquals("same", base.get("folder/Child.md")!!.toString(Charsets.UTF_8))
+        assertFalse(remote.calls.any { it.startsWith("rename:") })
+        assertEquals(null, record("Folder/Child.md"))
         assertStable()
     }
 

@@ -124,6 +124,15 @@ Development pins are checked by `scripts/check-sync-pin.sh` and rejected by rele
 promoted to the matching published shared-library release tag before an app release. Pin guard regression tests
 run with `python scripts/test-sync-pin.py`.
 
+On Windows, use a Visual Studio developer terminal with Git Bash, the same pinned Rust/NDK tools, and
+`READELF="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/windows-x86_64/bin/llvm-readelf.exe"`.
+Install both Android targets for the pinned toolchain (`rustup target add --toolchain 1.99.1
+aarch64-linux-android x86_64-linux-android`). Set `CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER` to the
+developer terminal's `link.exe` so Git Bash does not select `/usr/bin/link`.
+Run `scripts/build-sync-from-source.sh` in Git Bash, then `.\gradlew.bat` for the Android build.
+The source prerequisite packages the matching host library as well as both Android ABIs; an empty native
+JAR/AAR is not a usable substitute.
+
 The Dropbox app key is committed in `app/build.gradle.kts` (it is public by design: PKCE, no secret). To use your
 own Dropbox app, pass `-Pmarknotes.dropboxAppKey=<key>` or set it in `~/.gradle/gradle.properties`; create the app
 in the [Dropbox App Console](https://www.dropbox.com/developers/apps) with "Full Dropbox" access and the scopes
@@ -138,7 +147,7 @@ submodule (checked out at the release tag `marknotesSync` in `gradle/libs.versio
 ```sh
 rustup toolchain install 1.99.1 --profile minimal --target aarch64-linux-android,x86_64-linux-android
 cargo +1.99.1 install cargo-ndk --version 4.1.2 --locked
-sdkmanager "ndk;27.3.13750724"
+sdkmanager "ndk;30.0.16248370"
 git submodule update --init marknotes-sync
 scripts/build-sync-from-source.sh
 ./gradlew :app:assembleRelease --no-build-cache -Pmarknotes.sync.fromSource=marknotes-sync

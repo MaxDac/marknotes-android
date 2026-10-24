@@ -1,8 +1,8 @@
 package io.github.maxdac.marknotes.core.sync
 
+import io.github.maxdac.marknotes.core.notes.renameCaseFile
 import java.io.File
 import java.io.IOException
-import java.nio.file.Files
 
 /**
  * Keeps, per drive, the content of every note as it was the last time it was in sync. It is the
@@ -37,11 +37,7 @@ class FileBaseContentStore(private val root: File) : BaseContentStore {
         val source = file(path)
         if (!source.exists()) return
         val target = file(toPath)
-        if (target.exists() && Files.isSameFile(source.toPath(), target.toPath())) {
-            if (!source.renameTo(target)) throw IOException("Cannot rename base copy $path")
-        } else {
-            Files.move(source.toPath(), target.toPath())
-        }
+        renameCaseFile(source, target)
     }
 
     override fun clear() {

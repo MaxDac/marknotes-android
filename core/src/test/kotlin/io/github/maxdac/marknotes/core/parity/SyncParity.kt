@@ -17,6 +17,7 @@ import io.github.maxdac.marknotes.sync.SyncRecord
 import io.github.maxdac.marknotes.sync.SyncScheduler
 import io.github.maxdac.marknotes.sync.buildManifest
 import io.github.maxdac.marknotes.sync.conflictCopyName
+import io.github.maxdac.marknotes.sync.localDeletions
 import io.github.maxdac.marknotes.sync.merge3
 import io.github.maxdac.marknotes.sync.mergeText
 import io.github.maxdac.marknotes.sync.parseManifest
@@ -46,6 +47,14 @@ object SyncParity {
     val mappings: Map<String, ParityMapping> = mapOf(
         "sync/plan" to ParityMapping.Run { c -> planJson(c.input) },
         "sync/reconcile" to ParityMapping.Run { c -> reconcileJson(c.input) },
+        "sync/local-deletions" to ParityMapping.Run { c ->
+            val local = c.input.getValue("local").jsonArray.map {
+                val o = it.jsonObject
+                LocalEntry(o.str("path"), o.bool("isFolder"), o.long("modifiedMillis"), o.strOrNull("sha256"))
+            }
+            val records = c.input.getValue("records").jsonArray.map { record(it.jsonObject) }
+            buildJsonObject { put("paths", strings(localDeletions(local, records))) }
+        },
         "sync/executor-safety" to ParityMapping.Elsewhere(
             "marknotes-sync executor contract suite; Android adapters and restart recovery: SyncEngineTest"
         ),

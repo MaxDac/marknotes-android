@@ -231,7 +231,7 @@ class SyncEngine(
 
                 is Action.DeleteLocal -> {
                     if (!unchanged(action.path)) return
-                    local.delete(action.path)
+                    local.deleteFile(action.path)
                     forget(action.path)
                     deletedLocal++
                 }
@@ -264,17 +264,18 @@ class SyncEngine(
         }
 
         private suspend fun renameLocal(action: Action.RenameLocal) {
-            if (!unchanged(action.path, action.sha256 ?: FOLDER_STATE)) return
-            if (action.isFolder && !treeUnchanged(action.path)) return
+            val path = if (action.path in planned) action.path else action.toPath
+            if (!unchanged(path, action.sha256 ?: FOLDER_STATE)) return
+            if (action.isFolder && !treeUnchanged(path)) return
             renames.put(
-                PendingRename(action.path, action.toPath, true, action.remote.toApp(), local.identity(action.path))
+                PendingRename(action.path, action.toPath, true, action.remote.toApp(), local.identity(path))
             )
             renamedLocal += recoverRenames()
             renamed = true
         }
 
         private suspend fun renameRemote(action: Action.RenameRemote) {
-            if (!unchanged(action.toPath, action.sha256 ?: FOLDER_STATE)) return
+            if (!unchanged(action.toPath)) return
             if (action.isFolder && !treeUnchanged(action.toPath)) return
             renames.put(PendingRename(action.path, action.toPath, false, action.remote.toApp(), null))
             recoverRenames()
@@ -470,6 +471,8 @@ class SyncEngine(
                     Hashing.sha256Hex(remote.download(current)) == intent.localHash
                 ) {
                     recordFile(intent.path, current, bytes)
+                } else {
+                    throw IOException("Pending conflict winner changed: ${intent.path}")
                 }
             } else if (remoteUnchanged && (localHash == intent.localHash || localHash == intent.remoteHash)) {
                 val bytes = copy.remoteText.toByteArray(Charsets.UTF_8)
@@ -478,6 +481,8 @@ class SyncEngine(
                     downloaded++
                 }
                 recordFile(intent.path, copy.remoteEntry, bytes)
+            } else {
+                throw IOException("Pending conflict winner changed: ${intent.path}")
             }
         }
 

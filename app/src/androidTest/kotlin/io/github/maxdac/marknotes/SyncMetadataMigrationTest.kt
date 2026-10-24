@@ -4,8 +4,10 @@ import android.database.sqlite.SQLiteDatabase
 import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import io.github.maxdac.marknotes.core.notes.LocalNoteStore
 import io.github.maxdac.marknotes.data.MarkNotesDatabase
 import io.github.maxdac.marknotes.data.RoomSyncMetadataStore
+import java.io.File
 import java.util.UUID
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -19,7 +21,26 @@ class SyncMetadataMigrationTest {
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
 
     @Test
-    fun versionTwoRecordsMigrateUnflaggedAndPersistNewDeletionFlags() = runBlocking {
+    fun nativeFolderRenamePreservesExactSpellingChildIdentityAndEpochTimestamp() {
+        val root = File(context.cacheDir, "rename-${UUID.randomUUID()}")
+        try {
+            val local = LocalNoteStore(root)
+            local.writeNewBytes("Folder/Child.md", "same".toByteArray(), 0L)
+            val identity = local.identity("Folder/Child.md")
+
+            local.renameCase("Folder", "folder")
+
+            assertEquals(listOf("folder"), root.list()!!.toList())
+            assertEquals(listOf("Child.md"), File(root, "folder").list()!!.toList())
+            assertEquals(identity, local.identity("folder/Child.md"))
+            assertEquals(0L, local.modifiedMillis("folder/Child.md"))
+        } finally {
+            root.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun versionTwoRecordsMigrateUnflaggedAndPersistNewDeletionFlags() = runBlocking<Unit> {
         val name = "sync-migration-${UUID.randomUUID()}.db"
         val path = context.getDatabasePath(name)
         path.parentFile!!.mkdirs()
@@ -39,7 +60,8 @@ class SyncMetadataMigrationTest {
                 db.execSQL("INSERT INTO sync_records VALUES ('b', 'Note.md', 0, 'other', 'old', 'hash', 1000)")
                 db.version = 2
             }
-            open(name).use { db ->
+            val db = open(name)
+            try {
                 val store = RoomSyncMetadataStore(db.syncRecords(), "a")
                 val migrated = store.all().single()
                 assertFalse(migrated.localDeleted)
@@ -47,13 +69,18 @@ class SyncMetadataMigrationTest {
                 store.upsert(migrated.copy(localDeleted = true))
                 store.rename("Note.md", "note.md")
                 assertEquals("Note.md", RoomSyncMetadataStore(db.syncRecords(), "b").all().single().path)
+            } finally {
+                db.close()
             }
-            open(name).use { db ->
-                val restored = RoomSyncMetadataStore(db.syncRecords(), "a").all().single()
+            val reopened = open(name)
+            try {
+                val restored = RoomSyncMetadataStore(reopened.syncRecords(), "a").all().single()
                 assertTrue(restored.localDeleted)
                 assertEquals("note.md", restored.path)
                 assertEquals("hash", restored.localHash)
                 assertEquals("revision", restored.remoteVersion)
+            } finally {
+                reopened.close()
             }
         } finally {
             context.deleteDatabase(name)

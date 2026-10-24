@@ -50,6 +50,16 @@ export SOURCE_DATE_EPOCH
 
 scripts/android-libs.sh
 scripts/kotlin-bindings.sh
+case "$(uname -s):$(uname -m)" in
+  Linux:x86_64) host=linux-x86-64; library=libmarknotes_sync.so ;;
+  Linux:aarch64) host=linux-aarch64; library=libmarknotes_sync.so ;;
+  Darwin:x86_64) host=darwin-x86-64; library=libmarknotes_sync.dylib ;;
+  Darwin:arm64) host=darwin-aarch64; library=libmarknotes_sync.dylib ;;
+  MINGW*:x86_64 | MSYS*:x86_64) host=win32-x86-64; library=marknotes_sync.dll ;;
+  *) echo "Unsupported JVM native build host: $(uname -s):$(uname -m)" >&2; exit 1 ;;
+esac
+mkdir -p "bindings/kotlin/natives/jvm/$host"
+cp "target/release/$library" "bindings/kotlin/natives/jvm/$host/$library"
 (cd bindings/kotlin && ${GRADLE:-./gradlew} assemble --console=plain --no-daemon)
 
 ls -l bindings/kotlin/build/libs

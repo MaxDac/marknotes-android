@@ -26,9 +26,9 @@ class RenameRecoveryTest {
 
     @Test
     fun renameRecoveryFinishesHistoryMigrationBeforePlanningOrDeletionFlags() = runTest {
-        for (localRename in listOf(true, false)) {
+        for (mode in listOf("local", "remote", "history")) {
             for (phase in listOf("base", "records", "after-records")) {
-                val root = File(dir, "$localRename-$phase")
+                val root = File(dir, "$mode-$phase")
                 val local = LocalNoteStore(File(root, "notes"))
                 val remote = FakeRemoteDriveStore()
                 val records = InMemorySyncMetadataStore()
@@ -37,9 +37,10 @@ class RenameRecoveryTest {
                 local.write("Note.md", "same")
                 local.file("Note.md").setLastModified(1000L)
                 assertTrue(SyncEngine(local, remote, records, base).sync().errors.isEmpty())
-                if (localRename) {
+                if (mode != "remote") {
                     remote.rename(remote.entry("Note.md")!!, "note.md")
-                } else {
+                }
+                if (mode != "local") {
                     local.renameCase("Note.md", "note.md")
                 }
                 val failingBase = object : BaseContentStore by base {
@@ -56,14 +57,16 @@ class RenameRecoveryTest {
                     }
                 }
                 try {
-                    SyncEngine(
+                    val result = SyncEngine(
                         local,
                         remote,
                         failingRecords,
                         failingBase,
                         renames = FileRenameStore(journal)
                     ).sync()
-                    throw AssertionError("Rename crash was not exercised: $localRename/$phase")
+                    throw AssertionError(
+                        "Rename crash was not exercised: $mode/$phase; $result"
+                    )
                 } catch (e: SimulatedCrash) {
                     assertEquals(listOf("note.md"), local.listAll().map { it.path })
                     assertEquals(listOf("note.md"), remote.snapshot().map { it.path })

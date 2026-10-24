@@ -140,8 +140,8 @@ class MultiDriveSyncTest {
     fun conflictingEditsKeepTheNewestAndTheCopyReachesEveryDrive() = runTest {
         local.write("n.md", "x\n")
         syncAll()
-        driveA.putFile("n.md", "from a\n")
-        driveB.putFile("n.md", "from b\n")
+        driveA.putFile("n.md", "from a\n", modifiedMillis = 2000L)
+        driveB.putFile("n.md", "from b\n", modifiedMillis = 1000L)
 
         val conflicts = syncAll().conflicts
 
@@ -155,6 +155,7 @@ class MultiDriveSyncTest {
         assertEquals("from b\n", copyBody(copy))
         assertEquals(copy, driveA.content(conflict.copyPath))
         assertEquals(copy, driveB.content(conflict.copyPath))
+        assertEquals(1000L, local.modifiedMillis(conflict.copyPath))
     }
 
     @Test

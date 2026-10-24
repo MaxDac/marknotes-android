@@ -42,6 +42,8 @@ jobs:
       - name: Run unit tests
         # :core is a plain JVM module, so its tests run under `test` rather than `testDebugUnitTest`.
         run: ./gradlew testDebugUnitTest :core:test --continue
+      - name: Verify development and release source-pin guards
+        run: python3 scripts/test-sync-pin.py
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v7

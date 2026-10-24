@@ -27,6 +27,58 @@ class LocalNoteStoreTest {
     }
 
     @Test
+    fun caseRenameChangesTheActualDirectoryEntryAndPreservesChildCaseAndTime() {
+        store.writeNewBytes("Folder/Child.md", "same".toByteArray(), 1000L)
+        val identity = store.identity("Folder/Child.md")
+
+        store.renameCase("Folder", "folder")
+
+        Files.list(dir.toPath()).use { entries ->
+            assertEquals(listOf("folder"), entries.map { it.fileName.toString() }.toList())
+        }
+        Files.list(File(dir, "folder").toPath()).use { entries ->
+            assertEquals(listOf("Child.md"), entries.map { it.fileName.toString() }.toList())
+        }
+        assertEquals(identity, store.identity("folder/Child.md"))
+        assertEquals(1000L, store.modifiedMillis("folder/Child.md"))
+    }
+
+    @Test
+    fun syncFileDeletionNeverRecursesIntoAReplacementFolder() {
+        store.write("replaced.md/child.md", "unseen")
+
+        assertThrows(IOException::class.java) { store.deleteFile("replaced.md") }
+
+        assertEquals("unseen", store.read("replaced.md/child.md"))
+    }
+
+    @Test
+    fun caseRenameUsesSharedUnicodeFoldingAndRejectsUnrelatedAliases() {
+        store.writeNewBytes("S.md", "same".toByteArray(), 0L)
+        val identity = store.identity("S.md")
+        store.renameCase("S.md", "\u017f.md")
+        assertEquals(listOf("\u017f.md"), dir.list()!!.toList())
+        assertEquals(identity, store.identity("\u017f.md"))
+        assertEquals(0L, store.modifiedMillis("\u017f.md"))
+
+        store.write("I.md", "untouched")
+        assertThrows(IllegalArgumentException::class.java) { store.renameCase("I.md", "\u0131.md") }
+        assertEquals("untouched", store.read("I.md"))
+        assertTrue(dir.list()!!.contains("I.md"))
+    }
+
+    @Test
+    fun syncWritesPreserveEpochZeroForNewAndReplacedFiles() {
+        store.writeNewBytes("new.md", "new".toByteArray(), 0L)
+        store.write("existing.md", "old")
+        store.writeBytes("existing.md", "replacement".toByteArray(), 0L)
+
+        assertEquals(0L, store.modifiedMillis("new.md"))
+        assertEquals(0L, store.modifiedMillis("existing.md"))
+        assertEquals("replacement", store.read("existing.md"))
+    }
+
+    @Test
     fun createNoteAddsExtensionAndAnId() {
         val path = store.createNote("", "Shopping")
         assertEquals("Shopping.md", path)
