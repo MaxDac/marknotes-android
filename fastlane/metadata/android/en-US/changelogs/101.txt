@@ -1,0 +1,1 @@
+New in Settings, Privacy: an optional app lock (fingerprint, face or screen lock; locks after inactivity or when the screen turns off), an option to hide note contents from Recents and screenshots, and Delete all local data, which removes the notes, attachments and sync data stored on this device without touching your drives. Chord sequences are now an opt-in setting.
