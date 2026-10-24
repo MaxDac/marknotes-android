@@ -1,5 +1,7 @@
 package io.github.maxdac.marknotes.core.sync
 
+import io.github.maxdac.marknotes.core.diagnostics.DiagnosticCode
+import io.github.maxdac.marknotes.core.diagnostics.DiagnosticReporter
 import io.github.maxdac.marknotes.core.notes.Attachments
 import io.github.maxdac.marknotes.core.notes.LocalNoteStore
 import io.github.maxdac.marknotes.core.notes.NoteIds
@@ -84,6 +86,8 @@ class SyncEngine(
     private val deviceId: String = "",
     private val clock: () -> Long = System::currentTimeMillis
 ) {
+    /** Optional execution diagnostics, independent of the shared sync algorithm and note format. */
+    var diagnostics: DiagnosticReporter = DiagnosticReporter.NONE
 
     suspend fun sync(): SyncResult = Run().execute()
 
@@ -147,6 +151,7 @@ class SyncEngine(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+            diagnostics.report(DiagnosticCode.SYNC, e)
             // The manifest is an optimisation: sync works without it.
             null
         }
@@ -341,6 +346,7 @@ class SyncEngine(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
+                diagnostics.report(DiagnosticCode.SYNC, e)
                 errors += "$path: ${e.message ?: e.javaClass.simpleName}"
             }
         }

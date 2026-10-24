@@ -1,5 +1,7 @@
 package io.github.maxdac.marknotes.core.sync
 
+import io.github.maxdac.marknotes.core.diagnostics.DiagnosticCode
+import io.github.maxdac.marknotes.core.diagnostics.DiagnosticReporter
 import io.github.maxdac.marknotes.core.notes.LocalNoteStore
 import java.io.File
 import java.nio.file.Files
@@ -130,6 +132,8 @@ class MultiDriveSyncTest {
 
     @Test
     fun failingDriveDoesNotBlockTheOthers() = runTest {
+        val codes = mutableListOf<DiagnosticCode>()
+        sync.diagnostics = DiagnosticReporter { code, _ -> codes += code }
         local.write("n.md", "x")
         val broken = object : RemoteDriveStore by driveA {
             override suspend fun snapshot(): List<RemoteEntry> = error("offline")
@@ -142,6 +146,7 @@ class MultiDriveSyncTest {
         )
 
         assertEquals("offline", result.outcomes.first().error)
+        assertEquals(listOf(DiagnosticCode.SYNC), codes)
         assertEquals("x", driveB.content("n.md"))
     }
 }

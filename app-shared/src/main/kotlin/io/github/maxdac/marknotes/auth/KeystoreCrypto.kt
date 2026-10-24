@@ -4,6 +4,8 @@ import android.content.Context
 import android.security.keystore.KeyGenParameterSpec
 import android.security.keystore.KeyProperties
 import android.util.Base64
+import io.github.maxdac.marknotes.core.diagnostics.DiagnosticCode
+import io.github.maxdac.marknotes.core.diagnostics.DiagnosticReporter
 import java.security.GeneralSecurityException
 import java.security.KeyStore
 import javax.crypto.Cipher
@@ -12,7 +14,10 @@ import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
 
 /** AES-GCM encryption with a key held in the Android Keystore. Output is "base64(iv):base64(ciphertext)". */
-class KeystoreCrypto(private val alias: String = DEFAULT_ALIAS) {
+class KeystoreCrypto(
+    private val alias: String = DEFAULT_ALIAS,
+    private val diagnostics: DiagnosticReporter = DiagnosticReporter.NONE
+) {
     fun encrypt(plain: String): String {
         val cipher = Cipher.getInstance(TRANSFORMATION)
         cipher.init(Cipher.ENCRYPT_MODE, key())
@@ -28,10 +33,13 @@ class KeystoreCrypto(private val alias: String = DEFAULT_ALIAS) {
         cipher.init(Cipher.DECRYPT_MODE, key(), GCMParameterSpec(GCM_TAG_BITS, iv))
         cipher.doFinal(ciphertext).toString(Charsets.UTF_8)
     } catch (e: GeneralSecurityException) {
+        diagnostics.report(DiagnosticCode.AUTHENTICATION, e)
         null
     } catch (e: IllegalArgumentException) {
+        diagnostics.report(DiagnosticCode.AUTHENTICATION, e)
         null
     } catch (e: IndexOutOfBoundsException) {
+        diagnostics.report(DiagnosticCode.AUTHENTICATION, e)
         null
     }
 

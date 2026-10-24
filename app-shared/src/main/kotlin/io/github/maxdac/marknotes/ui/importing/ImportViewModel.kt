@@ -3,6 +3,7 @@ package io.github.maxdac.marknotes.ui.importing
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.maxdac.marknotes.AppContainer
+import io.github.maxdac.marknotes.core.diagnostics.DiagnosticCode
 import io.github.maxdac.marknotes.core.importing.ImageSink
 import io.github.maxdac.marknotes.core.importing.ImportConverter
 import io.github.maxdac.marknotes.core.importing.ImportSource
@@ -72,6 +73,7 @@ class ImportViewModel(
                 }
                 convert(initial = true)
             } catch (e: IOException) {
+                container.diagnostics.report(DiagnosticCode.CONTENT_IMPORT, e)
                 _state.update { it.copy(loading = false, error = e.message ?: "Could not read the shared content.") }
             }
         }
@@ -108,6 +110,7 @@ class ImportViewModel(
                     it.copy(loading = false, body = body, title = title)
                 }
             } catch (e: IOException) {
+                container.diagnostics.report(DiagnosticCode.CONTENT_IMPORT, e)
                 _state.update { it.copy(loading = false, error = e.message ?: "Could not convert the content.") }
             }
         }
@@ -118,8 +121,10 @@ class ImportViewModel(
             try {
                 stage(imageImporter.fromBytes(bytes, extension, fileName))
             } catch (e: IOException) {
+                container.diagnostics.report(DiagnosticCode.IMAGE_IMPORT, e)
                 null
             } catch (e: IllegalArgumentException) {
+                container.diagnostics.report(DiagnosticCode.IMAGE_IMPORT, e)
                 null
             }
         }
@@ -150,6 +155,7 @@ class ImportViewModel(
                 container.notifyLocalChanged()
                 _state.update { it.copy(saving = false, savedPath = path) }
             } catch (e: IOException) {
+                container.diagnostics.report(DiagnosticCode.NOTE_WRITE, e)
                 _state.update { it.copy(saving = false, saveError = e.message ?: "Could not save the note.") }
             } catch (e: IllegalArgumentException) {
                 _state.update { it.copy(saving = false, saveError = e.message ?: "Invalid note name.") }
