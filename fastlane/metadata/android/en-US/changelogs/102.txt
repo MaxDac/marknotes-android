@@ -1,0 +1,1 @@
+More robust sync: picks up the hardened shared sync core (marknotes-sync 0.2.0), which handles duplicate listing entries, partially listed folders and conflicted-copy names more safely. Adds local error diagnostics that stay on the device, with an optional report you start and review yourself.
