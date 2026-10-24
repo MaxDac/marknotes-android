@@ -2,6 +2,8 @@ package io.github.maxdac.marknotes
 
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasTestTag
 import androidx.compose.ui.test.hasText
@@ -27,14 +29,17 @@ import io.github.maxdac.marknotes.ui.chords.ADD_CHORD_FAB_TAG
 import io.github.maxdac.marknotes.ui.chords.CHORD_LIST_TAG
 import io.github.maxdac.marknotes.ui.chords.CHORD_NAME_FIELD_TAG
 import io.github.maxdac.marknotes.ui.chords.CHORD_TEXT_TAG
+import io.github.maxdac.marknotes.ui.chords.ENABLE_CHORDS_DIALOG_TAG
 import io.github.maxdac.marknotes.ui.chords.FRETBOARD_TAG
 import io.github.maxdac.marknotes.ui.editor.EDITOR_FIELD_TAG
 import io.github.maxdac.marknotes.ui.editor.EDITOR_NOTICE_TAG
 import io.github.maxdac.marknotes.ui.editor.PREVIEW_TAG
+import io.github.maxdac.marknotes.ui.settings.CHORD_SEQUENCES_SWITCH_TAG
 import io.github.maxdac.marknotes.ui.settings.NO_DRIVES_TEXT
 import java.io.File
 import org.junit.After
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Before
@@ -50,12 +55,15 @@ class MarkNotesFlowTest {
     val compose = createEmptyComposeRule()
 
     private lateinit var scenario: ActivityScenario<MainActivity>
+    private val context get() = InstrumentationRegistry.getInstrumentation().targetContext
     private val notesDir: File
-        get() = File(InstrumentationRegistry.getInstrumentation().targetContext.filesDir, "notes")
+        get() = File(context.filesDir, "notes")
+    private val settings get() = context.appContainer.settings
 
     @Before
     fun setUp() {
         notesDir.deleteRecursively()
+        settings.setChordSequencesEnabled(false)
         scenario = ActivityScenario.launch(MainActivity::class.java)
     }
 
@@ -63,28 +71,108 @@ class MarkNotesFlowTest {
     fun tearDown() {
         scenario.close()
         notesDir.deleteRecursively()
+        settings.setChordSequencesEnabled(false)
+    }
+
+    /** Turns the Chord sequences setting on, as the Settings switch does. */
+    private fun enableChordSequences() {
+        settings.setChordSequencesEnabled(true)
+        compose.waitForIdle()
+    }
+
+    /** Relaunches the app with the notes folder holding [files] (path to content). */
+    private fun relaunchWith(vararg files: Pair<String, String>) {
+        scenario.close()
+        notesDir.mkdirs()
+        files.forEach { (path, content) -> File(notesDir, path).writeText(content) }
+        scenario = ActivityScenario.launch(MainActivity::class.java)
     }
 
     /** The note text without its (hidden) front-matter. */
     private fun bodyOf(note: File) = FrontMatter.parse(note.readText()).body
 
-    /** Opens the floating "New" menu and picks the item with [itemTag]. */
+    /** Opens the floating "New" menu (Chord sequences setting on) and picks the item with [itemTag]. */
     private fun newFromFab(itemTag: String) {
         compose.onNodeWithTag(NEW_NOTE_FAB_TAG).performClick()
         compose.waitUntilExactlyOneExists(hasTestTag(itemTag), timeoutMillis = 5_000)
         compose.onNodeWithTag(itemTag).performClick()
     }
 
+    /** Taps the floating "New" button, which asks for a note name right away while chord sequences are off. */
+    private fun newNoteFromFab() {
+        compose.onNodeWithTag(NEW_NOTE_FAB_TAG).performClick()
+        compose.waitUntilExactlyOneExists(hasSetTextAction(), timeoutMillis = 5_000)
+    }
+
+    private val chordSong = "---\ntype: chords\n---\n## C (guitar)\nfrets: x 3/1 2/1 0 1/1 0\n"
+
     @Test
     fun emptyLibraryShowsPlaceholder() {
         compose.onNodeWithText("No notes here yet").assertExists()
         compose.onNodeWithTag(NEW_NOTE_FAB_TAG).assertExists()
         compose.onNodeWithTag(EMPTY_NEW_NOTE_TAG).assertExists()
-        compose.onNodeWithTag(EMPTY_NEW_CHORDS_TAG).assertExists()
+        compose.onNodeWithTag(EMPTY_NEW_CHORDS_TAG).assertDoesNotExist()
+    }
+
+    @Test
+    fun chordSequenceCreationIsOffByDefault() {
+        assertFalse(settings.chordSequencesEnabled.value)
+        compose.onNodeWithTag(NEW_NOTE_FAB_TAG).performClick()
+        compose.waitUntilExactlyOneExists(hasSetTextAction(), timeoutMillis = 5_000)
+        compose.onNodeWithTag(NEW_CHORDS_MENU_ITEM_TAG).assertDoesNotExist()
+        compose.onNodeWithText("New chord sequence").assertDoesNotExist()
+    }
+
+    @Test
+    fun settingsSwitchOffersChordSequenceCreation() {
+        compose.onNodeWithContentDescription("Settings").performClick()
+        compose.onNodeWithTag(CHORD_SEQUENCES_SWITCH_TAG).performScrollTo().assertIsOff().performClick()
+        compose.onNodeWithTag(CHORD_SEQUENCES_SWITCH_TAG).assertIsOn()
+        assertTrue(settings.chordSequencesEnabled.value)
+        compose.onNodeWithContentDescription("Back").performClick()
+
+        compose.waitUntilExactlyOneExists(hasTestTag(EMPTY_NEW_CHORDS_TAG), timeoutMillis = 5_000)
+        compose.onNodeWithTag(NEW_NOTE_FAB_TAG).performClick()
+        compose.waitUntilExactlyOneExists(hasTestTag(NEW_CHORDS_MENU_ITEM_TAG), timeoutMillis = 5_000)
+        compose.onNodeWithTag(NEW_NOTE_MENU_ITEM_TAG).assertExists()
+    }
+
+    @Test
+    fun openingChordSequenceWhileOffAndDecliningStaysInTheList() {
+        relaunchWith("Song.md" to chordSong)
+        compose.waitUntilExactlyOneExists(hasText("Song"), timeoutMillis = 5_000)
+        compose.onNodeWithText("Song").performClick()
+        compose.waitUntilExactlyOneExists(hasTestTag(ENABLE_CHORDS_DIALOG_TAG), timeoutMillis = 5_000)
+        compose.onNodeWithText("No").performClick()
+
+        compose.waitUntilDoesNotExist(hasTestTag(ENABLE_CHORDS_DIALOG_TAG), timeoutMillis = 5_000)
+        compose.onNodeWithText("Song").assertExists()
+        compose.onNodeWithTag(CHORD_LIST_TAG).assertDoesNotExist()
+        compose.onNodeWithTag(EDITOR_FIELD_TAG).assertDoesNotExist()
+        assertFalse(settings.chordSequencesEnabled.value)
+        assertEquals(chordSong, File(notesDir, "Song.md").readText())
+    }
+
+    @Test
+    fun openingChordSequenceWhileOffAndAcceptingEnablesTheSetting() {
+        relaunchWith("Song.md" to chordSong)
+        compose.waitUntilExactlyOneExists(hasText("Song"), timeoutMillis = 5_000)
+        compose.onNodeWithText("Song").performClick()
+        compose.waitUntilExactlyOneExists(hasTestTag(ENABLE_CHORDS_DIALOG_TAG), timeoutMillis = 5_000)
+        compose.onNodeWithText("Yes").performClick()
+
+        compose.waitUntilExactlyOneExists(hasTestTag(CHORD_LIST_TAG), timeoutMillis = 5_000)
+        compose.onNodeWithContentDescription("1 C: x 3/1 2/1 0 1/1 0").assertExists()
+        assertTrue(settings.chordSequencesEnabled.value)
+        compose.onNodeWithContentDescription("Back").performClick()
+        compose.waitUntilExactlyOneExists(hasTestTag(NEW_NOTE_FAB_TAG), timeoutMillis = 5_000)
+        compose.onNodeWithTag(NEW_NOTE_FAB_TAG).performClick()
+        compose.waitUntilExactlyOneExists(hasTestTag(NEW_CHORDS_MENU_ITEM_TAG), timeoutMillis = 5_000)
     }
 
     @Test
     fun fabMenuOffersNoteAndChordSequence() {
+        enableChordSequences()
         compose.onNodeWithTag(NEW_NOTE_FAB_TAG).performClick()
         compose.waitUntilExactlyOneExists(hasTestTag(NEW_NOTE_MENU_ITEM_TAG), timeoutMillis = 5_000)
         compose.onNodeWithTag(NEW_CHORDS_MENU_ITEM_TAG).performClick()
@@ -96,6 +184,8 @@ class MarkNotesFlowTest {
 
     @Test
     fun emptyFolderButtonsCreateNoteAndChordSequence() {
+        enableChordSequences()
+        compose.waitUntilExactlyOneExists(hasTestTag(EMPTY_NEW_CHORDS_TAG), timeoutMillis = 5_000)
         compose.onNodeWithTag(EMPTY_NEW_CHORDS_TAG).performClick()
         compose.onNode(hasSetTextAction()).performTextInput("Riffs")
         compose.onNodeWithText("OK").performClick()
@@ -128,7 +218,7 @@ class MarkNotesFlowTest {
         compose.waitUntilExactlyOneExists(hasText("No notes here yet"))
         compose.onNodeWithContentDescription("Back").assertExists()
 
-        newFromFab(NEW_NOTE_MENU_ITEM_TAG)
+        newNoteFromFab()
         compose.onNode(hasSetTextAction()).performTextInput("Meeting")
         compose.onNodeWithText("OK").performClick()
         compose.waitUntilExactlyOneExists(hasTestTag(EDITOR_FIELD_TAG))
@@ -141,7 +231,7 @@ class MarkNotesFlowTest {
 
     @Test
     fun editNoteTogglePreviewAndAutosave() {
-        newFromFab(NEW_NOTE_MENU_ITEM_TAG)
+        newNoteFromFab()
         compose.onNode(hasSetTextAction()).performTextInput("Shopping")
         compose.onNodeWithText("OK").performClick()
 
@@ -165,7 +255,7 @@ class MarkNotesFlowTest {
 
     @Test
     fun enterContinuesChecklistAndToolbarFormats() {
-        newFromFab(NEW_NOTE_MENU_ITEM_TAG)
+        newNoteFromFab()
         compose.waitUntilExactlyOneExists(hasSetTextAction(), timeoutMillis = 5_000)
         compose.onNode(hasSetTextAction()).performTextInput("Todo")
         compose.onNodeWithText("OK").performClick()
@@ -207,6 +297,7 @@ class MarkNotesFlowTest {
 
     @Test
     fun createChordSequenceAddChordAndReopen() {
+        enableChordSequences()
         newFromFab(NEW_CHORDS_MENU_ITEM_TAG)
         compose.onNode(hasSetTextAction()).performTextInput("Song")
         compose.onNodeWithText("OK").performClick()
@@ -240,10 +331,8 @@ class MarkNotesFlowTest {
 
     @Test
     fun unparsableChordFileOpensInMarkdownEditor() {
-        scenario.close()
-        notesDir.mkdirs()
-        File(notesDir, "Broken.md").writeText("---\ntype: chords\n---\n<<<<<<< ours\n## C (guitar)\n")
-        scenario = ActivityScenario.launch(MainActivity::class.java)
+        settings.setChordSequencesEnabled(true)
+        relaunchWith("Broken.md" to "---\ntype: chords\n---\n<<<<<<< ours\n## C (guitar)\n")
 
         compose.waitUntilExactlyOneExists(hasText("Broken"), timeoutMillis = 5_000)
         compose.onNodeWithText("Broken").performClick()

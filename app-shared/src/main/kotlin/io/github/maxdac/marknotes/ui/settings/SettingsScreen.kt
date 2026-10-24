@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -33,6 +34,7 @@ import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -47,6 +49,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
@@ -68,6 +71,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 const val NO_DRIVES_TEXT = "No drives connected. Notes are only stored on this device."
+const val CHORD_SEQUENCES_SWITCH_TAG = "chord-sequences-switch"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -94,6 +98,9 @@ fun SettingsScreen(onAddDrive: () -> Unit, onOpenConflicts: () -> Unit, onBack: 
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             AppearanceSection(container.settings)
+
+            HorizontalDivider()
+            ChordSequencesSection(container.settings)
 
             HorizontalDivider()
             Text("Drives", style = MaterialTheme.typography.titleMedium)
@@ -157,6 +164,27 @@ private fun AppearanceSection(settings: AppSettings) {
         settings.availableColors.forEach { option ->
             ColorSwatch(option, selected = option == color) { settings.setThemeColor(option) }
         }
+    }
+}
+
+@Composable
+private fun ChordSequencesSection(settings: AppSettings) {
+    val enabled by settings.chordSequencesEnabled.collectAsStateWithLifecycle()
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .toggleable(value = enabled, role = Role.Switch, onValueChange = settings::setChordSequencesEnabled)
+            .testTag(CHORD_SEQUENCES_SWITCH_TAG),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text("Chord sequences", style = MaterialTheme.typography.titleMedium)
+            Text(
+                "Create and edit guitar chord sequences. This setting is kept on this device only.",
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+        Switch(checked = enabled, onCheckedChange = null, modifier = Modifier.padding(start = 12.dp))
     }
 }
 
