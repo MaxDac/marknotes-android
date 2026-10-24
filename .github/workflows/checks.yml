@@ -158,6 +158,23 @@ jobs:
         run: ./gradlew :app:assembleRelease --no-build-cache -Pmarknotes.sync.fromSource=marknotes-sync
       - name: Scan the APK for non-free code
         run: fdroid scanner --exit-code app/build/outputs/apk/release/app-release-unsigned.apk
+      # F-Droid lists the permissions, and the inclusion MR describes them. Libraries without uses-sdk make the
+      # manifest merger silently add READ_PHONE_STATE and the storage permissions.
+      - name: Check the APK permissions
+        run: |
+          aapt2="$(find "$ANDROID_HOME/build-tools" -name aapt2 | sort -V | tail -n 1)"
+          actual="$("$aapt2" dump permissions app/build/outputs/apk/release/app-release-unsigned.apk \
+            | sed -n "s/^uses-permission: name='\([^']*\)'.*/\1/p" | sort)"
+          expected="$(printf '%s\n' \
+            android.permission.INTERNET \
+            android.permission.USE_BIOMETRIC \
+            io.github.maxdac.marknotes.libre.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION | sort)"
+          if [ "$actual" != "$expected" ]; then
+            echo "::error::The APK's permissions changed. Update this list and the F-Droid MR description if intended."
+            diff <(echo "$expected") <(echo "$actual")
+            exit 1
+          fi
+          echo "$actual"
       - name: Upload the unsigned release APK
         uses: actions/upload-artifact@v7
         with:
