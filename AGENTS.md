@@ -53,6 +53,7 @@ ruleset requires them by name):
 | Checks / Parity (marknotes-spec fixtures) | `./gradlew :core:parityTest :app-shared:testDebugUnitTest --tests 'io.github.maxdac.marknotes.parity.*' -Pmarknotes.parity.required=true` (needs the `spec/` submodule) |
 | Checks / F-Droid build | `scripts/fdroid-lint.sh` (needs fdroidserver), then the from-source build in the README, "Building from source, like F-Droid" (Linux), then `fdroid scanner --exit-code <apk>` |
 | Checks / Reproducible build | The same from-source build twice at different paths; the unsigned APKs must be identical |
+| Checks / F-Droid server build (fdroid build) | `scripts/fdroid-server-build.sh <out>` (Docker, full clone): the real `fdroid build` in F-Droid's buildserver image; its APK must equal the F-Droid build's |
 
 PRs also run **Dependency review** (fails on high-severity vulnerabilities, after submitting the resolved
 Gradle graph), **actionlint** and **CodeQL**. Required checks and review-thread resolution are enforced by the
@@ -88,10 +89,11 @@ F-Droid builds the app from source with the recipe in [`.fdroid.yml`](.fdroid.ym
 - **Free software only**: no Google Play Services, Firebase, proprietary SDKs or analytics, and every Maven
   repository must be a free one F-Droid trusts (Google, Maven Central, Gradle Plugin Portal). The Checks / F-Droid
   build job runs `fdroid scanner` on the APK. Dropbox is a non-free network service: the *NonFreeNet* anti-feature.
-- **No prebuilt binaries**: marknotes-sync is built from source (`scripts/build-sync-from-source.sh`,
-  `-Pmarknotes.sync.fromSource=<checkout>`). Bumping `marknotesSync` in `gradle/libs.versions.toml` needs the
-  `marknotes-sync@v<version>` srclib in `.fdroid.yml` bumped too (`scripts/fdroid-lint.sh` checks it) and a
-  marknotes-sync release tag.
+- **No prebuilt binaries**: marknotes-sync is built from source from the `marknotes-sync/` git submodule
+  (`scripts/build-sync-from-source.sh`, `-Pmarknotes.sync.fromSource=marknotes-sync`); fdroiddata prefers submodules
+  to srclibs. Bumping `marknotesSync` in `gradle/libs.versions.toml` needs a marknotes-sync release tag and the
+  submodule moved to it in the same commit (`scripts/fdroid-lint.sh` checks it). The recipe's `rm:` drops the
+  unlicensed `spec/` submodules and the sync's `gradle-wrapper.jar`.
 - **Reproducible**: F-Droid ships our signed APK only if its rebuild matches. Keep `vcsInfo` and `dependenciesInfo`
   off, keep the Rust/NDK/cargo-ndk pins in `scripts/build-sync-from-source.sh`, `.fdroid.yml` and
   `.github/actions/setup-sync-toolchain` identical, and don't add build inputs that depend on time, paths or the

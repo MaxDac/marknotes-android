@@ -19,5 +19,8 @@ updates:
   # The spec/ submodule (MaxDac/marknotes-spec): bumps run the new fixtures in the Parity check.
   - package-ecosystem: gitsubmodule
     directory: /
+    # marknotes-sync/ follows release tags with marknotesSync in gradle/libs.versions.toml (scripts/fdroid-lint.sh).
+    ignore:
+      - dependency-name: marknotes-sync
     schedule:
       interval: weekly
