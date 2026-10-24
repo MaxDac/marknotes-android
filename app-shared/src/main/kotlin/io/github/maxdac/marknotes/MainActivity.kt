@@ -4,16 +4,32 @@ import android.content.Intent
 import android.graphics.Color
 import android.net.Uri
 import android.os.Bundle
+import android.view.WindowManager
+import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
+import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.semantics.clearAndSetSemantics
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
+import androidx.compose.ui.window.DialogWindowProvider
+import androidx.core.view.WindowCompat
+import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.lifecycleScope
+import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
@@ -21,6 +37,7 @@ import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import io.github.maxdac.marknotes.core.sync.DriveProvider
 import io.github.maxdac.marknotes.data.ThemeMode
+import io.github.maxdac.marknotes.security.DeviceAuth
 import io.github.maxdac.marknotes.ui.MarkNotesTheme
 import io.github.maxdac.marknotes.ui.NoteScreen
 import io.github.maxdac.marknotes.ui.browser.BrowserScreen
@@ -28,14 +45,22 @@ import io.github.maxdac.marknotes.ui.conflicts.ConflictsScreen
 import io.github.maxdac.marknotes.ui.drives.AddDriveScreen
 import io.github.maxdac.marknotes.ui.importing.ImportScreen
 import io.github.maxdac.marknotes.ui.importing.SharedContent
+import io.github.maxdac.marknotes.ui.lock.LockScreen
 import io.github.maxdac.marknotes.ui.settings.SettingsScreen
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.launch
 
 class MainActivity : ComponentActivity() {
     /** The latest content shared with the app; [shareRequests] counts new shares to open the import screen for. */
     private val sharedContent = MutableStateFlow<SharedContent?>(null)
     private val shareRequests = MutableStateFlow(0)
+
+    /** The last unlock error shown on the lock screen. */
+    private val unlockError = MutableStateFlow<CharSequence?>(null)
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -47,9 +72,14 @@ class MainActivity : ComponentActivity() {
             if (sharedContent.value != null) shareRequests.value++
         }
         val settings = appContainer.settings
+        val appLock = appContainer.appLock
+        applySecureScreen()
+        lifecycleScope.launch { repeatOnLifecycle(Lifecycle.State.STARTED) { lockWhenIdle() } }
         setContent {
             val mode by settings.themeMode.collectAsStateWithLifecycle()
             val color by settings.themeColor.collectAsStateWithLifecycle()
+            val locked by appLock.locked.collectAsStateWithLifecycle()
+            val error by unlockError.collectAsStateWithLifecycle()
             val dark = when (mode) {
                 ThemeMode.SYSTEM -> isSystemInDarkTheme()
                 ThemeMode.LIGHT -> false
@@ -60,9 +90,103 @@ class MainActivity : ComponentActivity() {
                 enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
             }
             MarkNotesTheme(mode = mode, color = color) {
-                MarkNotesNavHost(sharedContent, shareRequests, onFinish = ::finish)
+                val focusManager = LocalFocusManager.current
+                LaunchedEffect(locked) {
+                    // Nothing typed while locked may reach the editor below the lock screen.
+                    if (locked) focusManager.clearFocus(force = true)
+                }
+                Box(Modifier.fillMaxSize()) {
+                    // Kept composed while locked, so unlocking returns to the same screen.
+                    Box(if (locked) Modifier.clearAndSetSemantics {} else Modifier) {
+                        MarkNotesNavHost(sharedContent, shareRequests, onFinish = ::finish)
+                    }
+                    if (locked) LockDialog(dark = dark, error = error)
+                }
             }
         }
+    }
+
+    /** The lock screen, in a window of its own so it also covers the dialogs and menus open when locking. */
+    @Composable
+    private fun LockDialog(dark: Boolean, error: CharSequence?) {
+        Dialog(
+            onDismissRequest = { moveTaskToBack(true) },
+            properties = DialogProperties(
+                dismissOnClickOutside = false,
+                usePlatformDefaultWidth = false,
+                decorFitsSystemWindows = false
+            )
+        ) {
+            val window = (LocalView.current.parent as? DialogWindowProvider)?.window
+            SideEffect {
+                window?.let {
+                    WindowCompat.getInsetsController(it, it.decorView).apply {
+                        isAppearanceLightStatusBars = !dark
+                        isAppearanceLightNavigationBars = !dark
+                    }
+                }
+            }
+            LockScreen(error = error, onUnlock = ::promptUnlock)
+        }
+    }
+
+    /** Applies the "Hide notes in Recents and block screenshots" setting to the window. */
+    private fun applySecureScreen() {
+        // Collected on Main.immediate, so the flag is set before the first frame.
+        lifecycleScope.launch {
+            appContainer.settings.secureScreen.collect { secure ->
+                if (secure) {
+                    window.addFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                } else {
+                    window.clearFlags(WindowManager.LayoutParams.FLAG_SECURE)
+                }
+            }
+        }
+    }
+
+    /** Locks the app after the idle timeout while it is in the foreground. */
+    private suspend fun lockWhenIdle() {
+        val settings = appContainer.settings
+        val appLock = appContainer.appLock
+        combine(settings.appLockEnabled, settings.lockTimeout, appLock.locked, ::Triple)
+            .collectLatest { (enabled, timeout, locked) ->
+                if (!enabled || locked || timeout.millis <= 0) return@collectLatest
+                do {
+                    delay(appLock.millisUntilIdleLock().coerceAtLeast(MIN_IDLE_CHECK_MILLIS))
+                } while (!appLock.checkIdle())
+            }
+    }
+
+    private fun promptUnlock() {
+        val appLock = appContainer.appLock
+        if (!appLock.locked.value || !appLock.beginAuthentication()) return
+        unlockError.value = null
+        DeviceAuth.authenticate(this, "Unlock MarkNotes") { success, error ->
+            appLock.endAuthentication(success)
+            unlockError.value = error
+        }
+    }
+
+    override fun onUserInteraction() {
+        super.onUserInteraction()
+        appContainer.appLock.onUserInteraction()
+    }
+
+    override fun onStart() {
+        super.onStart()
+        val settings = appContainer.settings
+        if (settings.appLockEnabled.value && !DeviceAuth.isDeviceSecure(this)) {
+            // Without a screen lock there is no fallback credential: turn the app lock off and say so.
+            settings.setAppLockEnabled(false)
+            appContainer.appLock.onEnabledChanged()
+            Toast.makeText(this, APP_LOCK_TURNED_OFF_TEXT, Toast.LENGTH_LONG).show()
+        }
+        appContainer.appLock.onStart()
+    }
+
+    override fun onStop() {
+        super.onStop()
+        if (!isChangingConfigurations) appContainer.appLock.onStop()
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -78,8 +202,12 @@ class MainActivity : ComponentActivity() {
         super.onResume()
         // Completes a pending browser-based sign-in (Dropbox, ...) when returning from the browser.
         appContainer.syncManager.onActivityResumed()
+        if (appContainer.appLock.consumePromptRequest()) promptUnlock()
     }
 }
+
+const val APP_LOCK_TURNED_OFF_TEXT = "The app lock was turned off because this device no longer has a screen lock."
+private const val MIN_IDLE_CHECK_MILLIS = 1_000L
 
 object Routes {
     const val BROWSER = "browser?path={path}"

@@ -246,6 +246,8 @@ class ChordEditorViewModel(private val container: AppContainer, val path: String
     }
 
     fun onTextChange(text: String) {
+        // Typing through the keyboard app doesn't reach Activity.onUserInteraction: keep the app lock's timer fresh.
+        container.appLock.onUserInteraction()
         _state.value = _state.value.copy(text = text)
         save(text, debounce = true)
     }
