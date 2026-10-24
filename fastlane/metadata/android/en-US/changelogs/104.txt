@@ -1,1 +1,2 @@
 Safer sync with marknotes-sync 0.3.0: deletions and renames are synced, and interrupted syncs recover durably. Settings and the README now link to the other MarkNotes apps.
+Prevent moving a folder named attachments to the root, where it would disappear from the note tree.

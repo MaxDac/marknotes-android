@@ -153,9 +153,9 @@ class LocalNoteStore(val root: File) {
         return createFolder(path)
     }
 
-    private fun checkAvailable(path: String, name: String) {
+    private fun checkAvailable(path: String, name: String, existsMessage: String = "\"$name\" already exists") {
         if (path == Attachments.FOLDER) throw IOException("\"$name\" is reserved for images")
-        if (exists(path)) throw IOException("\"$name\" already exists")
+        if (exists(path)) throw IOException(existsMessage)
     }
 
     /** Renames an entry within its folder. Notes keep the ".md" extension. Returns the new path. */
@@ -194,9 +194,10 @@ class LocalNoteStore(val root: File) {
         require(target != normalized && !(source.isDirectory && NotePaths.isAncestor(normalized, target))) {
             "Cannot move a folder into itself"
         }
-        val newPath = NotePaths.join(target, NotePaths.name(normalized))
+        val name = NotePaths.name(normalized)
+        val newPath = NotePaths.join(target, name)
         if (newPath == normalized) return newPath
-        if (exists(newPath)) throw IOException("\"${NotePaths.name(normalized)}\" already exists in the destination")
+        checkAvailable(newPath, name, "\"$name\" already exists in the destination")
         Files.move(source.toPath(), file(newPath).toPath())
         return newPath
     }
