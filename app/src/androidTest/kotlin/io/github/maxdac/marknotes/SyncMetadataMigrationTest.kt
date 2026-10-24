@@ -5,6 +5,7 @@ import androidx.room.Room
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import io.github.maxdac.marknotes.core.notes.LocalNoteStore
+import io.github.maxdac.marknotes.core.notes.assertLocalMutationRaces
 import io.github.maxdac.marknotes.data.MarkNotesDatabase
 import io.github.maxdac.marknotes.data.RoomSyncMetadataStore
 import java.io.File
@@ -19,6 +20,16 @@ import org.junit.runner.RunWith
 @RunWith(AndroidJUnit4::class)
 class SyncMetadataMigrationTest {
     private val context = InstrumentationRegistry.getInstrumentation().targetContext
+
+    @Test
+    fun nativeCaseRenamesAndNewCopiesNeverClobberConcurrentDestinationCreators() {
+        val root = File(context.cacheDir, "rename-races-${UUID.randomUUID()}")
+        try {
+            assertLocalMutationRaces(root)
+        } finally {
+            root.deleteRecursively()
+        }
+    }
 
     @Test
     fun nativeFolderRenamePreservesExactSpellingChildIdentityAndEpochTimestamp() {

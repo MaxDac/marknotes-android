@@ -27,6 +27,11 @@ class LocalNoteStoreTest {
     }
 
     @Test
+    fun caseRenamesAndNewCopiesNeverClobberConcurrentDestinationCreators() {
+        assertLocalMutationRaces(dir)
+    }
+
+    @Test
     fun caseRenameChangesTheActualDirectoryEntryAndPreservesChildCaseAndTime() {
         store.writeNewBytes("Folder/Child.md", "same".toByteArray(), 1000L)
         val identity = store.identity("Folder/Child.md")

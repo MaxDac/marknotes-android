@@ -1,7 +1,9 @@
 package io.github.maxdac.marknotes.core.notes
 
+import com.sun.jna.Library
 import com.sun.jna.Memory
 import com.sun.jna.Native
+import com.sun.jna.NativeLong
 import com.sun.jna.Pointer
 import com.sun.jna.WString
 import com.sun.jna.win32.StdCallLibrary
@@ -16,17 +18,13 @@ internal fun fileIdentity(file: File): String =
     Files.readAttributes(file.toPath(), BasicFileAttributes::class.java).fileKey()?.toString()
         ?: if (windows) WindowsFiles.identity(file) else throw IOException("Cannot verify file identity: $file")
 
-/** Java's Windows moves can treat a case-only destination as a no-op; rename the opened identity instead. */
+/** Never use Java moves here: Unix implementations may check existence then perform a replacing rename. */
 internal fun renameCaseFile(source: File, target: File) {
     val identity = fileIdentity(source)
-    if (target.exists() && Files.isSameFile(source.toPath(), target.toPath())) {
-        if (windows) {
-            WindowsFiles.rename(source, target)
-        } else if (!source.renameTo(target)) {
-            throw IOException("Cannot rename $source to $target")
-        }
-    } else {
-        Files.move(source.toPath(), target.toPath())
+    when {
+        windows -> WindowsFiles.rename(source, target)
+        System.getProperty("os.name").equals("Linux", ignoreCase = true) -> LinuxFiles.rename(source, target)
+        else -> throw IOException("Atomic no-replace case rename is unsupported on this platform")
     }
     val names = target.parentFile.list().orEmpty().toList()
     check(names.contains(target.name)) { "Rename did not preserve exact case: $target; names=$names" }
@@ -34,6 +32,56 @@ internal fun renameCaseFile(source: File, target: File) {
     check(movedIdentity == identity) {
         "Rename did not preserve identity: $target; identity=$identity -> $movedIdentity"
     }
+}
+
+private object LinuxFiles {
+    private val api by lazy { Native.load("c", LibC::class.java) }
+
+    fun rename(source: File, target: File) {
+        val number = renameNumber()
+        val result = try {
+            api.syscall(
+                number,
+                AT_FDCWD,
+                source.absolutePath,
+                AT_FDCWD,
+                target.absolutePath,
+                RENAME_NOREPLACE
+            )
+        } catch (error: UnsatisfiedLinkError) {
+            throw IOException("Kernel no-replace case rename is unavailable", error)
+        }
+        if (result.toLong() != 0L) {
+            val error = Native.getLastError()
+            throw IOException(
+                "Atomic no-replace case rename failed: $source -> $target (Linux errno $error); " +
+                    "the kernel and filesystem must support RENAME_NOREPLACE"
+            )
+        }
+    }
+
+    // Linux __NR_renameat2 for the supported Android ABIs, including host JVMs. No POSIX rename fallback.
+    private fun renameNumber() = NativeLong(
+        when (System.getProperty("os.arch")) {
+            "aarch64", "arm64" -> 276L
+            "amd64", "x86_64" -> 316L
+            else -> throw IOException("Atomic no-replace case rename is unsupported on this architecture")
+        }
+    )
+
+    private interface LibC : Library {
+        fun syscall(
+            number: NativeLong,
+            oldDir: Int,
+            oldPath: String,
+            newDir: Int,
+            newPath: String,
+            flags: Int
+        ): NativeLong
+    }
+
+    private const val AT_FDCWD = -100
+    private const val RENAME_NOREPLACE = 1
 }
 
 /** Used only by JVM Windows hosts; Android uses its native Unix file key and no Windows API is loaded. */
