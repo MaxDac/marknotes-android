@@ -370,16 +370,19 @@ private fun PrivacySection(syncManager: SyncManager, enabled: Boolean, onDeleted
                         deleting = true
                         error = null
                         scope.launch {
-                            try {
+                            val deleted = try {
                                 syncManager.deleteAllLocalData()
-                                onDeleted()
+                                true
                             } catch (e: CancellationException) {
                                 throw e
                             } catch (e: Exception) {
                                 error = "Could not delete the local data: ${e.message ?: e.javaClass.simpleName}"
+                                false
                             } finally {
                                 deleting = false
                             }
+                            // Navigation must run on the main thread, whatever thread the wipe resumed on.
+                            if (deleted) withContext(Dispatchers.Main) { onDeleted() }
                         }
                     },
                     colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
