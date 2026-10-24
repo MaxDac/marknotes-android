@@ -1,5 +1,7 @@
 package io.github.maxdac.marknotes
 
+import android.app.Activity
+import android.app.Instrumentation
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.net.Uri
@@ -16,7 +18,9 @@ import androidx.test.platform.app.InstrumentationRegistry
 import io.github.maxdac.marknotes.core.diagnostics.DiagnosticCode
 import io.github.maxdac.marknotes.ui.lock.LOCKED_TITLE
 import java.io.File
+import java.io.FileNotFoundException
 import java.io.IOException
+import java.util.concurrent.atomic.AtomicReference
 import kotlinx.coroutines.runBlocking
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -109,6 +113,7 @@ class DiagnosticsFlowTest {
         }
         diagnostics.clear()
         assertFalse(File(context.cacheDir, "diagnostic-exports").listFiles().orEmpty().any())
+        assertThrows(FileNotFoundException::class.java) { context.contentResolver.openInputStream(uri) }
     }
 
     @Test
@@ -124,6 +129,36 @@ class DiagnosticsFlowTest {
         }
         compose.onNodeWithText(LOCKED_TITLE).assertExists()
         compose.onNodeWithText("Open draft in browser").assertDoesNotExist()
+    }
+
+    @Test
+    fun browserReceivesOnlyReviewedBoundedDraftAfterExplicitConsent() {
+        val launched = AtomicReference<Intent>()
+        val monitor = object : Instrumentation.ActivityMonitor() {
+            override fun onStartActivity(intent: Intent): Instrumentation.ActivityResult? {
+                if (intent.action != Intent.ACTION_VIEW) return null
+                launched.set(intent)
+                return Instrumentation.ActivityResult(Activity.RESULT_CANCELED, null)
+            }
+        }
+        instrumentation.addMonitor(monitor)
+        try {
+            openDiagnostics()
+            compose.onNodeWithText("Report a problem").performClick()
+            compose.waitUntil(10_000) {
+                compose.onAllNodes(hasText("Review problem report")).fetchSemanticsNodes().isNotEmpty()
+            }
+            assertEquals(null, launched.get())
+            compose.onNodeWithText("Open draft in browser").performClick()
+            compose.waitForIdle()
+            val uri = launched.get().data!!
+            assertEquals("github.com", uri.host)
+            assertEquals("/MaxDac/marknotes-android/issues/new", uri.path)
+            assertTrue(uri.toString().length <= 2_000)
+            assertTrue(uri.toString().all { it.code < 128 })
+        } finally {
+            instrumentation.removeMonitor(monitor)
+        }
     }
 
     @Test

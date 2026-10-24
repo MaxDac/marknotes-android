@@ -6,6 +6,7 @@ import io.github.maxdac.marknotes.AppContainer
 import io.github.maxdac.marknotes.core.diagnostics.DiagnosticCode
 import io.github.maxdac.marknotes.core.notes.ChordSequences
 import io.github.maxdac.marknotes.core.notes.NoteEntry
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -60,8 +61,9 @@ class BrowserViewModel(private val container: AppContainer, val folder: String) 
 
     private fun isChordFile(path: String): Boolean = try {
         ChordSequences.isChordFile(notes, path)
+    } catch (e: CancellationException) {
+        throw e
     } catch (e: Exception) {
-        if (e is kotlinx.coroutines.CancellationException) throw e
         container.diagnostics.report(DiagnosticCode.NOTE_READ, e)
         false
     }
@@ -94,8 +96,9 @@ class BrowserViewModel(private val container: AppContainer, val folder: String) 
         viewModelScope.launch {
             try {
                 withContext(Dispatchers.IO) { block() }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                if (e is kotlinx.coroutines.CancellationException) throw e
                 container.diagnostics.report(DiagnosticCode.NOTE_OPERATION, e)
                 _error.value = e.message ?: "Operation failed"
             }

@@ -82,14 +82,49 @@ class DiagnosticsTest {
     }
 
     @Test
+    fun unavailableStorageAndCorruptRecordsFailExplicitlyInsteadOfExportingUntrustedText() {
+        val unavailable = temporary.newFile("not-a-directory")
+        val store = DiagnosticStore(unavailable, File(temporary.root, "exports")) { now }
+        org.junit.Assert.assertThrows(IOException::class.java) { store.append(event()) }
+
+        val directory = temporary.newFolder("corrupt")
+        File(directory, "bad.event").apply {
+            writeText("$now NOTE_READ token=private")
+            assertTrue(setLastModified(now))
+        }
+        val corrupt = DiagnosticStore(directory, File(temporary.root, "exports")) { now }
+        org.junit.Assert.assertThrows(IOException::class.java) { corrupt.events() }
+        org.junit.Assert.assertThrows(IOException::class.java) { corrupt.export() }
+        corrupt.clear()
+        assertTrue(corrupt.events().isEmpty())
+    }
+
+    @Test
+    fun eventCountAlsoBoundsWorkWhenManyTinyRecordsExist() {
+        val directory = temporary.newFolder("events")
+        repeat(2_100) { index ->
+            File(directory, "$index.event").apply {
+                writeText(event(timestamp = now - index).line() + "\n")
+                assertTrue(setLastModified(now - index))
+            }
+        }
+        val store = store()
+        store.prune()
+        assertEquals(2_048, store.events().size)
+    }
+
+    @Test
     fun totalBudgetIncludesExportsAndPreexistingOversizeFiles() {
         val store = store()
         val directory = temporary.newFolder("exports")
-        File(directory, "old.txt").outputStream().use { stream ->
+        val oversized = File(directory, "old.txt")
+        oversized.outputStream().use { stream ->
             val block = ByteArray(1_024)
             repeat((DiagnosticStore.MAX_BYTES / block.size + 1).toInt()) { stream.write(block) }
         }
+        assertTrue(oversized.setLastModified(now))
         store.prune()
+        assertFalse(oversized.exists())
         repeat(100) { store.append(event(timestamp = now++)) }
         repeat(3) {
             store.export()

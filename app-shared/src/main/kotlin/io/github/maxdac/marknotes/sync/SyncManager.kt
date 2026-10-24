@@ -99,8 +99,9 @@ class SyncManager(
                     withContext(Dispatchers.IO) {
                         try {
                             conflictStore.save(conflicts)
+                        } catch (e: CancellationException) {
+                            throw e
                         } catch (e: Exception) {
-                            if (e is CancellationException) throw e
                             diagnostics.report(DiagnosticCode.SYNC_STATE, e)
                         }
                     }
@@ -253,8 +254,9 @@ class SyncManager(
         withContext(Dispatchers.IO) {
             try {
                 mergeBack.merge(conflict)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                if (e is CancellationException) throw e
                 diagnostics.report(DiagnosticCode.SYNC, e)
                 throw e
             }
@@ -298,8 +300,9 @@ class SyncManager(
         val saved = withContext(Dispatchers.IO) {
             try {
                 conflictStore.load().filter { mergeBack.isPending(it) }
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                if (e is CancellationException) throw e
                 diagnostics.report(DiagnosticCode.SYNC_STATE, e)
                 emptyList()
             }

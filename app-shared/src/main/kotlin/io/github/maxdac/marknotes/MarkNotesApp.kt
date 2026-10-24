@@ -80,7 +80,7 @@ class AppContainer(
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val notesRoot = File(context.filesDir, "notes").apply { mkdirs() }
     val notes = LocalNoteStore(notesRoot)
-    val imageImporter = ImageImporter(context.applicationContext)
+    val imageImporter = ImageImporter(context.applicationContext, diagnostics)
     val settings = AppSettings(context, dynamicColorSupported = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
 
     /** The optional app lock (Settings, Privacy); locked on cold start when enabled. */
@@ -120,7 +120,7 @@ class AppContainer(
     }
 
     /** Unsaved editor edits, written before every sync. */
-    val pendingSaves = PendingSaves()
+    val pendingSaves = PendingSaves(diagnostics)
 
     val syncManager = SyncManager(
         context = context.applicationContext,

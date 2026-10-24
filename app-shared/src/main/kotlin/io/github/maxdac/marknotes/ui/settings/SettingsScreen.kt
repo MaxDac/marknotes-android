@@ -319,8 +319,9 @@ private fun ImagesSection(container: AppContainer, enabled: Boolean) {
                                 1 -> "Deleted 1 unused image."
                                 else -> "Deleted ${deleted.size} unused images."
                             }
+                        } catch (e: CancellationException) {
+                            throw e
                         } catch (e: Exception) {
-                            if (e is CancellationException) throw e
                             container.diagnostics.report(DiagnosticCode.IMAGE_IMPORT, e)
                             "Could not clean images: ${e.message}"
                         }

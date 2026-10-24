@@ -1,8 +1,8 @@
 package io.github.maxdac.marknotes.core.sync
 
-import io.github.maxdac.marknotes.core.notes.LocalNoteStore
 import io.github.maxdac.marknotes.core.diagnostics.DiagnosticCode
 import io.github.maxdac.marknotes.core.diagnostics.DiagnosticReporter
+import io.github.maxdac.marknotes.core.notes.LocalNoteStore
 import java.io.File
 import java.nio.file.Files
 import kotlinx.coroutines.test.runTest

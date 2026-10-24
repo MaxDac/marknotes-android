@@ -55,6 +55,7 @@ class AndroidDiagnostics(context: Context, private val issueRepository: String) 
     }
 
     override fun report(code: DiagnosticCode, failure: Throwable?) {
+        val generation = store.generation()
         val event = DiagnosticEvent.from(System.currentTimeMillis(), code, failure) ?: return
         if (failure != null) {
             synchronized(recentFailures) {
@@ -63,7 +64,6 @@ class AndroidDiagnostics(context: Context, private val issueRepository: String) 
                 recentFailures[failure] = true
             }
         }
-        val generation = store.generation()
         enqueue { store.append(event, generation) }
     }
 

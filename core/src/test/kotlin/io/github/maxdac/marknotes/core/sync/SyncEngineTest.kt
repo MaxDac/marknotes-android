@@ -1,9 +1,9 @@
 package io.github.maxdac.marknotes.core.sync
 
-import io.github.maxdac.marknotes.core.notes.FrontMatter
-import io.github.maxdac.marknotes.core.notes.LocalNoteStore
 import io.github.maxdac.marknotes.core.diagnostics.DiagnosticCode
 import io.github.maxdac.marknotes.core.diagnostics.DiagnosticReporter
+import io.github.maxdac.marknotes.core.notes.FrontMatter
+import io.github.maxdac.marknotes.core.notes.LocalNoteStore
 import io.github.maxdac.marknotes.core.notes.NoteIds
 import io.github.maxdac.marknotes.sync.ConflictChoice
 import io.github.maxdac.marknotes.sync.Side
