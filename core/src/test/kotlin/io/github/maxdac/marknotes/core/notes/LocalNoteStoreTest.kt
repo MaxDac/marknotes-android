@@ -102,6 +102,32 @@ class LocalNoteStoreTest {
         assertFalse(store.exists("a"))
     }
 
+    @Test
+    fun deleteAllEmptiesTheTreeButKeepsTheRoot() {
+        store.write("a/b/c.md", "x")
+        store.write("top.md", "y")
+        Attachments.save(store, byteArrayOf(1, 2, 3), "png")
+        File(dir, ".marknotes").mkdirs()
+        File(dir, ".top.md.tmp").writeText("partial")
+        val outside = File(dir.parentFile, "${dir.name}-sibling.md").apply { writeText("keep") }
+        try {
+            store.deleteAll()
+            assertTrue(dir.isDirectory)
+            assertEquals(emptyList<String>(), dir.list()!!.toList())
+            assertTrue(outside.exists())
+            store.write("new.md", "z")
+            assertEquals("z", store.read("new.md"))
+        } finally {
+            outside.delete()
+        }
+    }
+
+    @Test
+    fun deleteAllOnAnEmptyStoreDoesNothing() {
+        store.deleteAll()
+        assertTrue(dir.isDirectory)
+    }
+
     @Test(expected = IllegalArgumentException::class)
     fun rejectsPathTraversal() {
         store.read("../secret.md")

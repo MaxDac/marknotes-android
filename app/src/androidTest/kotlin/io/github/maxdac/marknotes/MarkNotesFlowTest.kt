@@ -31,6 +31,7 @@ import io.github.maxdac.marknotes.ui.chords.FRETBOARD_TAG
 import io.github.maxdac.marknotes.ui.editor.EDITOR_FIELD_TAG
 import io.github.maxdac.marknotes.ui.editor.EDITOR_NOTICE_TAG
 import io.github.maxdac.marknotes.ui.editor.PREVIEW_TAG
+import io.github.maxdac.marknotes.ui.settings.DELETE_ALL_LOCAL_DATA_TEXT
 import io.github.maxdac.marknotes.ui.settings.NO_DRIVES_TEXT
 import java.io.File
 import org.junit.After
@@ -263,5 +264,22 @@ class MarkNotesFlowTest {
         compose.onNodeWithText("Dropbox").assertExists()
         compose.onNodeWithText("Proton Drive").assertDoesNotExist()
         compose.onNodeWithText("OneDrive").assertDoesNotExist()
+    }
+
+    @Test
+    fun deleteAllLocalDataEmptiesTheNotesFolder() {
+        File(notesDir, "Folder").mkdirs()
+        File(notesDir, "Folder/Note.md").writeText("secret")
+        File(notesDir, "attachments").mkdirs()
+        File(notesDir, "attachments/a.png").writeBytes(byteArrayOf(1))
+
+        compose.onNodeWithContentDescription("Settings").performClick()
+        compose.onNodeWithText(DELETE_ALL_LOCAL_DATA_TEXT).performScrollTo().performClick()
+        compose.waitUntilExactlyOneExists(hasText("Delete all local data?"))
+        compose.onNodeWithText("Delete").performClick()
+
+        compose.waitUntilExactlyOneExists(hasText("No notes here yet"), timeoutMillis = 10_000)
+        assertTrue(notesDir.isDirectory)
+        assertEquals(emptyList<String>(), notesDir.list()!!.toList())
     }
 }

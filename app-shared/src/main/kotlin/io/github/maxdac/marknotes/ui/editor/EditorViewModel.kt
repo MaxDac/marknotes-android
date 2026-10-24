@@ -59,6 +59,11 @@ class EditorViewModel(private val container: AppContainer, val path: String) : V
 
     private val unregisterSave = container.pendingSaves.register(::saveNow)
 
+    /** Edits are dropped once the local data has been deleted, see [io.github.maxdac.marknotes.sync.PendingSaves]. */
+    private val generation = container.pendingSaves.generation
+
+    private fun writable() = container.pendingSaves.current(generation)
+
     init {
         load()
         // Reload when a sync changed the file, unless there are unsaved edits.
@@ -73,7 +78,7 @@ class EditorViewModel(private val container: AppContainer, val path: String) : V
                 val doc = withContext(Dispatchers.IO) {
                     val exists = notes.exists(path)
                     val parsed = FrontMatter.parse(if (exists) notes.read(path) else "")
-                    if (parsed.id != null || !exists) {
+                    if (parsed.id != null || !exists || !writable()) {
                         parsed
                     } else {
                         // Legacy note: give it an id now, saved like any other edit so it syncs.
@@ -208,6 +213,7 @@ class EditorViewModel(private val container: AppContainer, val path: String) : V
             try {
                 val (path, name) = withContext(Dispatchers.IO) {
                     val image = container.imageImporter.import(uri, fallbackName, mimeHint)
+                    check(writable()) { "the local data was deleted" }
                     Attachments.save(notes, image.bytes, image.extension) to image.fileName
                 }
                 applyFormat { MarkdownEditing.insertBlock(it, Attachments.markdown(name, path)) }
@@ -231,7 +237,7 @@ class EditorViewModel(private val container: AppContainer, val path: String) : V
 
     private suspend fun save() {
         val snapshot = _state.value
-        if (!snapshot.dirty) return
+        if (!snapshot.dirty || !writable()) return
         try {
             withContext(Dispatchers.IO + NonCancellable) { notes.write(path, FrontMatter.join(header, snapshot.text)) }
             if (_state.value.text == snapshot.text) _state.value = _state.value.copy(dirty = false)
@@ -266,6 +272,7 @@ class EditorViewModel(private val container: AppContainer, val path: String) : V
         _state.value = snapshot.copy(dirty = false)
         val content = FrontMatter.join(header, snapshot.text)
         val write = container.appScope.launch(Dispatchers.IO) {
+            if (!writable()) return@launch
             try {
                 notes.write(path, content)
             } catch (e: Exception) {

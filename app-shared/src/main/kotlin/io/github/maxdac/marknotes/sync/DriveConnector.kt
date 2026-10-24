@@ -54,6 +54,12 @@ interface DriveConnector {
     /** Forgets the credentials of [accountId]. */
     suspend fun signOut(accountId: String)
 
+    /**
+     * Deletes whatever this connector keeps on the device besides credentials (caches, SDK state), when the user
+     * deletes all local data. Every account has been signed out already. Must not touch the drive.
+     */
+    suspend fun deleteLocalData() {}
+
     /** A drive account to create from a setup that predates drive accounts, or null when there is none. */
     suspend fun legacyAccount(settings: AppSettings): DriveAccount? = null
 }

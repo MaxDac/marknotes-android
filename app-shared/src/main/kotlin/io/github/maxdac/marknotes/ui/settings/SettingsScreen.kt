@@ -15,6 +15,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
@@ -23,7 +24,9 @@ import androidx.compose.material.icons.filled.AutoAwesome
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
@@ -63,15 +66,23 @@ import io.github.maxdac.marknotes.sync.DriveStatus
 import io.github.maxdac.marknotes.sync.SyncManager
 import io.github.maxdac.marknotes.ui.MarkNotesLogo
 import io.github.maxdac.marknotes.ui.swatch
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
 const val NO_DRIVES_TEXT = "No drives connected. Notes are only stored on this device."
+const val DELETE_ALL_LOCAL_DATA_TEXT = "Delete all local data"
+const val DELETE_LOCAL_NOTES_TEXT = "Also delete the notes stored on this device"
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingsScreen(onAddDrive: () -> Unit, onOpenConflicts: () -> Unit, onBack: () -> Unit) {
+fun SettingsScreen(
+    onAddDrive: () -> Unit,
+    onOpenConflicts: () -> Unit,
+    onBack: () -> Unit,
+    onLocalDataDeleted: () -> Unit = onBack
+) {
     val container = LocalContext.current.appContainer
     val syncManager = container.syncManager
     val state by syncManager.state.collectAsStateWithLifecycle()
@@ -117,6 +128,9 @@ fun SettingsScreen(onAddDrive: () -> Unit, onOpenConflicts: () -> Unit, onBack: 
             ImagesSection(container, enabled = !state.running)
 
             HorizontalDivider()
+            PrivacySection(syncManager, enabled = !state.running, onDeleted = onLocalDataDeleted)
+
+            HorizontalDivider()
             Text("About", style = MaterialTheme.typography.titleMedium)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 MarkNotesLogo(size = 48.dp)
@@ -133,7 +147,15 @@ fun SettingsScreen(onAddDrive: () -> Unit, onOpenConflicts: () -> Unit, onBack: 
         }
     }
 
-    removing?.let { drive -> RemoveDriveDialog(drive, syncManager, onDismiss = { removing = null }) }
+    removing?.let { drive ->
+        RemoveDriveDialog(
+            drive,
+            lastDrive = state.drives.size == 1,
+            syncManager = syncManager,
+            onDismiss = { removing = null },
+            onLocalDataDeleted = onLocalDataDeleted
+        )
+    }
 }
 
 @OptIn(ExperimentalLayoutApi::class)
@@ -268,22 +290,102 @@ private fun ImagesSection(container: AppContainer, enabled: Boolean) {
 }
 
 @Composable
-private fun RemoveDriveDialog(drive: DriveStatus, syncManager: SyncManager, onDismiss: () -> Unit) {
+private fun RemoveDriveDialog(
+    drive: DriveStatus,
+    lastDrive: Boolean,
+    syncManager: SyncManager,
+    onDismiss: () -> Unit,
+    onLocalDataDeleted: () -> Unit
+) {
+    var deleteLocal by remember { mutableStateOf(false) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("Disconnect ${drive.account.provider.displayName}?") },
         text = {
-            Text(
-                "${drive.account.label} will no longer be synced and you will be signed out. " +
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                val keep = if (lastDrive) {
+                    "Nothing is deleted from the drive."
+                } else {
                     "Notes stay on this device and on the drive."
-            )
+                }
+                Text("${drive.account.label} will no longer be synced and you will be signed out. $keep")
+                if (lastDrive) {
+                    Row(
+                        Modifier
+                            .fillMaxWidth()
+                            .toggleable(value = deleteLocal, role = Role.Checkbox) { deleteLocal = it },
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Checkbox(checked = deleteLocal, onCheckedChange = null)
+                        Text(DELETE_LOCAL_NOTES_TEXT, Modifier.padding(start = 8.dp))
+                    }
+                }
+            }
         },
         confirmButton = {
             TextButton(onClick = {
+                val wipe = lastDrive && deleteLocal
                 onDismiss()
-                syncManager.removeDrive(drive.account)
+                syncManager.removeDrive(drive.account, deleteLocalData = wipe)
+                if (wipe) onLocalDataDeleted()
             }) { Text("Disconnect") }
         },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
     )
+}
+
+@Composable
+private fun PrivacySection(syncManager: SyncManager, enabled: Boolean, onDeleted: () -> Unit) {
+    val scope = rememberCoroutineScope()
+    var confirming by remember { mutableStateOf(false) }
+    var deleting by remember { mutableStateOf(false) }
+    var error by remember { mutableStateOf<String?>(null) }
+    Text("Privacy", style = MaterialTheme.typography.titleMedium)
+    Text(
+        "Notes are stored in this app's private storage, which Android encrypts with your device's screen lock.",
+        style = MaterialTheme.typography.bodySmall
+    )
+    OutlinedButton(
+        onClick = { confirming = true },
+        enabled = enabled && !deleting,
+        colors = ButtonDefaults.outlinedButtonColors(contentColor = MaterialTheme.colorScheme.error)
+    ) { Text(DELETE_ALL_LOCAL_DATA_TEXT) }
+    if (deleting) LinearProgressIndicator(Modifier.fillMaxWidth())
+    error?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+    if (confirming) {
+        AlertDialog(
+            onDismissRequest = { confirming = false },
+            title = { Text("Delete all local data?") },
+            text = {
+                Text(
+                    "Every drive is disconnected, then the notes, images and sync data stored on this device are " +
+                        "deleted. Nothing is deleted from the drives: connect a drive again to download your notes. " +
+                        "Notes that were never synced are lost."
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        confirming = false
+                        deleting = true
+                        error = null
+                        scope.launch {
+                            try {
+                                syncManager.deleteAllLocalData()
+                                onDeleted()
+                            } catch (e: CancellationException) {
+                                throw e
+                            } catch (e: Exception) {
+                                error = "Could not delete the local data: ${e.message ?: e.javaClass.simpleName}"
+                            } finally {
+                                deleting = false
+                            }
+                        }
+                    },
+                    colors = ButtonDefaults.textButtonColors(contentColor = MaterialTheme.colorScheme.error)
+                ) { Text("Delete") }
+            },
+            dismissButton = { TextButton(onClick = { confirming = false }) { Text("Cancel") } }
+        )
+    }
 }

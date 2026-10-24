@@ -35,9 +35,16 @@ abstract class MarkNotesApp : Application() {
     protected open fun extraConnectors(context: Context, credentials: CredentialStore): List<DriveConnector> =
         emptyList()
 
+    /**
+     * Deletes the data this build keeps on the device besides the notes, the sync state and what its connectors
+     * clear in [DriveConnector.deleteLocalData], when the user deletes all local data. Drives are already
+     * disconnected; nothing may be deleted from them.
+     */
+    protected open suspend fun deleteExtraLocalData(context: Context) {}
+
     override fun onCreate() {
         super.onCreate()
-        container = AppContainer(this, dropboxAppKey, ::extraConnectors)
+        container = AppContainer(this, dropboxAppKey, ::extraConnectors) { deleteExtraLocalData(this) }
     }
 }
 
@@ -45,7 +52,8 @@ abstract class MarkNotesApp : Application() {
 class AppContainer(
     context: Context,
     dropboxAppKey: String,
-    extraConnectors: (Context, CredentialStore) -> List<DriveConnector> = { _, _ -> emptyList() }
+    extraConnectors: (Context, CredentialStore) -> List<DriveConnector> = { _, _ -> emptyList() },
+    deleteExtraLocalData: suspend () -> Unit = {}
 ) {
     val appScope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val notesRoot = File(context.filesDir, "notes").apply { mkdirs() }
@@ -85,7 +93,9 @@ class AppContainer(
         settings = settings,
         scope = appScope,
         beforeSync = pendingSaves::flushAll,
-        onLocalChanged = ::notifyLocalChanged
+        onLocalChanged = ::notifyLocalChanged,
+        discardPendingSaves = pendingSaves::discardAll,
+        deleteExtraLocalData = deleteExtraLocalData
     )
 }
 

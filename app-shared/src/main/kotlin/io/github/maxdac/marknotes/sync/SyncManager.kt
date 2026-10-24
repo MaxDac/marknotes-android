@@ -22,6 +22,7 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -64,7 +65,14 @@ class SyncManager(
     private val settings: AppSettings,
     private val scope: CoroutineScope,
     private val beforeSync: suspend () -> Unit = {},
-    private val onLocalChanged: () -> Unit
+    private val onLocalChanged: () -> Unit,
+    /** Drops the editors' unsaved edits before the local data is deleted. */
+    private val discardPendingSaves: suspend () -> Unit = {},
+    /**
+     * Deletes the data a build keeps outside the notes, the sync state and the connectors, see
+     * [io.github.maxdac.marknotes.MarkNotesApp.deleteExtraLocalData].
+     */
+    private val deleteExtraLocalData: suspend () -> Unit = {}
 ) {
     private val mutex = Mutex()
     private val multiSync = MultiDriveSync(notes, settings.deviceId)
@@ -129,22 +137,92 @@ class SyncManager(
         }
     }
 
-    /** Disconnects a drive. Local notes are kept and nothing is deleted from the drive. */
-    fun removeDrive(account: DriveAccount) {
+    /**
+     * Disconnects a drive. Nothing is deleted from the drive. Local notes are kept unless [deleteLocalData] is set
+     * and no other drive is connected: the local notes are shared by every drive, so they are deleted only with the
+     * last one, after it is disconnected, and the deletion is never synced.
+     */
+    fun removeDrive(account: DriveAccount, deleteLocalData: Boolean = false) {
         scope.launch {
+            migrated.await()
+            var deleted = false
             mutex.withLock {
-                signOut(account.provider, account.id)
-                records.clear(account.id)
-                withContext(Dispatchers.IO) { baseStore(account.id).clear() }
-                accounts.delete(account.id)
+                forget(account)
+                var message = "Disconnected ${account.label}"
+                if (deleteLocalData && connectedDrives().isEmpty()) {
+                    message = try {
+                        deleteLocalDataLocked()
+                        deleted = true
+                        "Disconnected ${account.label} and deleted the local notes"
+                    } catch (e: CancellationException) {
+                        throw e
+                    } catch (e: Exception) {
+                        "Disconnected ${account.label}, but could not delete the local notes: ${describe(e)}"
+                    }
+                }
                 _state.update { s ->
                     s.copy(
-                        conflicts = s.conflicts.filterNot { it.driveId == account.id },
-                        message = "Disconnected ${account.label}"
+                        conflicts = if (deleted) emptyList() else s.conflicts.filterNot { it.driveId == account.id },
+                        message = message
                     )
                 }
             }
+            if (deleted) onLocalChanged()
         }
+    }
+
+    /**
+     * Disconnects every drive, then deletes the notes, attachments and sync state stored on this device. Nothing is
+     * deleted from the drives. Runs in the app scope, so leaving the screen doesn't stop it halfway. Throws when the
+     * local data could not be deleted.
+     */
+    suspend fun deleteAllLocalData() = scope.async {
+        migrated.await()
+        try {
+            mutex.withLock {
+                // Every account, including those of providers this build doesn't ship.
+                for (entity in accounts.all()) {
+                    val account = entity.toAccount()
+                    if (account != null && account.provider in connectors) {
+                        forget(account)
+                    } else {
+                        records.clear(entity.id)
+                        accounts.delete(entity.id)
+                    }
+                }
+                deleteLocalDataLocked()
+                _state.update { it.copy(conflicts = emptyList(), message = "Deleted the local data") }
+            }
+        } finally {
+            onLocalChanged()
+        }
+    }.await()
+
+    /** Signs out of [account] (best effort) and forgets it with its sync state. */
+    private suspend fun forget(account: DriveAccount) {
+        signOut(account.provider, account.id)
+        records.clear(account.id)
+        withContext(Dispatchers.IO) { baseStore(account.id).clear() }
+        accounts.delete(account.id)
+    }
+
+    private suspend fun connectedDrives() =
+        accounts.all().mapNotNull { it.toAccount() }.filter { it.provider in connectors }
+
+    /** Deletes the local data; called with the [mutex] held and once no drive is connected. */
+    private suspend fun deleteLocalDataLocked() {
+        discardPendingSaves()
+        records.clearAll()
+        withContext(Dispatchers.IO) {
+            notes.deleteAll()
+            File(context.filesDir, BASE_DIR).deleteRecursively()
+            conflictStore.save(emptyList())
+            // Import previews and camera captures; caches only hold copies, so all of it can go.
+            context.cacheDir.listFiles()?.forEach { it.deleteRecursively() }
+        }
+        for (connector in connectors.values) connector.deleteLocalData()
+        deleteExtraLocalData()
+        settings.clearSyncState()
     }
 
     fun syncIfConnected() {
@@ -268,7 +346,7 @@ class SyncManager(
         )
     }
 
-    private fun baseStore(driveId: String) = FileBaseContentStore(File(context.filesDir, "sync-base/$driveId"))
+    private fun baseStore(driveId: String) = FileBaseContentStore(File(context.filesDir, "$BASE_DIR/$driveId"))
 
     private suspend fun signOut(provider: DriveProvider, accountId: String) {
         try {
@@ -294,5 +372,10 @@ class SyncManager(
     private fun describe(e: Exception): String = when (e) {
         is UserFacingError -> e.userMessage
         else -> e.message ?: e.javaClass.simpleName
+    }
+
+    private companion object {
+        /** Base copies of the last synced version of each file, per drive, for three-way merges. */
+        const val BASE_DIR = "sync-base"
     }
 }
