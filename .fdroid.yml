@@ -18,9 +18,9 @@ Repo: https://github.com/MaxDac/marknotes-android.git
 Binaries: https://github.com/MaxDac/marknotes-android/releases/download/v%v/marknotes-libre-%v.apk
 
 Builds:
-  - versionName: 0.1.3
-    versionCode: 103
-    commit: v0.1.3
+  - versionName: 0.1.4
+    versionCode: 104
+    commit: v0.1.4
     subdir: app
     submodules: true
     sudo:
@@ -52,5 +52,5 @@ AllowedAPKSigningKeys: ffafda02fa9af06b1927095c8d843ae862173512d4cdaca09bbaaef84
 
 AutoUpdateMode: Version
 UpdateCheckMode: Tags ^v[0-9]+\.[0-9]+\.[0-9]+$
-CurrentVersion: 0.1.3
-CurrentVersionCode: 103
+CurrentVersion: 0.1.4
+CurrentVersionCode: 104
