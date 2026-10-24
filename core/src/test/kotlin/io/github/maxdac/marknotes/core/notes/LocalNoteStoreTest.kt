@@ -260,13 +260,39 @@ class LocalNoteStoreTest {
     }
 
     @Test
+    fun moveRejectsReservedRootAttachmentsWithoutChangingTheTree() {
+        store.write("work/attachments/note.md", "keep")
+        assertFalse(store.exists("attachments"))
+
+        val error = assertThrows(IOException::class.java) { store.move("work/attachments", "") }
+
+        assertEquals("\"attachments\" is reserved for images", error.message)
+        assertFalse(store.exists("attachments"))
+        assertEquals("keep", store.read("work/attachments/note.md"))
+        assertEquals(listOf("work", "work/attachments"), store.listFolders())
+    }
+
+    @Test
+    fun moveAllowsNestedAttachmentsAndSameFolderNoOp() {
+        store.write("work/attachments/note.md", "keep")
+        store.createFolder("archive")
+
+        assertEquals("work/attachments", store.move("work/attachments", "work"))
+        assertEquals("archive/attachments", store.move("work/attachments", "archive"))
+        assertFalse(store.exists("work/attachments"))
+        assertEquals("keep", store.read("archive/attachments/note.md"))
+        assertEquals(listOf("archive", "archive/attachments", "work"), store.listFolders())
+    }
+
+    @Test
     fun moveRejectsInvalidTargets() {
         store.write("a/sub/n.md", "x")
         store.write("b/n.md", "y")
 
         assertThrows(IllegalArgumentException::class.java) { store.move("a", "a/sub") }
         assertThrows(IllegalArgumentException::class.java) { store.move("a", "a") }
-        assertThrows(IOException::class.java) { store.move("b/n.md", "a/sub") }
+        val collision = assertThrows(IOException::class.java) { store.move("b/n.md", "a/sub") }
+        assertEquals("\"n.md\" already exists in the destination", collision.message)
         assertThrows(IOException::class.java) { store.move("b/n.md", "missing") }
         assertEquals("y", store.read("b/n.md"))
     }
