@@ -5,4 +5,8 @@
     <string name="tip_description">Optionally support development with a one-off tip on Ko-fi. Tips unlock no features. Opens in your external browser.</string>
     <string name="tip_no_browser">Could not open Ko-fi: no browser is available. Install or enable a browser and try again.</string>
     <string name="tip_browser_blocked">Could not open Ko-fi: your device blocked opening the browser.</string>
+    <string name="other_apps_title">MarkNotes on other devices</string>
+    <string name="other_apps_description">The same notes folder works with these apps. Links open in your external browser.</string>
+    <string name="other_apps_no_browser">Could not open the link: no browser is available. Install or enable a browser and try again.</string>
+    <string name="other_apps_browser_blocked">Could not open the link: your device blocked opening the browser.</string>
 </resources>

@@ -64,6 +64,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.maxdac.marknotes.AppContainer
+import io.github.maxdac.marknotes.about.MarkNotesPeer
 import io.github.maxdac.marknotes.appContainer
 import io.github.maxdac.marknotes.core.diagnostics.DiagnosticCode
 import io.github.maxdac.marknotes.core.notes.Attachments
@@ -171,6 +172,7 @@ fun SettingsScreen(
                 style = MaterialTheme.typography.bodySmall
             )
             TipSection()
+            OtherAppsSection(MarkNotesPeer.others(container.edition))
         }
     }
 
@@ -201,6 +203,35 @@ private fun TipSection() {
         }
     }) {
         Text(stringResource(R.string.leave_a_tip))
+    }
+    error?.let {
+        Text(
+            stringResource(it),
+            color = MaterialTheme.colorScheme.error,
+            style = MaterialTheme.typography.bodySmall
+        )
+    }
+}
+
+@Composable
+private fun OtherAppsSection(peers: List<MarkNotesPeer>) {
+    val context = LocalContext.current
+    var error by remember { mutableStateOf<Int?>(null) }
+    Text(stringResource(R.string.other_apps_title), style = MaterialTheme.typography.titleSmall)
+    Text(stringResource(R.string.other_apps_description), style = MaterialTheme.typography.bodySmall)
+    peers.forEach { peer ->
+        TextButton(onClick = {
+            error = null
+            try {
+                context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(peer.url)))
+            } catch (_: ActivityNotFoundException) {
+                error = R.string.other_apps_no_browser
+            } catch (_: SecurityException) {
+                error = R.string.other_apps_browser_blocked
+            }
+        }) {
+            Text(peer.label)
+        }
     }
     error?.let {
         Text(

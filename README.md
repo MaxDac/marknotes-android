@@ -110,6 +110,15 @@ The on-disk note format (IDs, note links, images, chord sequences) is shared wit
 described in [marknotes-spec](https://github.com/MaxDac/marknotes-spec/blob/main/note-format.md), checked out at
 `spec/` as a git submodule (`git submodule update --init`).
 
+## Other MarkNotes apps
+
+The same notes folder works with the other MarkNotes apps (**Settings → About** links to them; the browser opens
+only when you tap a link):
+
+- [MarkNotes Pro for Android (GitHub Releases)](https://github.com/MaxDac/MarkNotes/releases)
+- [MarkNotes Desktop (GitHub Releases)](https://github.com/MaxDac/marknotes-electron/releases)
+- [MarkNotes Web](https://marknotes.fly.dev)
+
 ## Support
 
 If you would like to support development, you can [leave an optional one-off tip on Ko-fi](https://ko-fi.com/maxdac).
