@@ -28,7 +28,6 @@ fi
 # The recipe must build the current app version against the marknotes-sync version the app is pinned to.
 recipe="$(tr -d '\r' < "$root/.fdroid.yml")"
 read -r name code < <("$root/scripts/app-version.sh")
-sync="$(tr -d '\r' < "$root/gradle/libs.versions.toml" | sed -n 's/^marknotesSync = "\(.*\)"$/\1/p')"
 fail=0
 check() {
   if ! grep -qxF -- "$1" <<< "$recipe"; then
@@ -41,12 +40,6 @@ check "    versionCode: $code" "the last build must be versionCode in app/build.
 check "    commit: v$name" "the last build must build the release tag"
 check "CurrentVersion: $name" "versionName in app/build.gradle.kts"
 check "CurrentVersionCode: $code" "versionCode in app/build.gradle.kts"
-# The marknotes-sync/ submodule (built by the recipe) must be the release tag marknotesSync names.
-pinned="$(git -C "$root" ls-tree HEAD marknotes-sync | awk '{print $3}')"
-tagged="$(git ls-remote https://github.com/MaxDac/marknotes-sync "refs/tags/v$sync" "refs/tags/v$sync^{}" | awk '{print $1}' | tail -n 1)"
-if [ -z "$tagged" ] || [ "$pinned" != "$tagged" ]; then
-  echo "::error::the marknotes-sync submodule ($pinned) is not tag v$sync (${tagged:-missing}) from gradle/libs.versions.toml" >&2
-  fail=1
-fi
+"$root/scripts/check-sync-pin.sh" || fail=1
 [ "$fail" = 0 ] || exit 1
 echo "F-Droid recipe OK"

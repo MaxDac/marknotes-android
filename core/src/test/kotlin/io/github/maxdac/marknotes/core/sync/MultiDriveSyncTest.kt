@@ -95,6 +95,35 @@ class MultiDriveSyncTest {
     }
 
     @Test
+    fun localDeletionFlagsReachEveryDriveBeforeAChangedRemoteRestoresTheNote() = runTest {
+        local.write("n.md", "original")
+        syncAll()
+        local.delete("n.md")
+        driveA.putFile("n.md", "edited remotely")
+        var flaggedBeforeRestore = false
+        val observing = object : RemoteDriveStore by driveA {
+            override suspend fun snapshot(): List<RemoteEntry> {
+                flaggedBeforeRestore = flaggedBeforeRestore || targets.all { target ->
+                    target.metadata.all().single().localDeleted
+                }
+                return driveA.snapshot()
+            }
+        }
+        val result = sync.sync(
+            listOf(
+                DriveSyncTarget("a", observing, targets[0].metadata, targets[0].base),
+                targets[1]
+            )
+        )
+
+        assertTrue(flaggedBeforeRestore)
+        assertTrue(result.outcomes.all { it.error == null && it.result!!.errors.isEmpty() })
+        assertEquals("edited remotely", local.read("n.md"))
+        assertEquals("edited remotely", driveB.content("n.md"))
+        assertTrue(targets.all { target -> target.metadata.all().none { it.localDeleted } })
+    }
+
+    @Test
     fun nonOverlappingEditsOnTwoDrivesAreMergedEverywhere() = runTest {
         local.write("n.md", "a\nb\nc\n")
         syncAll()
@@ -113,8 +142,8 @@ class MultiDriveSyncTest {
     fun conflictingEditsKeepTheNewestAndTheCopyReachesEveryDrive() = runTest {
         local.write("n.md", "x\n")
         syncAll()
-        driveA.putFile("n.md", "from a\n")
-        driveB.putFile("n.md", "from b\n")
+        driveA.putFile("n.md", "from a\n", modifiedMillis = 2000L)
+        driveB.putFile("n.md", "from b\n", modifiedMillis = 1000L)
 
         val conflicts = syncAll().conflicts
 
@@ -128,6 +157,7 @@ class MultiDriveSyncTest {
         assertEquals("from b\n", copyBody(copy))
         assertEquals(copy, driveA.content(conflict.copyPath))
         assertEquals(copy, driveB.content(conflict.copyPath))
+        assertEquals(1000L, local.modifiedMillis(conflict.copyPath))
     }
 
     @Test

@@ -1,7 +1,10 @@
 package io.github.maxdac.marknotes.core.parity
 
+import io.github.maxdac.marknotes.core.sync.conflictCopyIntentFromJson
+import io.github.maxdac.marknotes.core.sync.toJson
 import io.github.maxdac.marknotes.sync.Action
 import io.github.maxdac.marknotes.sync.ConflictChoice
+import io.github.maxdac.marknotes.sync.ExistingCopy
 import io.github.maxdac.marknotes.sync.LocalEntry
 import io.github.maxdac.marknotes.sync.Manifest
 import io.github.maxdac.marknotes.sync.ManifestEntry
@@ -14,6 +17,7 @@ import io.github.maxdac.marknotes.sync.SyncRecord
 import io.github.maxdac.marknotes.sync.SyncScheduler
 import io.github.maxdac.marknotes.sync.buildManifest
 import io.github.maxdac.marknotes.sync.conflictCopyName
+import io.github.maxdac.marknotes.sync.localDeletions
 import io.github.maxdac.marknotes.sync.merge3
 import io.github.maxdac.marknotes.sync.mergeText
 import io.github.maxdac.marknotes.sync.parseManifest
@@ -43,10 +47,18 @@ object SyncParity {
     val mappings: Map<String, ParityMapping> = mapOf(
         "sync/plan" to ParityMapping.Run { c -> planJson(c.input) },
         "sync/reconcile" to ParityMapping.Run { c -> reconcileJson(c.input) },
+        "sync/local-deletions" to ParityMapping.Run { c ->
+            val local = c.input.getValue("local").jsonArray.map {
+                val o = it.jsonObject
+                LocalEntry(o.str("path"), o.bool("isFolder"), o.long("modifiedMillis"), o.strOrNull("sha256"))
+            }
+            val records = c.input.getValue("records").jsonArray.map { record(it.jsonObject) }
+            buildJsonObject { put("paths", strings(localDeletions(local, records))) }
+        },
+        "sync/executor-safety" to ParityMapping.Elsewhere(
+            "marknotes-sync executor contract suite; Android adapters and restart recovery: SyncEngineTest"
+        ),
         "sync/multi-drive" to ParityMapping.Run { c -> scheduleJson(c.input) },
-        // marknotes-sync 0.2 has no local_deletions: every case is an Android knownDivergence until the
-        // localDeleted flag lands (marknotes-spec#37, features.md item 31).
-        "sync/local-deletions" to ParityMapping.Run { buildJsonObject { put("unsupported", true) } },
         "manifest/parse" to ParityMapping.Run { c ->
             buildJsonObject { put("manifest", parseManifest(c.string("json"))?.let(::manifestJson) ?: JsonNull) }
         },
@@ -103,7 +115,8 @@ object SyncParity {
         o.str("remoteId"),
         o.str("remoteVersion"),
         o.str("localHash"),
-        o.long("syncedAt")
+        o.long("syncedAt"),
+        o["localDeleted"]?.jsonPrimitive?.boolean ?: false
     )
 
     private fun planJson(i: JsonObject): JsonElement {
@@ -129,7 +142,11 @@ object SyncParity {
                 remoteEntry = remote(i.getValue("remoteEntry").jsonObject),
                 base = i.strOrNull("base"),
                 existingPaths = i.strings("existingPaths"),
-                newId = i.str("newId")
+                newId = i.str("newId"),
+                conflictCopyIntent = (i["conflictCopyIntent"] as? JsonObject)?.let(::conflictCopyIntentFromJson),
+                existingCopy = (i["existingCopy"] as? JsonObject)?.let {
+                    ExistingCopy(it.str("path"), it.str("text"), it.long("modifiedMillis"))
+                }
             )
         )
         return when (outcome) {
@@ -145,6 +162,9 @@ object SyncParity {
                 put("winner", if (outcome.winner == Side.LOCAL) "local" else "remote")
                 put("copyPath", outcome.copyPath)
                 put("copyText", outcome.copyText)
+                put("copyModifiedMillis", outcome.copyModifiedMillis)
+                put("conflictCopyIntent", outcome.conflictCopyIntent.toJson())
+                put("reuseCopy", outcome.reuseCopy)
             }
         }
     }
@@ -245,6 +265,20 @@ object SyncParity {
             is Action.Reconcile -> {
                 action("reconcile", a.path, a.remote)
                 put("hasRecord", a.hasRecord)
+            }
+
+            is Action.RenameLocal -> {
+                action("renameLocal", a.path, a.remote)
+                put("toPath", a.toPath)
+                put("isFolder", a.isFolder)
+                put("sha256", a.sha256)
+            }
+
+            is Action.RenameRemote -> {
+                action("renameRemote", a.path, a.remote)
+                put("toPath", a.toPath)
+                put("isFolder", a.isFolder)
+                put("sha256", a.sha256)
             }
         }
     }

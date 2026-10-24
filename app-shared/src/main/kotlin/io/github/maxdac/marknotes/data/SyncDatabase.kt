@@ -1,6 +1,7 @@
 package io.github.maxdac.marknotes.data
 
 import android.content.Context
+import androidx.room.ColumnInfo
 import androidx.room.Dao
 import androidx.room.Database
 import androidx.room.Entity
@@ -8,6 +9,7 @@ import androidx.room.PrimaryKey
 import androidx.room.Query
 import androidx.room.Room
 import androidx.room.RoomDatabase
+import androidx.room.Transaction
 import androidx.room.Upsert
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
@@ -26,7 +28,8 @@ data class SyncRecordEntity(
     val remoteId: String,
     val remoteVersion: String,
     val localHash: String,
-    val syncedAt: Long
+    val syncedAt: Long,
+    @ColumnInfo(defaultValue = "0") val localDeleted: Boolean = false
 )
 
 @Entity(tableName = "drive_accounts")
@@ -70,6 +73,13 @@ interface SyncRecordDao {
     @Query("DELETE FROM sync_records WHERE driveId = :driveId AND path = :path")
     suspend fun delete(driveId: String, path: String)
 
+    @Transaction
+    suspend fun rename(driveId: String, path: String, toPath: String) {
+        val moved = all(driveId).filter { it.path == path || it.path.startsWith("$path/") }
+        moved.forEach { delete(driveId, it.path) }
+        moved.forEach { upsert(it.copy(path = toPath + it.path.removePrefix(path))) }
+    }
+
     @Query("DELETE FROM sync_records WHERE driveId = :driveId")
     suspend fun clear(driveId: String)
 
@@ -101,7 +111,7 @@ interface DriveAccountDao {
     suspend fun deleteAll()
 }
 
-@Database(entities = [SyncRecordEntity::class, DriveAccountEntity::class], version = 2, exportSchema = false)
+@Database(entities = [SyncRecordEntity::class, DriveAccountEntity::class], version = 3, exportSchema = false)
 abstract class MarkNotesDatabase : RoomDatabase() {
     abstract fun syncRecords(): SyncRecordDao
 
@@ -135,9 +145,15 @@ abstract class MarkNotesDatabase : RoomDatabase() {
             }
         }
 
+        val MIGRATION_2_3 = object : Migration(2, 3) {
+            override fun migrate(db: SupportSQLiteDatabase) {
+                db.execSQL("ALTER TABLE `sync_records` ADD COLUMN `localDeleted` INTEGER NOT NULL DEFAULT 0")
+            }
+        }
+
         fun create(context: Context): MarkNotesDatabase =
             Room.databaseBuilder(context, MarkNotesDatabase::class.java, "marknotes.db")
-                .addMigrations(MIGRATION_1_2)
+                .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
                 .build()
     }
 }
@@ -145,7 +161,7 @@ abstract class MarkNotesDatabase : RoomDatabase() {
 /** Sync metadata of a single drive. */
 class RoomSyncMetadataStore(private val dao: SyncRecordDao, private val driveId: String) : SyncMetadataStore {
     override suspend fun all(): List<SyncRecord> = dao.all(driveId).map {
-        SyncRecord(it.path, it.isFolder, it.remoteId, it.remoteVersion, it.localHash, it.syncedAt)
+        SyncRecord(it.path, it.isFolder, it.remoteId, it.remoteVersion, it.localHash, it.syncedAt, it.localDeleted)
     }
 
     override suspend fun upsert(record: SyncRecord) = dao.upsert(
@@ -156,11 +172,14 @@ class RoomSyncMetadataStore(private val dao: SyncRecordDao, private val driveId:
             record.remoteId,
             record.remoteVersion,
             record.localHash,
-            record.syncedAt
+            record.syncedAt,
+            record.localDeleted
         )
     )
 
     override suspend fun delete(path: String) = dao.delete(driveId, path)
+
+    override suspend fun rename(path: String, toPath: String) = dao.rename(driveId, path, toPath)
 
     override suspend fun clear() = dao.clear(driveId)
 }

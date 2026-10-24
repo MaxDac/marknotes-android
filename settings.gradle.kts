@@ -14,7 +14,9 @@ dependencyResolutionManagement {
         // marknotes-sync (the sync core shared with the desktop and web apps) is published as GitHub release assets.
         // -Pmarknotes.sync.fromSource=<marknotes-sync checkout> uses the artifacts built from source in that checkout
         // instead (scripts/build-sync-from-source.sh), which is how F-Droid and the release workflow build the app.
+        val developmentSource = file("gradle/marknotes-sync-source.properties")
         val syncSource = providers.gradleProperty("marknotes.sync.fromSource").orNull
+            ?: if (developmentSource.isFile) file("marknotes-sync").absolutePath else null
         if (syncSource != null) {
             ivy(file(syncSource).resolve("bindings/kotlin/build/libs")) {
                 patternLayout { artifact("[module]-[revision].[ext]") }

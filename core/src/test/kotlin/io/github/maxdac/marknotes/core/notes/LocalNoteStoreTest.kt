@@ -27,6 +27,75 @@ class LocalNoteStoreTest {
     }
 
     @Test
+    fun stagedCopyNeverReplacesADestinationCreatedBeforePublication() {
+        val target = File(dir, "copy.md")
+        assertThrows(IOException::class.java) {
+            writeNewFile(target, "copy".toByteArray(), 0L) {
+                if (it == NewFileStage.FLUSHED) target.writeText("edited destination")
+            }
+        }
+        assertEquals("edited destination", target.readText())
+        assertEquals(listOf("copy.md"), dir.list()!!.toList())
+    }
+
+    @Test
+    fun caseRenamesAndNewCopiesNeverClobberConcurrentDestinationCreators() {
+        assertLocalMutationRaces(dir)
+    }
+
+    @Test
+    fun caseRenameChangesTheActualDirectoryEntryAndPreservesChildCaseAndTime() {
+        store.writeNewBytes("Folder/Child.md", "same".toByteArray(), 1000L)
+        val identity = store.identity("Folder/Child.md")
+
+        store.renameCase("Folder", "folder")
+
+        Files.list(dir.toPath()).use { entries ->
+            assertEquals(listOf("folder"), entries.map { it.fileName.toString() }.toList())
+        }
+        Files.list(File(dir, "folder").toPath()).use { entries ->
+            assertEquals(listOf("Child.md"), entries.map { it.fileName.toString() }.toList())
+        }
+        assertEquals(identity, store.identity("folder/Child.md"))
+        assertEquals(1000L, store.modifiedMillis("folder/Child.md"))
+    }
+
+    @Test
+    fun syncFileDeletionNeverRecursesIntoAReplacementFolder() {
+        store.write("replaced.md/child.md", "unseen")
+
+        assertThrows(IOException::class.java) { store.deleteFile("replaced.md") }
+
+        assertEquals("unseen", store.read("replaced.md/child.md"))
+    }
+
+    @Test
+    fun caseRenameUsesSharedUnicodeFoldingAndRejectsUnrelatedAliases() {
+        store.writeNewBytes("S.md", "same".toByteArray(), 0L)
+        val identity = store.identity("S.md")
+        store.renameCase("S.md", "\u017f.md")
+        assertEquals(listOf("\u017f.md"), dir.list()!!.toList())
+        assertEquals(identity, store.identity("\u017f.md"))
+        assertEquals(0L, store.modifiedMillis("\u017f.md"))
+
+        store.write("I.md", "untouched")
+        assertThrows(IllegalArgumentException::class.java) { store.renameCase("I.md", "\u0131.md") }
+        assertEquals("untouched", store.read("I.md"))
+        assertTrue(dir.list()!!.contains("I.md"))
+    }
+
+    @Test
+    fun syncWritesPreserveEpochZeroForNewAndReplacedFiles() {
+        store.writeNewBytes("new.md", "new".toByteArray(), 0L)
+        store.write("existing.md", "old")
+        store.writeBytes("existing.md", "replacement".toByteArray(), 0L)
+
+        assertEquals(0L, store.modifiedMillis("new.md"))
+        assertEquals(0L, store.modifiedMillis("existing.md"))
+        assertEquals("replacement", store.read("existing.md"))
+    }
+
+    @Test
     fun createNoteAddsExtensionAndAnId() {
         val path = store.createNote("", "Shopping")
         assertEquals("Shopping.md", path)
@@ -71,6 +140,31 @@ class LocalNoteStoreTest {
         store.write("a/b/two.md", "2")
         val paths = store.listAll().map { it.path }.toSet()
         assertEquals(setOf("a", "a/one.md", "a/b", "a/b/two.md"), paths)
+    }
+
+    @Test
+    fun plannedFolderCreationNeverAdoptsAnExistingDirectoryOrFile() {
+        store.createFolderNew("fresh")
+        assertThrows(IOException::class.java) { store.createFolderNew("fresh") }
+        store.write("existing.md", "keep")
+        assertThrows(IOException::class.java) { store.createFolderNew("existing.md") }
+        assertEquals("keep", store.read("existing.md"))
+    }
+
+    @Test
+    fun syncFolderDeletionRejectsEveryDescendant() {
+        for (child in listOf(".hidden", "unsupported.txt", "nested/n.md")) {
+            val file = File(dir, "folder/$child")
+            file.parentFile.mkdirs()
+            file.writeText("keep")
+            assertThrows(IOException::class.java) { store.deleteEmptyFolder("folder") }
+            assertEquals("keep", file.readText())
+            store.delete("folder")
+        }
+        store.createFolder("folder")
+        store.deleteEmptyFolder("folder")
+        store.deleteEmptyFolder("folder")
+        assertFalse(store.exists("folder"))
     }
 
     @Test

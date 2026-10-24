@@ -3,6 +3,7 @@ package io.github.maxdac.marknotes.core.sync
 import io.github.maxdac.marknotes.core.diagnostics.DiagnosticCode
 import io.github.maxdac.marknotes.core.diagnostics.DiagnosticReporter
 import io.github.maxdac.marknotes.core.notes.LocalNoteStore
+import io.github.maxdac.marknotes.sync.LocalEntry
 import io.github.maxdac.marknotes.sync.SyncScheduler
 import kotlinx.coroutines.CancellationException
 
@@ -11,7 +12,9 @@ class DriveSyncTarget(
     val driveId: String,
     val remote: RemoteDriveStore,
     val metadata: SyncMetadataStore,
-    val base: BaseContentStore
+    val base: BaseContentStore,
+    val pending: ConflictCopyStore = InMemoryConflictCopyStore(),
+    val renames: RenameStore = InMemoryRenameStore()
 )
 
 /** Outcome of syncing one drive: the last [SyncResult], or the [error] that stopped it. */
@@ -40,7 +43,10 @@ class MultiDriveSync(
     var diagnostics: DiagnosticReporter = DiagnosticReporter.NONE
 
     fun engine(target: DriveSyncTarget) =
-        SyncEngine(local, target.remote, target.metadata, target.base, target.driveId, deviceId, clock).also {
+        SyncEngine(
+            local, target.remote, target.metadata, target.base, target.driveId, deviceId, target.pending,
+            target.renames, clock
+        ).also {
             it.diagnostics = diagnostics
         }
 
@@ -51,6 +57,9 @@ class MultiDriveSync(
         SyncScheduler(targets.map { it.driveId }, maxPassesPerDrive).use { scheduler ->
             while (true) {
                 val driveId = scheduler.next() ?: break
+                for (target in targets) engine(target).recoverRenames()
+                val entries = local.listAll().map { LocalEntry(it.path, it.isFolder, it.modifiedMillis, null) }
+                for (target in targets) rememberLocalDeletions(entries, target.metadata)
                 val outcome = try {
                     DriveSyncOutcome(driveId, engine(byId.getValue(driveId)).sync(), null)
                 } catch (e: CancellationException) {

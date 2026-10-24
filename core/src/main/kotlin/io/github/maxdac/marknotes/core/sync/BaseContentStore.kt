@@ -1,5 +1,6 @@
 package io.github.maxdac.marknotes.core.sync
 
+import io.github.maxdac.marknotes.core.notes.renameCaseFile
 import java.io.File
 import java.io.IOException
 
@@ -11,6 +12,7 @@ interface BaseContentStore {
     fun get(path: String): ByteArray?
     fun put(path: String, bytes: ByteArray)
     fun delete(path: String)
+    fun rename(path: String, toPath: String)
     fun clear()
 }
 
@@ -31,6 +33,13 @@ class FileBaseContentStore(private val root: File) : BaseContentStore {
         file(path).deleteRecursively()
     }
 
+    override fun rename(path: String, toPath: String) {
+        val source = file(path)
+        if (!source.exists()) return
+        val target = file(toPath)
+        renameCaseFile(source, target)
+    }
+
     override fun clear() {
         root.deleteRecursively()
     }
@@ -47,6 +56,14 @@ class InMemoryBaseContentStore : BaseContentStore {
 
     override fun delete(path: String) {
         synchronized(items) { items.keys.removeAll { it == path || it.startsWith("$path/") } }
+    }
+
+    override fun rename(path: String, toPath: String) {
+        synchronized(items) {
+            val moved = items.filterKeys { it == path || it.startsWith("$path/") }
+            moved.forEach { (key, bytes) -> items[toPath + key.removePrefix(path)] = bytes }
+            moved.keys.forEach(items::remove)
+        }
     }
 
     override fun clear() {

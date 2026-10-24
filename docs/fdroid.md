@@ -29,8 +29,9 @@ checking that its own build matches it. The same APK is on F-Droid and GitHub, s
   marknotes-sync is GPL-3.0-or-later from v0.1.2 (its `LICENSE` file); keep both licensed. The `spec/` submodules
   (marknotes-spec, test fixtures only) have no licence, so the recipe deletes them with `rm:` before building.
 - **No binaries in the source**: the scanner rejects committed jars, APKs and native libraries. The recipe's `rm:`
-  also deletes the parts of marknotes-sync the build doesn't use (`bindings/npm`, the Kotlin bindings'
-  `gradle-wrapper.jar`); `scripts/fdroid-scan-source.sh` must report no problems.
+  also deletes the parts of marknotes-sync the Rust/Kotlin build doesn't use (`bindings/npm`, its root npm
+  `package.json`, the Kotlin bindings' `gradle-wrapper.jar`); the npm-only entry manifest has no root lockfile.
+  `scripts/fdroid-scan-source.sh` must report no problems and prints each fatal path, not just a count.
 - **Signing key**: the release key lives outside the repo. Its certificate SHA-256 is in three places that must
   match: `AllowedAPKSigningKeys` in `.fdroid.yml`, the `RELEASE_CERT_SHA256` repository variable, and the keystore
   in the `RELEASE_KEYSTORE_BASE64` secret (README, "Releasing"). Keep an offline backup of the keystore and its

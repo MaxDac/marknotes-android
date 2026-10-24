@@ -44,7 +44,19 @@ submodule) with OneDrive and Proton Drive sync added, released on GitHub only. T
     `.marknotes/manifest.json` on the drive;
   - edits made on both sides are merged line by line (a three-way merge against the last synced version).
     When edits overlap, the newest version is kept and the other is saved next to it as
-    `name (conflicted copy).md`; the **Sync conflicts** screen merges a copy back;
+    `name (conflicted copy).md`; the **Sync conflicts** screen merges a copy back. The copy keeps the losing
+    version's edit time, and a durable per-drive journal reuses its verified note ID after an interrupted sync;
+  - new files and planned folders never replace or adopt a destination created by another device. Unchanged,
+    record-backed remote case-only renames update the stale local spelling. Dropbox does not support a direct
+    case-only remote move, so the opposite direction reports an explicit unsupported-operation error instead
+    of attempting an unsafe temporary rename. Ambiguous or edited case collisions remain errors;
+  - local case renames use kernel-enforced no-replace operations (Linux/Android `renameat2`, or an opened-file
+    Windows rename), never a Java existence-check followed by a replacing move. Unsupported kernels/filesystems
+    fail explicitly without moving anything. New local sync files/copies are privately staged with their exact
+    edit time and flushed before kernel no-replace publication, so a partial copy is never mistaken for an edit;
+  - folder removal never recursively deletes unseen entries. Dropbox has no atomic empty-only deletion API,
+    so remote folder removal reports an explicit error and keeps its sync record for retry; known files are
+    still deleted conditionally. Local sync folder removal is nonrecursive, including for hidden files;
   - the sync algorithm is the shared Rust core [marknotes-sync](https://github.com/MaxDac/marknotes-sync), also
     used by the desktop and web apps. Dropbox sign-in uses the official Dropbox SDK (OAuth 2 PKCE); tokens are
     stored encrypted with an Android Keystore AES-GCM key.
@@ -129,6 +141,24 @@ Requirements: JDK 21+ (Android Studio's bundled JBR works) and the Android SDK w
 
 By default the build downloads marknotes-sync (the Kotlin bindings and the native library) from its
 [GitHub releases](https://github.com/MaxDac/marknotes-sync/releases), at the version in `gradle/libs.versions.toml`.
+
+For the unreleased 0.3 sync integration, `gradle/marknotes-sync-source.properties` instead pins an exact source
+commit. Initialize `marknotes-sync`, build its artifacts with `scripts/build-sync-from-source.sh` on Linux,
+then run Gradle normally: dependency resolution defaults to that checkout's `bindings/kotlin/build/libs`.
+CI performs this source prerequisite automatically with Rust 1.99.1, cargo-ndk 4.1.2 and NDK 30.0.16248370.
+`-Pmarknotes.sync.fromSource=<checkout>` remains a path-valued override. No native binaries are committed.
+Development pins are checked by `scripts/check-sync-pin.sh` and rejected by release validation; they must be
+promoted to the matching published shared-library release tag before an app release. Pin guard regression tests
+run with `python scripts/test-sync-pin.py`.
+
+On Windows, use a Visual Studio developer terminal with Git Bash, the same pinned Rust/NDK tools, and
+`READELF="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/windows-x86_64/bin/llvm-readelf.exe"`.
+Install both Android targets for the pinned toolchain (`rustup target add --toolchain 1.99.1
+aarch64-linux-android x86_64-linux-android`). Set `CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER` to the
+developer terminal's `link.exe` so Git Bash does not select `/usr/bin/link`.
+Run `scripts/build-sync-from-source.sh` in Git Bash, then `.\gradlew.bat` for the Android build.
+The source prerequisite packages the matching host library as well as both Android ABIs; an empty native
+JAR/AAR is not a usable substitute.
 
 The Dropbox app key is committed in `app/build.gradle.kts` (it is public by design: PKCE, no secret). To use your
 own Dropbox app, pass `-Pmarknotes.dropboxAppKey=<key>` or set it in `~/.gradle/gradle.properties`; create the app

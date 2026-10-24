@@ -7,6 +7,7 @@
 #   ./gradlew assembleRelease -Pmarknotes.sync.fromSource=<same checkout>   # e.g. =marknotes-sync
 #
 # The marknotes-sync/ submodule is checked out at tag v<marknotesSync>: bump both together.
+# Development integrations may instead name an exact commit in gradle/marknotes-sync-source.properties.
 #
 # This is the build path of F-Droid (.fdroid.yml) and of the release workflow. Needs Linux, rustup with the pinned
 # toolchain and the aarch64-linux-android/x86_64-linux-android targets, cargo-ndk, the pinned NDK (ANDROID_NDK_HOME)
@@ -29,6 +30,7 @@ elif [ ! -f "$dir/Cargo.toml" ]; then
 fi
 dir="$(cd "$dir" && pwd)"
 cd "$dir"
+"$root/scripts/check-sync-pin.sh"
 grep -q "^version = \"$version\"" Cargo.toml \
   || { echo "$dir is not marknotes-sync $version (check out tag v$version)" >&2; exit 1; }
 
@@ -39,15 +41,26 @@ fi
 grep -q "Pkg.Revision = $MARKNOTES_NDK_VERSION" "$ANDROID_NDK_HOME/source.properties" \
   || echo "warning: $ANDROID_NDK_HOME is not NDK $MARKNOTES_NDK_VERSION; the build won't be reproducible" >&2
 
-# Reproducibility: no absolute build paths or build ids in the binaries, fixed timestamps.
-cargo_home="${CARGO_HOME:-$HOME/.cargo}"
-export RUSTFLAGS="--remap-path-prefix=$dir=/marknotes-sync --remap-path-prefix=$cargo_home=/cargo \
--C link-arg=-Wl,--build-id=none"
+# The upstream scripts remap paths using encoded flags (including Windows paths and paths with spaces).
+# GNU build-id flags cannot be passed to the Windows host's MSVC linker.
+case "$(uname -s)" in
+  Linux*) export RUSTFLAGS="-Clink-arg=-Wl,--build-id=none" ;;
+esac
 SOURCE_DATE_EPOCH="$(git log -1 --format=%ct 2>/dev/null || echo 1)"
 export SOURCE_DATE_EPOCH
 
 scripts/android-libs.sh
 scripts/kotlin-bindings.sh
+case "$(uname -s):$(uname -m)" in
+  Linux:x86_64) host=linux-x86-64; library=libmarknotes_sync.so ;;
+  Linux:aarch64) host=linux-aarch64; library=libmarknotes_sync.so ;;
+  Darwin:x86_64) host=darwin-x86-64; library=libmarknotes_sync.dylib ;;
+  Darwin:arm64) host=darwin-aarch64; library=libmarknotes_sync.dylib ;;
+  MINGW*:x86_64 | MSYS*:x86_64) host=win32-x86-64; library=marknotes_sync.dll ;;
+  *) echo "Unsupported JVM native build host: $(uname -s):$(uname -m)" >&2; exit 1 ;;
+esac
+mkdir -p "bindings/kotlin/natives/jvm/$host"
+cp "target/release/$library" "bindings/kotlin/natives/jvm/$host/$library"
 (cd bindings/kotlin && ${GRADLE:-./gradlew} assemble --console=plain --no-daemon)
 
 ls -l bindings/kotlin/build/libs

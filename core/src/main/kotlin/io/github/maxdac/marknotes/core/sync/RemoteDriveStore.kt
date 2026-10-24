@@ -38,22 +38,40 @@ interface RemoteDriveStore {
 
     /**
      * Uploads a new file at [path], creating missing parent folders. [modifiedMillis] is the local edit time,
-     * stored as the file's modification time and returned in [RemoteEntry.modifiedMillis].
+     * stored as the file's modification time and returned in [RemoteEntry.modifiedMillis]. Creation must fail
+     * if the destination already exists, including an identical file; never overwrite or autorename it.
      */
     suspend fun uploadNew(path: String, bytes: ByteArray, modifiedMillis: Long): RemoteEntry
 
     /** Uploads new content for an existing file, with [modifiedMillis] as for [uploadNew]. */
     suspend fun uploadRevision(entry: RemoteEntry, bytes: ByteArray, modifiedMillis: Long): RemoteEntry
 
-    /** Creates a folder at [path], creating missing parent folders. Returns the existing one if present. */
+    /** Creates a planned folder at [path]. Fails if the destination already exists; never adopt it. */
     suspend fun createFolder(path: String): RemoteEntry
 
     /**
-     * Moves the entry to the remote trash. Deleting a file is conditional on [RemoteEntry.version]: when the file
+     * Moves a file to the remote trash. Deleting it is conditional on [RemoteEntry.version]: when the file
      * changed since the snapshot the delete fails with [RemoteChangedException] (the next sync downloads the
-     * change). An entry that is already gone is not an error.
+     * change). An entry that is already gone is not an error. Folders require [deleteFolderIfEmpty].
      */
     suspend fun delete(entry: RemoteEntry)
+
+    /**
+     * Deletes only an empty folder, without deleting any descendants (including hidden or unsupported files).
+     * The emptiness check and deletion must be atomic; a fresh listing followed by recursive deletion is unsafe.
+     * Adapters without this capability fail explicitly, so the executor retains the folder's sync state.
+     */
+    suspend fun deleteFolderIfEmpty(entry: RemoteEntry): Unit =
+        throw UnsupportedRemoteOperationException(
+            "Safe empty-folder deletion is not supported by this drive: ${entry.path}"
+        )
+
+    /**
+     * Renames the same stable remote identity without replacing any destination. Implementations must preserve
+     * racing edits and verify the resulting identity and exact path; the executor retains the old sync revision.
+     */
+    suspend fun rename(entry: RemoteEntry, toPath: String): RemoteEntry =
+        throw UnsupportedRemoteOperationException("Safe case-only rename is not supported by this drive: ${entry.path}")
 
     /**
      * Reads the [SyncManifest] file ([SyncManifest.PATH], hidden from [snapshot]); null when missing.
@@ -66,6 +84,8 @@ interface RemoteDriveStore {
 }
 
 class RemoteUnavailableException(message: String, cause: Throwable? = null) : Exception(message, cause)
+
+class UnsupportedRemoteOperationException(message: String) : IOException(message)
 
 /** An error whose [userMessage] is worded for the UI, unlike its [Throwable.message]. */
 interface UserFacingError {

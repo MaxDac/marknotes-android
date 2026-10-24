@@ -34,6 +34,7 @@ Builds:
       - spec
       - marknotes-sync/spec
       - marknotes-sync/bindings/npm
+      - marknotes-sync/package.json
       - marknotes-sync/bindings/kotlin/gradle/wrapper/gradle-wrapper.jar
     prebuild:
       - $$rustup$$/rustup-init.sh -y --default-toolchain none --profile minimal --no-modify-path
