@@ -19,6 +19,12 @@ checking that its own build matches it. The same APK is on F-Droid and GitHub, s
 
 ## Prerequisites
 
+- **Diagnostics**: the local logger and user-reviewed report/export flow use only existing free software
+  dependencies and Android APIs. They require no new permissions, trackers, upload service or crash SDK. Runtime
+  log timestamps are not APK build inputs. Keep diagnostics out of the notes/sync tree and preserve the narrow,
+  non-exported FileProvider grants. The user explicitly consents before opening a GitHub draft (which sends its
+  URL payload before submission); local capture/export works offline. This introduces no automatic telemetry
+  and does not change the existing Dropbox `NonFreeNet` anti-feature or source-build recipe.
 - **Licences**: F-Droid only builds free software, including every submodule. This app is GPL-3.0-or-later and
   marknotes-sync is GPL-3.0-or-later from v0.1.2 (its `LICENSE` file); keep both licensed. The `spec/` submodules
   (marknotes-spec, test fixtures only) have no licence, so the recipe deletes them with `rm:` before building.

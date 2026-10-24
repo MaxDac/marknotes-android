@@ -3,6 +3,7 @@ package io.github.maxdac.marknotes.ui.chords
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.maxdac.marknotes.AppContainer
+import io.github.maxdac.marknotes.core.diagnostics.DiagnosticCode
 import io.github.maxdac.marknotes.core.notes.Chord
 import io.github.maxdac.marknotes.core.notes.ChordParseResult
 import io.github.maxdac.marknotes.core.notes.ChordSequence
@@ -136,6 +137,8 @@ class ChordEditorViewModel(private val container: AppContainer, val path: String
                     )
                 }
             } catch (e: Exception) {
+                if (e is kotlinx.coroutines.CancellationException) throw e
+                container.diagnostics.report(DiagnosticCode.NOTE_READ, e)
                 _state.value = _state.value.copy(loaded = true, error = e.message)
             }
         }
@@ -274,6 +277,8 @@ class ChordEditorViewModel(private val container: AppContainer, val path: String
                     wrote = true
                     if (pending == body) pending = null
                 } catch (e: Exception) {
+                    if (e is kotlinx.coroutines.CancellationException) throw e
+                    container.diagnostics.report(DiagnosticCode.NOTE_WRITE, e)
                     _state.value = _state.value.copy(error = "Could not save: ${e.message}")
                 }
             }

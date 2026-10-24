@@ -7,6 +7,8 @@ import com.tom_roush.pdfbox.android.PDFBoxResourceLoader
 import com.tom_roush.pdfbox.pdmodel.PDDocument
 import com.tom_roush.pdfbox.pdmodel.encryption.InvalidPasswordException
 import com.tom_roush.pdfbox.text.PDFTextStripper
+import io.github.maxdac.marknotes.core.diagnostics.DiagnosticCode
+import io.github.maxdac.marknotes.core.diagnostics.DiagnosticReporter
 import io.github.maxdac.marknotes.core.importing.ImportException
 import io.github.maxdac.marknotes.core.importing.ImportSource
 import io.github.maxdac.marknotes.ui.editor.ImageImporter
@@ -29,7 +31,11 @@ class PreparedImport(
 )
 
 /** Reads [SharedContent] (text extras and `content://` streams) into a [PreparedImport]. Call off the main thread. */
-class SharedContentReader(private val context: Context, private val imageImporter: ImageImporter) {
+class SharedContentReader(
+    private val context: Context,
+    private val imageImporter: ImageImporter,
+    private val diagnostics: DiagnosticReporter = DiagnosticReporter.NONE
+) {
 
     fun read(content: SharedContent): PreparedImport {
         val files = content.streams.map { SharedFile(it, mimeOf(it, content), displayName(it)) }
@@ -41,8 +47,10 @@ class SharedContentReader(private val context: Context, private val imageImporte
             try {
                 images += imageImporter.import(file.uri, file.name ?: "image ${i + 1}", file.mime)
             } catch (e: IOException) {
+                diagnostics.report(DiagnosticCode.IMAGE_IMPORT, e)
                 skipped++
             } catch (e: SecurityException) {
+                diagnostics.report(DiagnosticCode.IMAGE_IMPORT, e)
                 skipped++
             }
         }
@@ -123,6 +131,7 @@ class SharedContentReader(private val context: Context, private val imageImporte
         val resolved = try {
             context.contentResolver.getType(uri)
         } catch (e: SecurityException) {
+            diagnostics.report(DiagnosticCode.CONTENT_IMPORT, e)
             null
         }
         return resolved ?: content.mimeType?.takeUnless { it.endsWith("/*") }
@@ -133,8 +142,10 @@ class SharedContentReader(private val context: Context, private val imageImporte
             if (it.moveToFirst() && !it.isNull(0)) it.getString(0) else null
         }
     } catch (e: SecurityException) {
+        diagnostics.report(DiagnosticCode.CONTENT_IMPORT, e)
         null
     } catch (e: IllegalArgumentException) {
+        diagnostics.report(DiagnosticCode.CONTENT_IMPORT, e)
         null
     } ?: uri.lastPathSegment?.substringAfterLast('/')
 

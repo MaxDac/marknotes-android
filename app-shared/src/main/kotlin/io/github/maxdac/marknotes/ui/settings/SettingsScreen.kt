@@ -61,6 +61,7 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.maxdac.marknotes.AppContainer
 import io.github.maxdac.marknotes.appContainer
+import io.github.maxdac.marknotes.core.diagnostics.DiagnosticCode
 import io.github.maxdac.marknotes.core.notes.Attachments
 import io.github.maxdac.marknotes.data.AppSettings
 import io.github.maxdac.marknotes.data.LockTimeout
@@ -146,6 +147,9 @@ fun SettingsScreen(
             HorizontalDivider()
             PrivacySection(syncManager, enabled = !state.running, onDeleted = onLocalDataDeleted)
             AppLockSection(container)
+
+            HorizontalDivider()
+            DiagnosticsSection(container.diagnostics)
 
             HorizontalDivider()
             Text("About", style = MaterialTheme.typography.titleMedium)
@@ -316,6 +320,8 @@ private fun ImagesSection(container: AppContainer, enabled: Boolean) {
                                 else -> "Deleted ${deleted.size} unused images."
                             }
                         } catch (e: Exception) {
+                            if (e is CancellationException) throw e
+                            container.diagnostics.report(DiagnosticCode.IMAGE_IMPORT, e)
                             "Could not clean images: ${e.message}"
                         }
                         cleaning = false
@@ -374,6 +380,7 @@ private fun RemoveDriveDialog(
 
 @Composable
 private fun PrivacySection(syncManager: SyncManager, enabled: Boolean, onDeleted: () -> Unit) {
+    val diagnostics = LocalContext.current.appContainer.diagnostics
     val scope = rememberCoroutineScope()
     var confirming by remember { mutableStateOf(false) }
     var deleting by remember { mutableStateOf(false) }
@@ -414,6 +421,7 @@ private fun PrivacySection(syncManager: SyncManager, enabled: Boolean, onDeleted
                             } catch (e: CancellationException) {
                                 throw e
                             } catch (e: Exception) {
+                                diagnostics.report(DiagnosticCode.LOCAL_DATA_DELETE, e)
                                 error = "Could not delete the local data: ${e.message ?: e.javaClass.simpleName}"
                                 false
                             } finally {
