@@ -9,6 +9,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 
 class BrowserViewModel(private val container: AppContainer, val folder: String) : ViewModel() {
@@ -32,6 +34,9 @@ class BrowserViewModel(private val container: AppContainer, val folder: String) 
 
     val syncState = container.syncManager.state
 
+    // Refreshes run one at a time in call order, so a slow listing can't overwrite a newer one (e.g. after a wipe).
+    private val refreshLock = Mutex()
+
     init {
         viewModelScope.launch {
             container.localRevision.collect { refresh() }
@@ -40,11 +45,14 @@ class BrowserViewModel(private val container: AppContainer, val folder: String) 
 
     fun refresh() {
         viewModelScope.launch {
-            withContext(Dispatchers.IO) {
-                val entries = if (notes.isFolder(folder) || folder.isEmpty()) notes.list(folder) else emptyList()
-                _chordPaths.value = entries.filter { !it.isFolder && isChordFile(it.path) }.mapTo(HashSet()) { it.path }
-                _entries.value = entries
-                _folders.value = notes.listFolders()
+            refreshLock.withLock {
+                withContext(Dispatchers.IO) {
+                    val entries = if (notes.isFolder(folder) || folder.isEmpty()) notes.list(folder) else emptyList()
+                    _chordPaths.value =
+                        entries.filter { !it.isFolder && isChordFile(it.path) }.mapTo(HashSet()) { it.path }
+                    _entries.value = entries
+                    _folders.value = notes.listFolders()
+                }
             }
         }
     }
