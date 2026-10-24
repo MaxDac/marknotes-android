@@ -6,12 +6,14 @@ import androidx.compose.ui.text.input.TextFieldValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.maxdac.marknotes.AppContainer
+import io.github.maxdac.marknotes.core.diagnostics.DiagnosticCode
 import io.github.maxdac.marknotes.core.notes.Attachments
 import io.github.maxdac.marknotes.core.notes.FrontMatter
 import io.github.maxdac.marknotes.core.notes.IndexedNote
 import io.github.maxdac.marknotes.core.notes.NoteIds
 import io.github.maxdac.marknotes.core.notes.NoteIndex
 import io.github.maxdac.marknotes.core.notes.NoteLinks
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.NonCancellable
@@ -93,7 +95,10 @@ class EditorViewModel(private val container: AppContainer, val path: String) : V
                     TextRange(selection.start.coerceAtMost(text.length), selection.end.coerceAtMost(text.length))
                 )
                 _state.value = _state.value.copy(loaded = true, value = value, dirty = false, noteId = doc.id)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
+                container.diagnostics.report(DiagnosticCode.NOTE_READ, e)
                 _state.value = _state.value.copy(loaded = true, error = e.message)
             }
         }
@@ -170,7 +175,10 @@ class EditorViewModel(private val container: AppContainer, val path: String) : V
                     noteId = FrontMatter.idOf(header),
                     mention = mention?.copy(results = build.index.search(mention.query), loading = false)
                 )
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
+                container.diagnostics.report(DiagnosticCode.NOTE_READ, e)
                 _state.value = _state.value.copy(
                     mention = _state.value.mention?.copy(loading = false),
                     error = "Could not list notes: ${e.message}"
@@ -220,8 +228,12 @@ class EditorViewModel(private val container: AppContainer, val path: String) : V
                 }
                 applyFormat { MarkdownEditing.insertBlock(it, Attachments.markdown(name, path)) }
             } catch (e: ImageImportException) {
+                container.diagnostics.report(DiagnosticCode.IMAGE_IMPORT, e)
                 _state.value = _state.value.copy(error = e.message)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
+                container.diagnostics.report(DiagnosticCode.IMAGE_IMPORT, e)
                 _state.value = _state.value.copy(error = "Could not add the image: ${e.message}")
             } finally {
                 _state.value = _state.value.copy(importingImage = false)
@@ -243,7 +255,10 @@ class EditorViewModel(private val container: AppContainer, val path: String) : V
         try {
             withContext(Dispatchers.IO + NonCancellable) { notes.write(path, FrontMatter.join(header, snapshot.text)) }
             if (_state.value.text == snapshot.text) _state.value = _state.value.copy(dirty = false)
+        } catch (e: CancellationException) {
+            throw e
         } catch (e: Exception) {
+            container.diagnostics.report(DiagnosticCode.NOTE_WRITE, e)
             _state.value = _state.value.copy(error = "Could not save: ${e.message}")
         }
     }
@@ -277,8 +292,10 @@ class EditorViewModel(private val container: AppContainer, val path: String) : V
             if (!writable()) return@launch
             try {
                 notes.write(path, content)
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Exception) {
-                // Nothing else to do once the screen is gone.
+                container.diagnostics.report(DiagnosticCode.NOTE_WRITE, e)
             }
             container.notifyLocalChanged()
         }

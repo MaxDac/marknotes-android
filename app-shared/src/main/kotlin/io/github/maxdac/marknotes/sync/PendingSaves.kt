@@ -1,5 +1,7 @@
 package io.github.maxdac.marknotes.sync
 
+import io.github.maxdac.marknotes.core.diagnostics.DiagnosticCode
+import io.github.maxdac.marknotes.core.diagnostics.DiagnosticReporter
 import java.util.concurrent.CopyOnWriteArraySet
 import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.CancellationException
@@ -12,7 +14,7 @@ import kotlinx.coroutines.Job
  * Editors also take a [generation] when they open and write only while it is [current]: deleting the local data
  * ([discardAll]) starts a new generation, so an editor that is still open never writes a deleted note back.
  */
-class PendingSaves {
+class PendingSaves(private val diagnostics: DiagnosticReporter = DiagnosticReporter.NONE) {
     private val savers = CopyOnWriteArraySet<suspend () -> Unit>()
     private val writes = CopyOnWriteArraySet<Job>()
     private val currentGeneration = AtomicLong()
@@ -48,7 +50,8 @@ class PendingSaves {
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                // The editor reports its own save errors; the sync re-checks every file it touches anyway.
+                // Normal editor saves report locally; this catches callbacks which failed before doing so.
+                diagnostics.report(DiagnosticCode.NOTE_WRITE, e)
             }
         }
         writes.forEach { it.join() }

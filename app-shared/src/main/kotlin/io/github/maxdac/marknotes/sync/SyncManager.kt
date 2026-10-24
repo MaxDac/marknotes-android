@@ -1,6 +1,8 @@
 package io.github.maxdac.marknotes.sync
 
 import android.content.Context
+import io.github.maxdac.marknotes.core.diagnostics.DiagnosticCode
+import io.github.maxdac.marknotes.core.diagnostics.DiagnosticReporter
 import io.github.maxdac.marknotes.core.notes.LocalNoteStore
 import io.github.maxdac.marknotes.core.sync.ConflictMergeBack
 import io.github.maxdac.marknotes.core.sync.DriveAccount
@@ -72,10 +74,11 @@ class SyncManager(
      * Deletes the data a build keeps outside the notes, the sync state and the connectors, see
      * [io.github.maxdac.marknotes.MarkNotesApp.deleteExtraLocalData].
      */
-    private val deleteExtraLocalData: suspend () -> Unit = {}
+    private val deleteExtraLocalData: suspend () -> Unit = {},
+    private val diagnostics: DiagnosticReporter = DiagnosticReporter.NONE
 ) {
     private val mutex = Mutex()
-    private val multiSync = MultiDriveSync(notes, settings.deviceId)
+    private val multiSync = MultiDriveSync(notes, settings.deviceId).also { it.diagnostics = diagnostics }
     private val mergeBack = ConflictMergeBack(notes)
     private val migrated = CompletableDeferred<Unit>()
     private val conflictStore = FileConflictStore(File(context.filesDir, "sync-conflicts.json"))
@@ -93,7 +96,15 @@ class SyncManager(
             }
             launch {
                 state.map { it.conflicts }.distinctUntilChanged().drop(1).collect { conflicts ->
-                    withContext(Dispatchers.IO) { runCatching { conflictStore.save(conflicts) } }
+                    withContext(Dispatchers.IO) {
+                        try {
+                            conflictStore.save(conflicts)
+                        } catch (e: CancellationException) {
+                            throw e
+                        } catch (e: Exception) {
+                            diagnostics.report(DiagnosticCode.SYNC_STATE, e)
+                        }
+                    }
                 }
             }
             accounts.observe().collect { entities ->
@@ -157,6 +168,7 @@ class SyncManager(
                     } catch (e: CancellationException) {
                         throw e
                     } catch (e: Exception) {
+                        diagnostics.report(DiagnosticCode.LOCAL_DATA_DELETE, e)
                         "Disconnected ${account.label}, but could not delete the local notes: ${describe(e)}"
                     }
                 }
@@ -239,7 +251,16 @@ class SyncManager(
 
     /** Three-way merge of a conflicted copy into its note, for the merge-back UI. */
     suspend fun mergePreview(conflict: SyncConflict): MergeResult =
-        withContext(Dispatchers.IO) { mergeBack.merge(conflict) }
+        withContext(Dispatchers.IO) {
+            try {
+                mergeBack.merge(conflict)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                diagnostics.report(DiagnosticCode.SYNC, e)
+                throw e
+            }
+        }
 
     /** Saves [text] as the note, deletes the conflicted copy, then syncs so every drive receives both changes. */
     fun mergeBack(conflict: SyncConflict, text: String) = settle(conflict, "merge") { mergeBack.apply(conflict, text) }
@@ -265,6 +286,7 @@ class SyncManager(
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
+                    diagnostics.report(DiagnosticCode.SYNC, e)
                     _state.update { it.copy(message = "Could not $verb ${conflict.path}: ${describe(e)}") }
                     false
                 }
@@ -276,7 +298,14 @@ class SyncManager(
     /** Conflicts from before a restart whose copy is still there. */
     private suspend fun restoreConflicts() {
         val saved = withContext(Dispatchers.IO) {
-            runCatching { conflictStore.load().filter { mergeBack.isPending(it) } }.getOrDefault(emptyList())
+            try {
+                conflictStore.load().filter { mergeBack.isPending(it) }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                diagnostics.report(DiagnosticCode.SYNC_STATE, e)
+                emptyList()
+            }
         }
         if (saved.isNotEmpty()) {
             _state.update { s -> s.copy(conflicts = (saved + s.conflicts).distinctBy { it.copyPath }) }
@@ -304,6 +333,7 @@ class SyncManager(
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
+                    diagnostics.report(DiagnosticCode.SYNC, e)
                     messages[account.id] = describe(e)
                     null
                 }
@@ -329,6 +359,7 @@ class SyncManager(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+            diagnostics.report(DiagnosticCode.SYNC, e)
             _state.update { it.copy(message = "Sync failed: ${describe(e)}") }
         } finally {
             _state.update { it.copy(running = false) }
@@ -354,6 +385,7 @@ class SyncManager(
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
+            diagnostics.report(DiagnosticCode.SIGN_OUT, e)
             // Signing out is best effort: the local data is removed regardless.
         }
     }

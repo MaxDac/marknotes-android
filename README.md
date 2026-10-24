@@ -58,6 +58,21 @@ Dropbox account the app is fully local.
 
 ### Security and privacy
 
+- **Error diagnostics** (Settings): Java/Kotlin crashes and handled application errors are logged locally by
+  default. Records contain only timestamps and fixed operation/failure categories, not exception messages,
+  stack-frame strings, note contents, names, paths, URLs, accounts, credentials or device identifiers. Native
+  crashes and ANRs are not captured. Private logs and exported snapshots together use at most 5 MiB; a bounded
+  event history may discard older records sooner. Records expire after seven days when the app next starts,
+  records an error or exports logs (nothing runs while the app is force-stopped). **Clear logs** removes local
+  logs and snapshots without disabling future recording; **Delete all local data** also clears them.
+- **Report a problem** first shows a local review, then asks permission to open a prefilled GitHub issue draft
+  for `MaxDac/marknotes-android` (MarkNotes Pro uses `MaxDac/MarkNotes`). Opening the draft transmits the sanitized
+  excerpt in a URL to GitHub **before submission**; browser history/sync and server logs may retain it. An issue
+  is public after you submit it in the browser. The final encoded URL is limited to 2,000 ASCII characters;
+  whole recent events are included in chronological order with an explicit omission count. There is no app
+  GitHub authentication, automatic submission or backend upload. **Export full sanitized logs** instead shares
+  offline text through Android's chooser. The receiving app can retain/upload its copy; clearing logs or making
+  another export invalidates the local shared snapshot but cannot recall received copies.
 - Notes live in the app's private storage, which other apps can't read. Android (10 and later, the minimum this
   app supports) encrypts it with file-based encryption tied to your screen lock. The app doesn't add its own note
   encryption on top: the notes stay plain files that the sync core and the other MarkNotes apps read, and a lost
