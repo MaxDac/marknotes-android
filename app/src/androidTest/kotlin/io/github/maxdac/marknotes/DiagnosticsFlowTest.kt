@@ -87,7 +87,7 @@ class DiagnosticsFlowTest {
     }
 
     @Test
-    fun exportUsesOnlyNarrowReadGrantedPackageSpecificContentUriAndHasNoSecrets() = runBlocking {
+    fun exportUsesOnlyNarrowReadGrantedPackageSpecificContentUriAndHasNoSecrets(): Unit = runBlocking {
         val failure = IOException("token=private /Notes/private.md")
         diagnostics.report(DiagnosticCode.NOTE_WRITE, failure)
         diagnostics.report(DiagnosticCode.NOTE_WRITE, failure)
