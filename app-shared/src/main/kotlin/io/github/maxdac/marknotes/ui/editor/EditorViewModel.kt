@@ -41,7 +41,8 @@ data class EditorState(
     /** A short, transient message (snackbar). */
     val message: String? = null,
     val canUndo: Boolean = false,
-    val canRedo: Boolean = false
+    val canRedo: Boolean = false,
+    val loadSucceeded: Boolean = false
 ) {
     val text: String get() = value.text
 }
@@ -104,6 +105,7 @@ class EditorViewModel(private val container: AppContainer, val path: String) : V
                 if (_state.value.loaded && text != _state.value.text) history.clear()
                 _state.value = _state.value.copy(
                     loaded = true,
+                    loadSucceeded = true,
                     value = value,
                     dirty = false,
                     noteId = doc.id,
@@ -114,7 +116,7 @@ class EditorViewModel(private val container: AppContainer, val path: String) : V
                 throw e
             } catch (e: Exception) {
                 container.diagnostics.report(DiagnosticCode.NOTE_READ, e)
-                _state.value = _state.value.copy(loaded = true, error = e.message)
+                _state.value = _state.value.copy(loaded = true, loadSucceeded = false, error = e.message)
             }
         }
     }

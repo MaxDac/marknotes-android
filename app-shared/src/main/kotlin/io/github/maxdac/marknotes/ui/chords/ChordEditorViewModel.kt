@@ -68,7 +68,8 @@ data class ChordEditorState(
     val draftBaseline: ChordDraft? = null,
     val draftErrors: List<String> = emptyList(),
     val error: String? = null,
-    val message: String? = null
+    val message: String? = null,
+    val loadSucceeded: Boolean = false
 ) {
     val chords: List<Chord> get() = sequence.chords
     val displayNames: List<String> get() = ChordSequences.displayNames(sequence.chords)
@@ -125,6 +126,7 @@ class ChordEditorViewModel(private val container: AppContainer, val path: String
                 _state.value = when (val result = ChordSequences.parse(doc.body)) {
                     is ChordParseResult.Ok -> _state.value.copy(
                         loaded = true,
+                        loadSucceeded = true,
                         sequence = result.sequence,
                         text = doc.body,
                         parseError = null
@@ -132,6 +134,7 @@ class ChordEditorViewModel(private val container: AppContainer, val path: String
 
                     is ChordParseResult.Error -> _state.value.copy(
                         loaded = true,
+                        loadSucceeded = true,
                         text = doc.body,
                         textMode = true,
                         parseError = describe(result)
@@ -141,7 +144,7 @@ class ChordEditorViewModel(private val container: AppContainer, val path: String
                 throw e
             } catch (e: Exception) {
                 container.diagnostics.report(DiagnosticCode.NOTE_READ, e)
-                _state.value = _state.value.copy(loaded = true, error = e.message)
+                _state.value = _state.value.copy(loaded = true, loadSucceeded = false, error = e.message)
             }
         }
     }

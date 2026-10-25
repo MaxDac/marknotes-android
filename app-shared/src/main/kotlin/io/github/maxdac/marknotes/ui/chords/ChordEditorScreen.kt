@@ -72,6 +72,7 @@ import io.github.maxdac.marknotes.core.notes.Chord
 import io.github.maxdac.marknotes.core.notes.ChordSequences
 import io.github.maxdac.marknotes.core.notes.Instrument
 import io.github.maxdac.marknotes.core.notes.NotePaths
+import io.github.maxdac.marknotes.ui.sharing.ShareNoteButton
 
 const val CHORD_LIST_TAG = "chord-list"
 const val CHORD_TEXT_TAG = "chord-text"
@@ -138,6 +139,9 @@ fun ChordEditorScreen(path: String, onBack: () -> Unit) {
                     }
                 },
                 actions = {
+                    if (state.loadSucceeded && state.draft == null) {
+                        ShareNoteButton(NotePaths.displayName(path), state.text, vm::showMessage)
+                    }
                     if (state.loaded && state.draft == null) {
                         IconButton(onClick = vm::toggleTextMode) {
                             if (state.textMode) {
