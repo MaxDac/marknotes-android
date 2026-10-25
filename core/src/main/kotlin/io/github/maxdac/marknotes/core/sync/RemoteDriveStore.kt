@@ -1,5 +1,6 @@
 package io.github.maxdac.marknotes.core.sync
 
+import io.github.maxdac.marknotes.sync.RemoteFolderDeletion
 import java.io.IOException
 
 /**
@@ -59,12 +60,20 @@ interface RemoteDriveStore {
     /**
      * Deletes only an empty folder, without deleting any descendants (including hidden or unsupported files).
      * The emptiness check and deletion must be atomic; a fresh listing followed by recursive deletion is unsafe.
-     * Adapters without this capability fail explicitly, so the executor retains the folder's sync state.
+     * Adapters without this capability declare [remoteFolderDeletion] [RemoteFolderDeletion.UNSUPPORTED] (then
+     * locally deleted folders are left on the drive and the user is asked to remove them); otherwise they fail
+     * explicitly, so the executor retains the folder's sync state.
      */
     suspend fun deleteFolderIfEmpty(entry: RemoteEntry): Unit =
         throw UnsupportedRemoteOperationException(
             "Safe empty-folder deletion is not supported by this drive: ${entry.path}"
         )
+
+    /**
+     * Whether [deleteFolderIfEmpty] can atomically delete an empty folder. Declare
+     * [RemoteFolderDeletion.UNSUPPORTED] only when the drive has no such operation; never infer it from a failure.
+     */
+    val remoteFolderDeletion: RemoteFolderDeletion get() = RemoteFolderDeletion.ATOMIC_EMPTY_ONLY
 
     /**
      * Renames the same stable remote identity without replacing any destination. Implementations must preserve

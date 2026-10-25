@@ -98,7 +98,71 @@ class SyncMetadataMigrationTest {
         }
     }
 
+    @Test
+    fun versionThreeRecordsMigrateWithoutDeferralAndPersistFolderNotices() = runBlocking<Unit> {
+        val name = "sync-migration-${UUID.randomUUID()}.db"
+        val path = context.getDatabasePath(name)
+        path.parentFile!!.mkdirs()
+        try {
+            SQLiteDatabase.openOrCreateDatabase(path, null).use { db ->
+                db.execSQL(
+                    "CREATE TABLE sync_records (driveId TEXT NOT NULL, path TEXT NOT NULL, " +
+                        "isFolder INTEGER NOT NULL, remoteId TEXT NOT NULL, remoteVersion TEXT NOT NULL, " +
+                        "localHash TEXT NOT NULL, syncedAt INTEGER NOT NULL, " +
+                        "localDeleted INTEGER NOT NULL DEFAULT 0, PRIMARY KEY(driveId, path))"
+                )
+                db.execSQL(
+                    "CREATE TABLE drive_accounts (id TEXT NOT NULL PRIMARY KEY, provider TEXT NOT NULL, " +
+                        "label TEXT NOT NULL, remoteFolder TEXT NOT NULL, createRootFolder INTEGER NOT NULL, " +
+                        "rootFolderName TEXT NOT NULL, lastSyncAt INTEGER NOT NULL, lastMessage TEXT)"
+                )
+                db.execSQL("INSERT INTO sync_records VALUES ('a', 'Old', 1, 'folder-a', '', '', 1000, 1)")
+                db.execSQL("INSERT INTO sync_records VALUES ('b', 'Old', 1, 'folder-b', '', '', 1000, 1)")
+                db.version = 3
+            }
+            val db = open(name)
+            val generation = try {
+                val a = RoomSyncMetadataStore(db.syncRecords(), "a")
+                val b = RoomSyncMetadataStore(db.syncRecords(), "b")
+                assertFalse(a.all().single().remoteFolderPreserved)
+                assertTrue(a.folderNotices().isEmpty())
+                a.preserveFolder("Old", "folder-a")
+                a.preserveFolder("Old", "folder-a")
+                b.preserveFolder("Old", "folder-b")
+                val notice = a.folderNotices().single()
+                assertTrue(notice.pending)
+                assertTrue(notice.generation != b.folderNotices().single().generation)
+                b.clear()
+                assertEquals(listOf(notice), a.folderNotices())
+                notice.generation
+            } finally {
+                db.close()
+            }
+            val reopened = open(name)
+            try {
+                val a = RoomSyncMetadataStore(reopened.syncRecords(), "a")
+                assertTrue(a.all().single().remoteFolderPreserved)
+                assertEquals(listOf(generation), a.folderNotices().filter { it.pending }.map { it.generation })
+                a.acknowledgeFolderNotice(generation)
+                a.preserveFolder("Old", "folder-a")
+                assertEquals(1, a.folderNotices().size)
+                assertFalse(a.folderNotices().single().pending)
+                a.retireRecreatedFolders(listOf("Old"))
+                assertTrue(a.all().isEmpty())
+                assertEquals(mapOf("Old" to "folder-a"), a.recreatedFolderIdentities())
+            } finally {
+                reopened.close()
+            }
+        } finally {
+            context.deleteDatabase(name)
+        }
+    }
+
     private fun open(name: String) = Room.databaseBuilder(context, MarkNotesDatabase::class.java, name)
-        .addMigrations(MarkNotesDatabase.MIGRATION_1_2, MarkNotesDatabase.MIGRATION_2_3)
+        .addMigrations(
+            MarkNotesDatabase.MIGRATION_1_2,
+            MarkNotesDatabase.MIGRATION_2_3,
+            MarkNotesDatabase.MIGRATION_3_4
+        )
         .build()
 }

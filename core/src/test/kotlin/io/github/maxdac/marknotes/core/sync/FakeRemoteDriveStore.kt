@@ -1,6 +1,7 @@
 package io.github.maxdac.marknotes.core.sync
 
 import io.github.maxdac.marknotes.core.notes.NotePaths
+import io.github.maxdac.marknotes.sync.RemoteFolderDeletion
 
 /** In-memory [RemoteDriveStore] used by tests. */
 class FakeRemoteDriveStore : RemoteDriveStore {
@@ -18,6 +19,8 @@ class FakeRemoteDriveStore : RemoteDriveStore {
     val failingRevisions = mutableSetOf<String>()
 
     var supportsSafeFolderDeletion = true
+
+    override var remoteFolderDeletion = RemoteFolderDeletion.ATOMIC_EMPTY_ONLY
 
     /** Runs once after the next [snapshot] is taken, e.g. to simulate another device or an editor save. */
     var afterSnapshot: (() -> Unit)? = null

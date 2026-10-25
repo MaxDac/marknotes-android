@@ -18,6 +18,7 @@ import io.github.maxdac.marknotes.core.sync.RemoteEntry
 import io.github.maxdac.marknotes.core.sync.RemoteFolder
 import io.github.maxdac.marknotes.core.sync.RemoteFolderBrowser
 import io.github.maxdac.marknotes.core.sync.SyncManifest
+import io.github.maxdac.marknotes.sync.RemoteFolderDeletion
 import java.io.ByteArrayOutputStream
 import java.util.Date
 import java.util.Locale
@@ -50,6 +51,9 @@ class DropboxDriveStore(private val client: DbxClientV2, syncFolder: String) : R
     private val root = dropboxPath(syncFolder)
     private val rootLower = root.lowercase(Locale.ROOT)
     private var cursor: String? = null
+
+    /** Dropbox can't delete a folder only if it is empty, so locally deleted folders are left for the user. */
+    override val remoteFolderDeletion = RemoteFolderDeletion.UNSUPPORTED
 
     /** Entries keyed by lower-case relative path, since Dropbox paths are case-insensitive. */
     private val entries = LinkedHashMap<String, RemoteEntry>()

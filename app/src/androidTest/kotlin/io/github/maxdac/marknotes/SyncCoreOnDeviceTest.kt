@@ -7,6 +7,7 @@ import io.github.maxdac.marknotes.core.sync.ConflictMergeBack
 import io.github.maxdac.marknotes.core.sync.SyncConflict
 import io.github.maxdac.marknotes.sync.Action
 import io.github.maxdac.marknotes.sync.LocalEntry
+import io.github.maxdac.marknotes.sync.RemoteFolderDeletion
 import io.github.maxdac.marknotes.sync.Side
 import io.github.maxdac.marknotes.sync.SyncInput
 import io.github.maxdac.marknotes.sync.merge3
@@ -23,7 +24,15 @@ import org.junit.runner.RunWith
 class SyncCoreOnDeviceTest {
     @Test
     fun planAndMergeRunOnTheDevice() {
-        val actions = plan(SyncInput(listOf(LocalEntry("n.md", false, 1L, "hash")), emptyList(), emptyList(), null))
+        val actions = plan(
+            SyncInput(
+                listOf(LocalEntry("n.md", false, 1L, "hash")),
+                emptyList(),
+                emptyList(),
+                null,
+                RemoteFolderDeletion.ATOMIC_EMPTY_ONLY
+            )
+        )
         assertEquals(listOf("n.md"), actions.actions.filterIsInstance<Action.UploadNew>().map { it.path })
 
         val merged = merge3("a\nb\nc\n", "A\nb\nc\n", "a\nb\nC\n")

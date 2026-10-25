@@ -1,5 +1,6 @@
-Safer sync with marknotes-sync 0.3.0: deletions and renames are synced, and interrupted syncs recover durably. Settings and the README now link to the other MarkNotes apps.
-Prevent moving a folder named attachments to the root, where it would disappear from the note tree.
-Image previews now load only canonical note attachments, blocking external URLs and paths outside the attachments folder.
-Undo and redo in the note editor (top bar, Ctrl+Z, Ctrl+Y).
+Safer sync (marknotes-sync 0.4.0): deletions and renames sync, interrupted syncs recover. Links to the other MarkNotes apps.
+A folder named attachments can't be moved to the root, where it would vanish.
+Image previews load only note attachments, not external URLs or outside paths.
+Undo and redo in the editor (top bar, Ctrl+Z, Ctrl+Y).
 Optional sync when back online.
+Folders deleted locally stay on Dropbox, which can't remove them safely; you're told once to delete them there.

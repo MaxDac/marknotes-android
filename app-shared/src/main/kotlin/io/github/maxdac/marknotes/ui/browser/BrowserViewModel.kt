@@ -6,6 +6,7 @@ import io.github.maxdac.marknotes.AppContainer
 import io.github.maxdac.marknotes.core.diagnostics.DiagnosticCode
 import io.github.maxdac.marknotes.core.notes.ChordSequences
 import io.github.maxdac.marknotes.core.notes.NoteEntry
+import io.github.maxdac.marknotes.sync.FolderRemovalNotice
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -35,6 +36,8 @@ class BrowserViewModel(private val container: AppContainer, val folder: String) 
     val error: StateFlow<String?> = _error
 
     val syncState = container.syncManager.state
+
+    fun acknowledgeFolderNotice(notice: FolderRemovalNotice) = container.syncManager.acknowledgeFolderNotice(notice)
 
     // Refreshes run one at a time in call order, so a slow listing can't overwrite a newer one (e.g. after a wipe).
     private val refreshLock = Mutex()

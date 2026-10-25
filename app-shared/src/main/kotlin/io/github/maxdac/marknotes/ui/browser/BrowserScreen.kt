@@ -24,6 +24,7 @@ import androidx.compose.material.icons.filled.ExpandMore
 import androidx.compose.material.icons.filled.Folder
 import androidx.compose.material.icons.filled.FolderOpen
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.LibraryMusic
 import androidx.compose.material.icons.filled.Menu
 import androidx.compose.material.icons.filled.MoreVert
@@ -72,6 +73,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.maxdac.marknotes.appContainer
 import io.github.maxdac.marknotes.core.notes.NoteEntry
 import io.github.maxdac.marknotes.core.notes.NotePaths
+import io.github.maxdac.marknotes.sync.FolderRemovalNotice
 import io.github.maxdac.marknotes.sync.SyncState
 import io.github.maxdac.marknotes.ui.MarkNotesLogo
 import io.github.maxdac.marknotes.ui.chords.EnableChordSequencesDialog
@@ -82,6 +84,7 @@ const val NEW_NOTE_MENU_ITEM_TAG = "new-note-menu-item"
 const val NEW_CHORDS_MENU_ITEM_TAG = "new-chords-menu-item"
 const val EMPTY_NEW_NOTE_TAG = "empty-new-note"
 const val EMPTY_NEW_CHORDS_TAG = "empty-new-chords"
+const val FOLDER_NOTICE_TAG = "folder-notice"
 
 private sealed interface BrowserDialog {
     data object NewNote : BrowserDialog
@@ -189,6 +192,7 @@ fun BrowserScreen(
                 chordsEnabled = chordsEnabled,
                 sync = sync,
                 onOpenConflicts = onOpenConflicts,
+                onAcknowledgeFolderNotice = vm::acknowledgeFolderNotice,
                 onOpen = { entry ->
                     when {
                         entry.isFolder -> onOpenFolder(entry.path)
@@ -257,6 +261,28 @@ private fun NewEntryFab(chordsEnabled: Boolean, onDialog: (BrowserDialog) -> Uni
     }
 }
 
+/**
+ * Tells the user once that a folder they deleted is still on a drive that can't remove it safely; they remove it
+ * there themselves. Stays until they tap OK, across syncs and restarts.
+ */
+@Composable
+private fun FolderNoticeCard(notice: FolderRemovalNotice, onAcknowledge: (FolderRemovalNotice) -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth().padding(12.dp).testTag(FOLDER_NOTICE_TAG),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+    ) {
+        Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
+            Icon(Icons.Filled.Info, contentDescription = null)
+            Text(
+                "\"${notice.path}\" was deleted on this device but is still on ${notice.driveLabel}, which can't " +
+                    "delete folders safely. Delete it there if you no longer need it.",
+                modifier = Modifier.weight(1f).padding(horizontal = 12.dp)
+            )
+            TextButton(onClick = { onAcknowledge(notice) }) { Text("OK") }
+        }
+    }
+}
+
 @Composable
 private fun BrowserContent(
     padding: PaddingValues,
@@ -265,11 +291,13 @@ private fun BrowserContent(
     chordsEnabled: Boolean,
     sync: SyncState,
     onOpenConflicts: () -> Unit,
+    onAcknowledgeFolderNotice: (FolderRemovalNotice) -> Unit,
     onOpen: (NoteEntry) -> Unit,
     onDialog: (BrowserDialog) -> Unit
 ) {
     Column(Modifier.padding(padding).fillMaxSize()) {
         if (sync.running) LinearProgressIndicator(Modifier.fillMaxWidth())
+        sync.folderNotices.firstOrNull()?.let { FolderNoticeCard(it, onAcknowledgeFolderNotice) }
         if (sync.conflicts.isNotEmpty()) {
             Card(
                 onClick = onOpenConflicts,

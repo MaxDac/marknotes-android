@@ -30,6 +30,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.catch
+import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.map
@@ -47,11 +49,18 @@ data class DriveStatus(
     val unavailableReason: String?
 )
 
+/**
+ * A folder deleted locally that [driveLabel] can't remove safely: it stays on the drive until the user removes it.
+ * Shown once per deletion [generation], until acknowledged.
+ */
+data class FolderRemovalNotice(val driveId: String, val driveLabel: String, val path: String, val generation: Long)
+
 data class SyncState(
     val drives: List<DriveStatus> = emptyList(),
     val running: Boolean = false,
     val message: String? = null,
-    val conflicts: List<SyncConflict> = emptyList()
+    val conflicts: List<SyncConflict> = emptyList(),
+    val folderNotices: List<FolderRemovalNotice> = emptyList()
 ) {
     val hasDrives: Boolean get() = drives.isNotEmpty()
 }
@@ -119,6 +128,18 @@ class SyncManager(
                         }
                     }
                 }
+            }
+            launch {
+                combine(records.observePendingNotices(), accounts.observe()) { notices, entities ->
+                    val labels = entities.filter { it.toAccount()?.provider in connectors }
+                        .associate { it.id to it.label }
+                    notices.mapNotNull { notice ->
+                        val label = labels[notice.driveId] ?: return@mapNotNull null
+                        FolderRemovalNotice(notice.driveId, label, notice.path, notice.generation)
+                    }
+                }.catch { e ->
+                    if (e is Exception) diagnostics.report(DiagnosticCode.SYNC_STATE, e)
+                }.collect { notices -> _state.update { it.copy(folderNotices = notices) } }
             }
             accounts.observe().collect { entities ->
                 val drives = entities.mapNotNull { entity ->
@@ -293,6 +314,23 @@ class SyncManager(
     /** Keeps both files as they are and stops listing the conflict. */
     fun keepBoth(conflict: SyncConflict) {
         _state.update { s -> s.copy(conflicts = s.conflicts.filterNot { it.copyPath == conflict.copyPath }) }
+    }
+
+    /**
+     * Saves that the user read [notice]; it is then not shown again for this deletion. A failed save keeps the
+     * notice pending and says so.
+     */
+    fun acknowledgeFolderNotice(notice: FolderRemovalNotice) {
+        scope.launch {
+            try {
+                RoomSyncMetadataStore(records, notice.driveId).acknowledgeFolderNotice(notice.generation)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                diagnostics.report(DiagnosticCode.SYNC_STATE, e)
+                _state.update { it.copy(message = "Could not dismiss the notice for ${notice.path}: ${describe(e)}") }
+            }
+        }
     }
 
     private fun settle(conflict: SyncConflict, verb: String, action: () -> Unit) {
