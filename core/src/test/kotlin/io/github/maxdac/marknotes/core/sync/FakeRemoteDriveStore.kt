@@ -51,6 +51,13 @@ class FakeRemoteDriveStore : RemoteDriveStore {
         items.keys.filter { it == path || NotePaths.isAncestor(path, it) }.forEach { items.remove(it) }
     }
 
+    /** Gives the folder at [path] a new identity, as if replaced on the drive, keeping its descendants. */
+    fun replaceFolderIdentity(path: String) {
+        val item = items.getValue(path)
+        check(item.entry.isFolder) { "Not a folder: $path" }
+        items[path] = Item(item.entry.copy(id = nextId()), item.bytes)
+    }
+
     fun content(path: String): String? = items[path]?.takeIf { !it.entry.isFolder }?.bytes?.toString(Charsets.UTF_8)
 
     fun exists(path: String) = path in items
