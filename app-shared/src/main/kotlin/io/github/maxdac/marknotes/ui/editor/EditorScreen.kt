@@ -108,6 +108,7 @@ import io.github.maxdac.marknotes.core.notes.IndexedNote
 import io.github.maxdac.marknotes.core.notes.NoteIndex
 import io.github.maxdac.marknotes.core.notes.NoteLinks
 import io.github.maxdac.marknotes.core.notes.NotePaths
+import io.github.maxdac.marknotes.ui.sharing.ShareNoteButton
 import io.noties.markwon.AbstractMarkwonPlugin
 import io.noties.markwon.LinkResolverDef
 import io.noties.markwon.Markwon
@@ -187,6 +188,9 @@ fun EditorScreen(path: String, onBack: () -> Unit, onOpenNote: (String) -> Unit 
                     }
                 },
                 actions = {
+                    if (state.loadSucceeded) {
+                        ShareNoteButton(NotePaths.displayName(path), state.text, vm::showMessage)
+                    }
                     if (!state.preview && state.loaded) {
                         IconButton(onClick = vm::undo, enabled = state.canUndo) {
                             Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = "Undo")
