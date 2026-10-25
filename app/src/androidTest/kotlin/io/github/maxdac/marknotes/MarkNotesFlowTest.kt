@@ -1,9 +1,16 @@
 package io.github.maxdac.marknotes
 
+import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.semantics.SemanticsActions
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsOff
 import androidx.compose.ui.test.assertIsOn
+import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasTestTag
@@ -14,10 +21,14 @@ import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performScrollTo
 import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.test.performTextInput
+import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.test.printToString
+import androidx.compose.ui.test.withKeyDown
+import androidx.compose.ui.text.AnnotatedString
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -280,6 +291,54 @@ class MarkNotesFlowTest {
         val note = File(notesDir, "Todo.md")
         compose.waitUntil(timeoutMillis = 5_000) { note.isFile && bodyOf(note).isNotEmpty() }
         assertEquals("- [ ] milk\n- [ ] eggs\n**done**", bodyOf(note))
+    }
+
+    @Test
+    fun undoAndRedoTypingAndToolbarEdits() {
+        newNoteFromFab()
+        compose.onNode(hasSetTextAction()).performTextInput("Draft")
+        compose.onNodeWithText("OK").performClick()
+        compose.waitUntilExactlyOneExists(hasTestTag(EDITOR_FIELD_TAG), timeoutMillis = 5_000)
+
+        val editor = compose.onNodeWithTag(EDITOR_FIELD_TAG)
+        val undo = compose.onNodeWithContentDescription("Undo")
+        val redo = compose.onNodeWithContentDescription("Redo")
+        undo.assertIsNotEnabled()
+        redo.assertIsNotEnabled()
+
+        editor.performTextInput("word")
+        editor.performSemanticsAction(SemanticsActions.SetSelection) { it(0, 4, false) }
+        compose.onNodeWithContentDescription("Bold").performClick()
+        editor.assertTextEquals("**word**")
+
+        undo.performClick()
+        editor.assertTextEquals("word")
+        redo.assertIsEnabled()
+        undo.performClick()
+        editor.assert(SemanticsMatcher.expectValue(SemanticsProperties.EditableText, AnnotatedString("")))
+        undo.assertIsNotEnabled()
+        redo.performClick()
+        editor.assertTextEquals("word")
+
+        // Hardware keyboard shortcuts drive the same history.
+        editor.performClick()
+        editor.performKeyInput { withKeyDown(Key.CtrlLeft) { pressKey(Key.Y) } }
+        editor.assertTextEquals("**word**")
+        editor.performKeyInput { withKeyDown(Key.CtrlLeft) { pressKey(Key.Z) } }
+        editor.assertTextEquals("word")
+        editor.performKeyInput { withKeyDown(Key.CtrlLeft) { withKeyDown(Key.ShiftLeft) { pressKey(Key.Z) } } }
+        editor.assertTextEquals("**word**")
+
+        // A new edit after an undo drops the redo branch.
+        undo.performClick()
+        editor.performSemanticsAction(SemanticsActions.SetSelection) { it(4, 4, false) }
+        editor.performTextInput("s")
+        redo.assertIsNotEnabled()
+
+        compose.onNodeWithContentDescription("Back").performClick()
+        compose.waitUntilExactlyOneExists(hasText("Draft"))
+        val note = File(notesDir, "Draft.md")
+        compose.waitUntil(timeoutMillis = 5_000) { note.isFile && bodyOf(note) == "words" }
     }
 
     @Test
