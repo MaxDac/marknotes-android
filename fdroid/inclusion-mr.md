@@ -21,15 +21,15 @@ the MR description and in sync with the recipe and the latest release: reviewers
 MarkNotes (`io.github.maxdac.marknotes.libre`) is an offline-first Markdown notes app. Notes are plain `.md` files in folders, with note links, images, chord sheets and a rendered preview. Optional Dropbox sync shares the same notes folder with the MarkNotes desktop and web apps.
 
 * Upstream: https://github.com/MaxDac/marknotes-android (GPL-3.0-or-later). I am the upstream author.
-* Release: [`v0.1.4`](https://github.com/MaxDac/marknotes-android/releases/tag/v0.1.4), commit `7479889462e5c3b21e5aa98ca0ae3dee279c2ea4`, versionCode 104.
+* Release: [`v0.1.5`](https://github.com/MaxDac/marknotes-android/releases/tag/v0.1.5), commit `9eb94b5d7922577b98435530c66c37a36865fa3e`, versionCode 105.
 * Fastlane metadata (en-US title, summary, description, icon, screenshots, changelogs) lives upstream in `fastlane/metadata/android/en-US/`.
 * Anti-features: NonFreeNet. Sync is optional and uses Dropbox (OAuth PKCE, no client secret), only at start-up, on *Sync now* or, if the user turns it on, when the network comes back. There is no tracking, analytics, ads or Google Play Services. Error diagnostics stay on the device unless the user reviews a report and sends it themselves.
 * Permissions: `INTERNET` (Dropbox sync), `ACCESS_NETWORK_STATE` (the opt-in *Sync when reconnected*) and `USE_BIOMETRIC` (optional app lock), plus AndroidX's own `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`. Upstream CI fails if the APK requests anything else.
 
 ### Build notes
 
-* The sync core is [marknotes-sync](https://github.com/MaxDac/marknotes-sync) (Rust, with UniFFI Kotlin bindings; GPL-3.0-or-later, same author), a git submodule at its release tag `v0.4.0`. It's built from source in `build` by upstream's `scripts/build-sync-from-source.sh`. That uses a pinned Rust toolchain (1.99.1, installed through the `rustup` srclib), cargo-ndk 4.1.2 and NDK r30, with `--remap-path-prefix`, no build ID and `SOURCE_DATE_EPOCH`, so the native libraries are reproducible. Gradle then takes the bindings from that checkout (`gradleprops: marknotes.sync.fromSource=marknotes-sync`) instead of the GitHub release assets.
-* `rm` deletes what isn't built or isn't free: the `spec/` submodules (shared test fixtures, unlicensed), marknotes-sync's npm bindings and `package.json`, and its Kotlin bindings' `gradle-wrapper.jar` (the build uses `gradle`).
+* The sync core is [marknotes-sync](https://github.com/MaxDac/marknotes-sync) (Rust, with UniFFI Kotlin bindings; GPL-3.0-or-later, same author), a git submodule at its release tag `v0.4.1`. It's built from source in `build` by upstream's `scripts/build-sync-from-source.sh`. That uses a pinned Rust toolchain (1.99.1, installed through the `rustup` srclib), cargo-ndk 4.1.2 and NDK r30, with `--remap-path-prefix`, no build ID and `SOURCE_DATE_EPOCH`, so the native libraries are reproducible. Gradle then takes the bindings from that checkout (`gradleprops: marknotes.sync.fromSource=marknotes-sync`) instead of the GitHub release assets.
+* `rm` deletes what isn't built or isn't free: the `spec/` submodules (shared test fixtures, unlicensed), marknotes-sync's npm bindings and `package.json`, and its Kotlin bindings' Gradle wrapper (`gradle-wrapper.jar`, `gradlew`, `gradlew.bat`; the build uses `gradle`).
 * Native code is arm64-v8a and x86_64, under 1 MB per ABI: `libmarknotes_sync.so` (built here), plus `libjnidispatch.so` from JNA 5.19.1 (Maven Central, LGPL-2.1/Apache-2.0, which the UniFFI Kotlin bindings use) and `libandroidx.graphics.path.so` from AndroidX (Compose). The APK is about 68 MB, almost all of it uncompressed dex, so an ABI split wouldn't make it much smaller.
 
 ### Auto update and reproducible builds
@@ -40,7 +40,7 @@ MarkNotes (`io.github.maxdac.marknotes.libre`) is an offline-first Markdown note
 ### Validation
 
 * `fdroid lint` and `fdroid rewritemeta` produce no changes.
-* All jobs in the fork pipeline pass: https://gitlab.com/MaxDac/fdroiddata/-/pipelines/2985696577. `fdroid build` ([job](https://gitlab.com/MaxDac/fdroiddata/-/jobs/17444255101)) builds versionCode 104 from `7479889462e5c3b21e5aa98ca0ae3dee279c2ea4` and reports "compared built binary to supplied reference binary successfully".
+* All jobs in the fork pipeline pass: https://gitlab.com/MaxDac/fdroiddata/-/pipelines/2986624239. `fdroid build` ([job](https://gitlab.com/MaxDac/fdroiddata/-/jobs/17448963010)) builds versionCode 105 from `9eb94b5d7922577b98435530c66c37a36865fa3e` and reports "compared built binary to supplied reference binary successfully".
 
 ## Checklist
 
