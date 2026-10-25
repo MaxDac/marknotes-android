@@ -29,7 +29,13 @@ submodule) with OneDrive and Proton Drive sync added, released on GitHub only. T
   and synced. Settings → **Clean unused images** deletes images no note refers to.
 - **Import from other apps**: pick MarkNotes in Android's share sheet to turn shared text, web pages (HTML),
   `.txt`/`.md`/`.html` files, Word documents (`.docx`), PDFs (text only) or images into a new note, optionally
-  converted to Markdown. Conversion runs on the device.
+  converted to Markdown. Before saving, choose the title and destination from the existing folders, including
+  nested folders or the MarkNotes root. Conversion runs on the device.
+- **Share a note**: tap **Share note** in the editor or preview to send its current Markdown source as text through
+  Android's share sheet to a compatible app. Chord notes can be shared from their list or text view; save or close
+  a chord-builder draft first. Recent edits are included, but hidden front-matter metadata is not. Images remain
+  Markdown references, not attached files, and internal note links need MarkNotes to resolve. The app you choose
+  receives the note text and may keep or upload it.
 - **Chord sequences** (guitar and bass, ported from [ChordBuilder](https://github.com/MaxDac/ChordBuilder)), opt-in:
   turn on **Settings → Chord sequences** (off by default, kept on this device only). Notes with `type: chords` then
   open in a chord editor with a fretboard builder and chord diagrams, and **New chord sequence** appears in the
