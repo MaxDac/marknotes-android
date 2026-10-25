@@ -190,15 +190,13 @@ fun SettingsScreen(
             Text("About", style = MaterialTheme.typography.titleMedium)
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                 MarkNotesLogo(size = 48.dp)
-                Text("MarkNotes", style = MaterialTheme.typography.titleLarge)
+                Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleLarge)
             }
             container.connectors.values.mapNotNull { it.notice }.forEach { notice ->
                 Text(notice, style = MaterialTheme.typography.bodyMedium)
             }
             Text(
-                "MarkNotes is free software (GPL-3.0-or-later). Sync happens on app launch, when you tap " +
-                    "\"Sync now\" and, if you turn it on, when the network comes back while the app is open; " +
-                    "there is no background polling.",
+                stringResource(R.string.about_free_software, stringResource(R.string.app_name)),
                 style = MaterialTheme.typography.bodySmall
             )
             TipSection()
@@ -598,7 +596,7 @@ private fun AppLockSection(container: AppContainer) {
 
     Text("App lock", style = MaterialTheme.typography.labelLarge)
     Text(
-        "Ask for your fingerprint, face or screen lock to open MarkNotes, and lock it after a time without use.",
+        stringResource(R.string.app_lock_description, stringResource(R.string.app_name)),
         style = MaterialTheme.typography.bodySmall
     )
     if (lockEnabled) {

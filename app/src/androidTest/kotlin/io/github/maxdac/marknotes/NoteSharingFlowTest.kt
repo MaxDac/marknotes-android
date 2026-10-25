@@ -22,6 +22,7 @@ import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import io.github.maxdac.marknotes.core.notes.FrontMatter
+import io.github.maxdac.marknotes.shared.R
 import io.github.maxdac.marknotes.ui.chords.ADD_CHORD_FAB_TAG
 import io.github.maxdac.marknotes.ui.chords.CHORD_TEXT_TAG
 import io.github.maxdac.marknotes.ui.chords.ChordEditorScreen
@@ -222,7 +223,7 @@ class NoteSharingFlowTest {
         }
         compose.onNodeWithTag(TITLE_TAG).performTextReplacement("Imported")
         compose.onNodeWithContentDescription("Choose folder").performClick()
-        val choices = compose.onAllNodes(hasText(folder.ifEmpty { "MarkNotes" }))
+        val choices = compose.onAllNodes(hasText(folder.ifEmpty { context.getString(R.string.app_name) }))
         choices[choices.fetchSemanticsNodes().lastIndex].performClick()
         compose.onNodeWithTag(SAVE_TAG).performClick()
         val saved = File(destination, if (existing) "Imported 2.md" else "Imported.md")

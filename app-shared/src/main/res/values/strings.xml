@@ -1,6 +1,12 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">MarkNotes</string>
+    <string name="locked_title">%1$s is locked</string>
+    <string name="unlock_prompt_title">Unlock %1$s</string>
+    <string name="about_free_software">%1$s is free software (GPL-3.0-or-later). Sync happens on app launch, when you tap \"Sync now\" and, if you turn it on, when the network comes back while the app is open; there is no background polling.</string>
+    <string name="app_lock_description">Ask for your fingerprint, face or screen lock to open %1$s, and lock it after a time without use.</string>
+    <string name="import_unsupported_file">%1$s can import text, HTML, Markdown, Word (.docx) and PDF files.</string>
+    <string name="import_not_allowed">%1$s isn\'t allowed to read the shared file.</string>
     <string name="help_title">Help</string>
     <string name="help_back">Back</string>
     <string name="help_intro">Learn the basics again or explore the Markdown supported by this app. These guides work offline.</string>
@@ -13,19 +19,19 @@
     <string name="guide_next">Next</string>
     <string name="guide_finish">Finish</string>
     <string name="guide_local_title">Your notes, on this device</string>
-    <string name="guide_local_body">MarkNotes keeps plain Markdown files on your device. You can write and read without an account or connection.\n\nEdits save automatically after a short pause and when leaving a note. Saving locally is not the same as syncing: connecting a drive is optional.</string>
+    <string name="guide_local_body">%1$s keeps plain Markdown files on your device. You can write and read without an account or connection.\n\nEdits save automatically after a short pause and when leaving a note. Saving locally is not the same as syncing: connecting a drive is optional.</string>
     <string name="guide_browser_title">Find your way around</string>
     <string name="guide_new_highlight">New → a note</string>
     <string name="guide_new_body">Use New at the bottom of the note list, then give your note a name. If Chord sequences is enabled in Settings, New also offers a chord sequence.</string>
     <string name="guide_folders_highlight">Folders → your workspace</string>
     <string name="guide_folders_body">Use the Folders button to jump through your folder tree. New folder creates a folder; a note or folder menu lets you rename, move or delete it.</string>
-    <string name="guide_import_body">To import content, use Share in another Android app and choose MarkNotes. Review the import before saving it. This guide will wait while you handle a share.</string>
+    <string name="guide_import_body">To import content, use Share in another Android app and choose %1$s. Review the import before saving it. This guide will wait while you handle a share.</string>
     <string name="guide_demo_title">Try writing Markdown</string>
     <string name="guide_demo_privacy">This is a temporary practice editor, not a real note. Nothing here is saved or synced. Your workspace stays unchanged. Practice text is discarded when you leave the guide or lock the app.</string>
     <string name="guide_demo_label">Demo - changes are not saved</string>
     <string name="guide_edit">Edit practice text</string>
     <string name="guide_preview">Preview practice text</string>
-    <string name="guide_demo_source" formatted="false"># Welcome to MarkNotes\n\nTry **bold**, _italic_ and ~~strikethrough~~.\n\n## A small plan\n\n- Write an idea\n- Organize your notes\n\n1. Edit the source\n2. Switch to Preview\n\n- [ ] Try formatting\n- [x] Open the guide\n\n&gt; This demonstration is temporary. Its changes are not saved.\n\nUse `inline code` or a code block:\n\n```javascript\nconst greeting = \"Hello\";\n```\n\n| Mode | Purpose |\n| --- | --- |\n| Edit | Write Markdown |\n| Preview | Read the result |</string>
+    <string name="guide_demo_source"># Welcome to %1$s\n\nTry **bold**, _italic_ and ~~strikethrough~~.\n\n## A small plan\n\n- Write an idea\n- Organize your notes\n\n1. Edit the source\n2. Switch to Preview\n\n- [ ] Try formatting\n- [x] Open the guide\n\n&gt; This demonstration is temporary. Its changes are not saved.\n\nUse `inline code` or a code block:\n\n```javascript\nconst greeting = \"Hello\";\n```\n\n| Mode | Purpose |\n| --- | --- |\n| Edit | Write Markdown |\n| Preview | Read the result |</string>
     <string name="guide_demo_concepts">Use the toolbar on selected text, or type the syntax yourself; scroll the toolbar for more actions. Preview shows the result.\n\nIn real notes, typing @ at the start of a line or after a space finds other notes. Image actions add local attachments from a photo, the camera, paste or supported keyboard input. Practice mode does not search your notes, import images or open links.</string>
     <string name="guide_drives_title">Sync only if you want to</string>
     <string name="guide_drives_body">Open Settings → Add drive, sign in, and choose the notes folder. Use the same folder in your other MarkNotes apps.\n\nSync runs on app launch and when you tap Sync now. Optionally enable Sync when reconnected while the app is open and unlocked. There is no background polling. Sync conflicts can be reviewed and resolved in the app.</string>

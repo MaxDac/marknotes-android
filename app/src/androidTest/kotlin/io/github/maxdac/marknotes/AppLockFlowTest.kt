@@ -15,8 +15,8 @@ import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import io.github.maxdac.marknotes.security.DeviceAuth
-import io.github.maxdac.marknotes.ui.lock.LOCKED_TITLE
 import io.github.maxdac.marknotes.ui.lock.UNLOCK_TEXT
+import io.github.maxdac.marknotes.ui.lock.lockedTitle
 import io.github.maxdac.marknotes.ui.settings.NO_SCREEN_LOCK_TEXT
 import io.github.maxdac.marknotes.ui.settings.SECURE_SCREEN_TEXT
 import io.github.maxdac.marknotes.ui.settings.TURN_ON_APP_LOCK_TEXT
@@ -127,7 +127,7 @@ class AppLockFlowTest {
             container.appLock.lock()
         }
         compose.waitUntil(timeoutMillis = 5_000) {
-            compose.onAllNodes(hasText(LOCKED_TITLE)).fetchSemanticsNodes().isNotEmpty()
+            compose.onAllNodes(hasText(lockedTitle(context))).fetchSemanticsNodes().isNotEmpty()
         }
         compose.onNodeWithText(UNLOCK_TEXT).assertExists()
         assertEquals(0, compose.onAllNodes(hasText("hidden text")).fetchSemanticsNodes().size)
@@ -137,7 +137,7 @@ class AppLockFlowTest {
             container.appLock.endAuthentication(success = true)
         }
         compose.waitUntil(timeoutMillis = 5_000) {
-            compose.onAllNodes(hasText(LOCKED_TITLE)).fetchSemanticsNodes().isEmpty()
+            compose.onAllNodes(hasText(lockedTitle(context))).fetchSemanticsNodes().isEmpty()
         }
         compose.onNodeWithText("hidden text").assertExists()
     }

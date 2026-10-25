@@ -35,7 +35,7 @@ internal fun GettingStartedHost(
         onPauseOrDispose { resumed = false }
     }
     var step by rememberSaveable { mutableIntStateOf(0) }
-    val seed = stringResource(R.string.guide_demo_source)
+    val seed = stringResource(R.string.guide_demo_source, stringResource(R.string.app_name))
     val practice = viewModel { PracticeEditorModel(seed) }
     var saveError by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(unlocked) {

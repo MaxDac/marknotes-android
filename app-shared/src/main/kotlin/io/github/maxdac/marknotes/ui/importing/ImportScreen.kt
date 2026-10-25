@@ -48,12 +48,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.maxdac.marknotes.appContainer
+import io.github.maxdac.marknotes.shared.R
 import io.github.maxdac.marknotes.ui.editor.MarkdownPreview
 import java.io.File
 import java.util.UUID
@@ -226,7 +228,8 @@ private fun FolderPicker(folder: String, folders: List<String>, onSelect: (Strin
     }
 }
 
-private fun folderLabel(folder: String) = if (folder.isEmpty()) "MarkNotes" else folder
+@Composable
+private fun folderLabel(folder: String) = folder.ifEmpty { stringResource(R.string.app_name) }
 
 const val SAVE_TAG = "import-save"
 const val TITLE_TAG = "import-title"
