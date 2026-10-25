@@ -2,6 +2,7 @@ package io.github.maxdac.marknotes
 
 import android.content.Intent
 import android.graphics.Color
+import android.net.ConnectivityManager
 import android.net.Uri
 import android.os.Bundle
 import android.view.WindowManager
@@ -38,6 +39,7 @@ import androidx.navigation.navArgument
 import io.github.maxdac.marknotes.core.sync.DriveProvider
 import io.github.maxdac.marknotes.data.ThemeMode
 import io.github.maxdac.marknotes.security.DeviceAuth
+import io.github.maxdac.marknotes.sync.connections
 import io.github.maxdac.marknotes.ui.MarkNotesTheme
 import io.github.maxdac.marknotes.ui.NoteScreen
 import io.github.maxdac.marknotes.ui.browser.BrowserScreen
@@ -75,6 +77,7 @@ class MainActivity : ComponentActivity() {
         val appLock = appContainer.appLock
         applySecureScreen()
         lifecycleScope.launch { repeatOnLifecycle(Lifecycle.State.STARTED) { lockWhenIdle() } }
+        watchNetwork()
         setContent {
             val mode by settings.themeMode.collectAsStateWithLifecycle()
             val color by settings.themeColor.collectAsStateWithLifecycle()
@@ -144,6 +147,16 @@ class MainActivity : ComponentActivity() {
         }
     }
 
+    /**
+     * Feeds the network state to "Sync when reconnected" while the activity exists, so a reconnect seen in the
+     * background syncs once the app is back in the foreground. Nothing syncs while the app is in the background.
+     */
+    private fun watchNetwork() {
+        val connectivity = getSystemService(ConnectivityManager::class.java) ?: return
+        val reconnect = appContainer.syncManager.reconnect
+        lifecycleScope.launch { connectivity.connections().collect { reconnect.update(online = it) } }
+    }
+
     /** Locks the app after the idle timeout while it is in the foreground. */
     private suspend fun lockWhenIdle() {
         val settings = appContainer.settings
@@ -182,11 +195,21 @@ class MainActivity : ComponentActivity() {
             Toast.makeText(this, APP_LOCK_TURNED_OFF_TEXT, Toast.LENGTH_LONG).show()
         }
         appContainer.appLock.onStart()
+        appContainer.syncManager.reconnect.update(foreground = true)
     }
 
     override fun onStop() {
         super.onStop()
-        if (!isChangingConfigurations) appContainer.appLock.onStop()
+        if (!isChangingConfigurations) {
+            appContainer.appLock.onStop()
+            appContainer.syncManager.reconnect.update(foreground = false)
+        }
+    }
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // The next launch syncs anyway; a reconnect seen before it must not add a second sync.
+        if (isFinishing) appContainer.syncManager.reconnect.reset()
     }
 
     override fun onNewIntent(intent: Intent) {
