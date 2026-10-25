@@ -1,0 +1,1 @@
+Onboarding guide on first launch, replayable from Settings. Offline Markdown help. Share a note's text to other apps. Sync 0.4.1: fixes for folder case renames and conflict handling. Verified sync libraries and a cleaner F-Droid build.
