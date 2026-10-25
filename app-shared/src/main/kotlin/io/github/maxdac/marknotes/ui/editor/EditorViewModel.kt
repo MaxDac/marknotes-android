@@ -39,7 +39,9 @@ data class EditorState(
     val index: NoteIndex? = null,
     val importingImage: Boolean = false,
     /** A short, transient message (snackbar). */
-    val message: String? = null
+    val message: String? = null,
+    val canUndo: Boolean = false,
+    val canRedo: Boolean = false
 ) {
     val text: String get() = value.text
 }
@@ -54,6 +56,7 @@ class EditorViewModel(private val container: AppContainer, val path: String) : V
     val state: StateFlow<EditorState> = _state
     private var saveJob: Job? = null
     private var indexJob: Job? = null
+    private val history = EditorHistory()
 
     /** Front-matter block of the note, re-attached to the body on save. */
     @Volatile
@@ -94,7 +97,16 @@ class EditorViewModel(private val container: AppContainer, val path: String) : V
                     text,
                     TextRange(selection.start.coerceAtMost(text.length), selection.end.coerceAtMost(text.length))
                 )
-                _state.value = _state.value.copy(loaded = true, value = value, dirty = false, noteId = doc.id)
+                // A sync changed the note: the history belongs to the old text, so it can't be replayed on top.
+                if (_state.value.loaded && text != _state.value.text) history.clear()
+                _state.value = _state.value.copy(
+                    loaded = true,
+                    value = value,
+                    dirty = false,
+                    noteId = doc.id,
+                    canUndo = history.canUndo,
+                    canRedo = history.canRedo
+                )
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
@@ -108,7 +120,7 @@ class EditorViewModel(private val container: AppContainer, val path: String) : V
         val old = _state.value.value
         val continued = MarkdownEditing.continueList(old.toEditorText(), value.toEditorText())
         val updated = continued?.toTextFieldValue() ?: value
-        update(updated)
+        update(updated, History.TYPING)
         updateMention(old.toEditorText(), updated.toEditorText())
     }
 
@@ -117,9 +129,32 @@ class EditorViewModel(private val container: AppContainer, val path: String) : V
         update(action(_state.value.value.toEditorText()).toTextFieldValue())
     }
 
-    private fun update(value: TextFieldValue) {
-        val textChanged = value.text != _state.value.text
-        _state.value = _state.value.copy(value = value, dirty = _state.value.dirty || textChanged)
+    /** Reverts the last edit (a run of typing counts as one), restoring the selection it had. */
+    fun undo() {
+        val previous = history.undo(_state.value.value.toEditorText()) ?: return
+        dismissMention()
+        update(previous.toTextFieldValue(), History.NONE)
+    }
+
+    /** Re-applies the last undone edit. */
+    fun redo() {
+        val next = history.redo(_state.value.value.toEditorText()) ?: return
+        dismissMention()
+        update(next.toTextFieldValue(), History.NONE)
+    }
+
+    private enum class History { EDIT, TYPING, NONE }
+
+    private fun update(value: TextFieldValue, record: History = History.EDIT) {
+        val old = _state.value.value
+        val textChanged = value.text != old.text
+        if (record != History.NONE) history.record(old.toEditorText(), value.toEditorText(), record == History.TYPING)
+        _state.value = _state.value.copy(
+            value = value,
+            dirty = _state.value.dirty || textChanged,
+            canUndo = history.canUndo,
+            canRedo = history.canRedo
+        )
         if (!textChanged) return
         // Typing through the keyboard app doesn't reach Activity.onUserInteraction: keep the app lock's timer fresh.
         container.appLock.onUserInteraction()

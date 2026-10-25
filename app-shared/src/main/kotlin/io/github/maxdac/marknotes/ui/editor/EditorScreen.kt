@@ -32,6 +32,8 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.FormatListBulleted
+import androidx.compose.material.icons.automirrored.filled.Redo
+import androidx.compose.material.icons.automirrored.filled.Undo
 import androidx.compose.material.icons.filled.CheckBox
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Code
@@ -83,6 +85,14 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.input.key.KeyEvent
+import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isShiftPressed
+import androidx.compose.ui.input.key.key
+import androidx.compose.ui.input.key.onPreviewKeyEvent
+import androidx.compose.ui.input.key.type
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontFamily
@@ -177,6 +187,14 @@ fun EditorScreen(path: String, onBack: () -> Unit, onOpenNote: (String) -> Unit 
                     }
                 },
                 actions = {
+                    if (!state.preview && state.loaded) {
+                        IconButton(onClick = vm::undo, enabled = state.canUndo) {
+                            Icon(Icons.AutoMirrored.Filled.Undo, contentDescription = "Undo")
+                        }
+                        IconButton(onClick = vm::redo, enabled = state.canRedo) {
+                            Icon(Icons.AutoMirrored.Filled.Redo, contentDescription = "Redo")
+                        }
+                    }
                     IconButton(onClick = vm::togglePreview) {
                         if (state.preview) {
                             Icon(Icons.Filled.Edit, contentDescription = "Edit")
@@ -214,7 +232,8 @@ fun EditorScreen(path: String, onBack: () -> Unit, onOpenNote: (String) -> Unit 
                     TextField(
                         value = state.value,
                         onValueChange = vm::onValueChange,
-                        modifier = Modifier.weight(1f).fillMaxWidth().testTag(EDITOR_FIELD_TAG),
+                        modifier = Modifier.weight(1f).fillMaxWidth().testTag(EDITOR_FIELD_TAG)
+                            .onPreviewKeyEvent { historyShortcut(it, vm) },
                         placeholder = { Text("Write markdown…") },
                         textStyle = MaterialTheme.typography.bodyLarge.copy(fontFamily = FontFamily.Monospace),
                         keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
@@ -260,6 +279,19 @@ fun EditorScreen(path: String, onBack: () -> Unit, onOpenNote: (String) -> Unit 
             confirmButton = { TextButton(onClick = vm::clearError) { Text("OK") } }
         )
     }
+}
+
+/**
+ * Hardware keyboard history shortcuts, as on desktop and web: Ctrl+Z undoes, Ctrl+Y and Ctrl+Shift+Z redo. They are
+ * consumed so the text field's own, separate undo stack never runs.
+ */
+private fun historyShortcut(event: KeyEvent, vm: EditorViewModel): Boolean {
+    if (!event.isCtrlPressed) return false
+    val redo = event.key == Key.Y || (event.key == Key.Z && event.isShiftPressed)
+    val undo = event.key == Key.Z && !event.isShiftPressed
+    if (!undo && !redo) return false
+    if (event.type == KeyEventType.KeyDown) if (undo) vm.undo() else vm.redo()
+    return true
 }
 
 private fun newPhotoFile(context: Context): File {
