@@ -30,6 +30,7 @@ class ReconnectSettingsFlowTest {
 
     @Before
     fun setUp() {
+        container.settings.setGettingStartedConsumed(true)
         reset()
         scenario = ActivityScenario.launch(MainActivity::class.java)
     }

@@ -94,6 +94,26 @@ class AttachmentImagesPluginTest {
     }
 
     @Test
+    fun sandboxCannotReadEvenAnExistingCanonicalAttachment() {
+        instrumentation.runOnMainSync {
+            markwon = Markwon.builder(context)
+                .usePlugin(
+                    ImagesPlugin.create { plugin ->
+                        plugin.executorService(executor).errorHandler { _, error ->
+                            errors.add(error)
+                            null
+                        }
+                    }
+                )
+                .usePlugin(AttachmentImagesPlugin(null))
+                .build()
+        }
+        assertFalse(load(path).hasResult())
+        assertEquals(1, errors.size)
+        assertTrue(errors.single() is IllegalArgumentException)
+    }
+
+    @Test
     fun previewNeverLoadsRawUrisTraversalOrEncodedAliases() {
         val hashName = File(path).name
         val invalid = listOf(

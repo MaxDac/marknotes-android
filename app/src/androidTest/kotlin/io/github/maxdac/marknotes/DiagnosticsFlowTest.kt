@@ -44,6 +44,7 @@ class DiagnosticsFlowTest {
 
     @Before
     fun setUp() {
+        container.settings.setGettingStartedConsumed(true)
         resetLock()
         runBlocking { diagnostics.clear() }
         scenario = ActivityScenario.launch(MainActivity::class.java)

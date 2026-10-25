@@ -22,8 +22,9 @@ import java.util.UUID
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.job
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import org.junit.After
@@ -95,7 +96,7 @@ class ReconnectWiringTest {
 
     @After
     fun tearDown() {
-        scope.cancel()
+        runBlocking { scope.coroutineContext.job.cancelAndJoin() }
         database.close()
         root.deleteRecursively()
         base.deleteSharedPreferences("$id-settings")

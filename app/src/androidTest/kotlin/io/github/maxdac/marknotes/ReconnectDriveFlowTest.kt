@@ -74,6 +74,7 @@ class ReconnectDriveFlowTest {
 
     @Before
     fun setUp(): Unit = runBlocking {
+        context.appContainer.settings.setGettingStartedConsumed(true)
         val isolatedContext = object : ContextWrapper(context) {
             override fun getFilesDir(): File = root.apply { mkdirs() }
             override fun getCacheDir(): File = File(root, "cache").apply { mkdirs() }

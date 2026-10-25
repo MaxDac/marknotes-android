@@ -56,6 +56,7 @@ class NoteSharingFlowTest {
     @Before
     fun setUp() {
         instrumentation.runOnMainSync {
+            container.settings.setGettingStartedConsumed(true)
             container.settings.setAppLockEnabled(false)
             container.appLock.onEnabledChanged()
             container.settings.setChordSequencesEnabled(false)

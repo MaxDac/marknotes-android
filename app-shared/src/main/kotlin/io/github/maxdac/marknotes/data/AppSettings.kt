@@ -42,6 +42,16 @@ enum class LockTimeout(val minutes: Int, val label: String) {
 class AppSettings(context: Context, private val dynamicColorSupported: Boolean) {
     private val prefs = context.getSharedPreferences("settings", Context.MODE_PRIVATE)
 
+    private val _gettingStartedConsumed = MutableStateFlow(prefs.getBoolean(KEY_GETTING_STARTED, false))
+    val gettingStartedConsumed: StateFlow<Boolean> = _gettingStartedConsumed
+
+    /** Do not dismiss the guide until its completion is durably stored. */
+    fun setGettingStartedConsumed(consumed: Boolean): Boolean {
+        if (!prefs.edit().putBoolean(KEY_GETTING_STARTED, consumed).commit()) return false
+        _gettingStartedConsumed.value = consumed
+        return true
+    }
+
     /** Folder of the legacy single Proton Drive setup; migrated into the Proton drive account. */
     val legacyRemoteFolder: String
         get() = prefs.getString(KEY_REMOTE_FOLDER, DEFAULT_REMOTE_FOLDER) ?: DEFAULT_REMOTE_FOLDER
@@ -151,6 +161,7 @@ class AppSettings(context: Context, private val dynamicColorSupported: Boolean) 
     companion object {
         const val DEFAULT_REMOTE_FOLDER = "MarkNotes"
         private const val KEY_REMOTE_FOLDER = "remote_folder"
+        private const val KEY_GETTING_STARTED = "getting_started_consumed"
         private const val KEY_LAST_SYNC = "last_sync"
         private const val KEY_LAST_SYNC_SUMMARY = "last_sync_summary"
         private const val KEY_DEVICE_ID = "device_id"
