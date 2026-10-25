@@ -166,8 +166,11 @@ class ReconnectDriveFlowTest {
         assertRetained()
         assertTrue(connector.reconnected.isEmpty())
         compose.onNodeWithText("Reconnect").performScrollTo().performClick()
+        // The reconnect screen's BackHandler must be composed before the back press, or the activity finishes.
+        compose.onNodeWithText("Cancel authentication").assertExists()
         scenario.onActivity { it.onBackPressedDispatcher.onBackPressed() }
         compose.onNodeWithText("Reconnect").performScrollTo().performClick()
+        compose.onNodeWithText("Cancel authentication").assertExists()
         scenario.recreate()
         scenario.onActivity { activity = it }
         showSettings()
