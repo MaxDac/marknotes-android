@@ -170,7 +170,7 @@ Requirements: JDK 21+ (Android Studio's bundled JBR works) and the Android SDK w
 By default the build downloads marknotes-sync (the Kotlin bindings and the native library) from its
 [GitHub releases](https://github.com/MaxDac/marknotes-sync/releases), at the version in `gradle/libs.versions.toml`.
 
-The current sync integration is the released **0.4.0**, not a required development source pin.
+The current sync integration is the released **0.4.1**, not a required development source pin.
 Gradle verifies the Kotlin JAR, host natives JAR and Android AAR against reviewed checked-in SHA256 entries.
 An optional `gradle/marknotes-sync-source.properties` can pin an unreleased API; when present, CI builds it
 with Rust 1.99.1, cargo-ndk 4.1.2 and NDK 30.0.16248370. `-Pmarknotes.sync.fromSource=<checkout>` overrides

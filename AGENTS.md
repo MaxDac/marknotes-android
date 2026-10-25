@@ -40,7 +40,7 @@ and `MarkNotesApp`. So:
 
 Requirements: JDK 21+ (Android Studio's JBR works) and the Android SDK with platform 37. On Windows use
 `.\gradlew.bat` and set `JAVA_HOME`/`ANDROID_HOME` if they aren't set.
-The wrapper is Gradle 9.8.2. The current sync dependency is released 0.4.0; development source mode is optional.
+The wrapper is Gradle 9.8.2. The current sync dependency is released 0.4.1; development source mode is optional.
 Read [docs/dependencies.md](docs/dependencies.md) before changing package consumption, checksums, source pins,
 toolchain pins, or release plumbing. Use the local `marknotes-dependencies` / `marknotes-release` skill
 entrypoints for the canonical common workflow in marknotes-spec (Copilot and Claude share these).

@@ -11,7 +11,7 @@ An unmerged handbook is not an approved fallback; never bump the fixture submodu
 
 | Boundary | Authoritative input | Consumer |
 | --- | --- | --- |
-| Shared sync API/native code | `gradle/libs.versions.toml` `marknotesSync=0.4.0`; `marknotes-sync/` gitlink at `48bdbdeda451963154d3a8defb7efc0d9a6f4cbb` (`v0.4.0`) | `:core` Kotlin JAR + host natives JAR for JVM tests; `:app-shared` Android AAR |
+| Shared sync API/native code | `gradle/libs.versions.toml` `marknotesSync=0.4.1`; `marknotes-sync/` gitlink at `5e68e80ab6f0731767334e9e7e967fd01e793450` (`v0.4.1`) | `:core` Kotlin JAR + host natives JAR for JVM tests; `:app-shared` Android AAR |
 | Published sync bytes | Root `gradle/verification-metadata.xml`, all three assets | Native Gradle dependency verification, strict by default |
 | Temporary unreleased sync API | Optional `gradle/marknotes-sync-source.properties`, `version=` + exact `commit=` matching catalog/gitlink | Defaults to source mode; currently **absent**, not a required setup step |
 | Format/parity contract | `spec/` gitlink, JSON fixtures | Core parity tests and `:app-shared` mention tests; not a package registry |
@@ -29,8 +29,8 @@ source repository **or** GitHub releases, never Maven Central or a fallback repo
 their existing routing and are explicitly outside this verification policy. Gradle downloads/caches artifacts;
 there is no custom download cache. Artifact-only Ivy has no POM/Ivy metadata to authenticate.
 
-The checked-in SHA256 entries cover `marknotes-sync-kotlin-0.4.0.jar`,
-`marknotes-sync-natives-0.4.0.jar`, and `marknotes-sync-android-0.4.0.aar`. Bootstrap on 2026-10-25 downloaded
+The checked-in SHA256 entries cover `marknotes-sync-kotlin-0.4.1.jar`,
+`marknotes-sync-natives-0.4.1.jar`, and `marknotes-sync-android-0.4.1.aar`. Review on 2026-10-25 downloaded
 the three GitHub release assets and matched their hashes to that release's `SHA256SUMS` (also agreeing with
 GitHub asset digests). **This is authorized trust on first use, not independently authenticated provenance.**
 Review subsequent release identity/checksum changes; do not generate metadata from an unexplained failing download.

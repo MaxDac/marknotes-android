@@ -10,6 +10,7 @@ import importlib.util
 import json
 import os
 from pathlib import Path
+import re
 import shutil
 import subprocess
 import tempfile
@@ -156,9 +157,10 @@ class VerificationTest(unittest.TestCase):
                     archive.writestr(f"jni/{abi}/libmarknotes_sync.so", payload)
 
     def write_metadata(self):
-        text = (REPO / "gradle/verification-metadata.xml").read_text().replace(
-            "48bdbdeda451963154d3a8defb7efc0d9a6f4cbb", self.commit_id
-        )
+        text = (REPO / "gradle/verification-metadata.xml").read_text()
+        text = re.sub(r"sync-source-commit: [0-9a-f]{40}", f"sync-source-commit: {self.commit_id}", text)
+        for component in ET.fromstring(text).findall("v:components/v:component", CONTRACT.NS):
+            text = text.replace(component.get("version"), VERSION)
         original = ET.fromstring(text)
         for component in original.findall("v:components/v:component", CONTRACT.NS):
             artifact = component.find("v:artifact", CONTRACT.NS)
