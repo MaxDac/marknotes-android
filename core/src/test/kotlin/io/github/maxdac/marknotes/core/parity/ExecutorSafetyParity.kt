@@ -15,6 +15,7 @@ import io.github.maxdac.marknotes.core.sync.SyncEngine
 import io.github.maxdac.marknotes.core.sync.SyncMetadataStore
 import io.github.maxdac.marknotes.core.sync.SyncRecord
 import io.github.maxdac.marknotes.core.sync.SyncResult
+import io.github.maxdac.marknotes.sync.RemoteFolderDeletion
 import java.io.File
 import java.io.IOException
 import java.nio.file.Files
@@ -24,7 +25,6 @@ import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonObject
-import org.junit.Assume.assumeTrue
 
 /**
  * Runs `sync/executor-safety` against the Android executor: the real [SyncEngine] with a local note tree on disk,
@@ -33,26 +33,17 @@ import org.junit.Assume.assumeTrue
  * Each case reports what the stores hold afterwards, keyed like the fixture's expected result.
  */
 internal object ExecutorSafetyParity {
-    /**
-     * Scenarios the Android executor can't run yet, with the reason. Each of their cases must carry
-     * `knownDivergence.android` in marknotes-spec; they are then reported as skipped with both reasons.
-     */
-    private val unsupported = mapOf(
-        "folder-delete-deferred" to DEFERRED_REMOVAL,
-        "folder-delete-local-recreation-race" to DEFERRED_REMOVAL
-    )
-
     fun run(case: FixtureCase): JsonElement {
         val scenario = case.string("scenario")
-        unsupported[scenario]?.let { reason ->
-            check(case.knownDivergence != null) {
-                "$case: the Android executor can't run '$scenario' ($reason), but the spec expects it to match"
-            }
-            assumeTrue("Known divergence: ${case.knownDivergence} (not runnable on Android: $reason)", false)
-        }
         val root = Files.createTempDirectory("marknotes-executor-safety").toFile()
         val observed = try {
-            runBlocking { Scenarios(root).run(scenario, case.stringOrNull("crashAfter")) }
+            runBlocking {
+                when (scenario) {
+                    "folder-delete-deferred" -> DeferredFolderScenarios.run(root, case.string("event"))
+                    "folder-delete-local-recreation-race" -> DeferredFolderScenarios.recreationRace(root)
+                    else -> Scenarios(root).run(scenario, case.stringOrNull("crashAfter"))
+                }
+            }
         } finally {
             root.deleteRecursively()
         }
@@ -61,30 +52,33 @@ internal object ExecutorSafetyParity {
         check(missing.isEmpty()) { "$case: the Android runner doesn't observe $missing" }
         return JsonObject(keys.associateWith { observed.getValue(it) })
     }
-
-    private const val DEFERRED_REMOVAL = "needs the deferred remote folder removal contract (preserveRemoteFolder, " +
-        "durable preserved-folder records and notices) from marknotes-sync 0.4.0; spec#50"
 }
 
 /** A simulated process death: an [Error], so the executor's per-action error handling can't absorb it. */
-private class SimulatedCrash(point: String) : Error("Simulated crash after $point")
+internal class SimulatedCrash(point: String) : Error("Simulated crash after $point")
 
 /** Called around every durable or remote operation of the executor, with the operation and its path. */
-private class Hooks {
+internal class Hooks {
     var before: (op: String, path: String) -> Unit = { _, _ -> }
     var after: (op: String, path: String) -> Unit = { _, _ -> }
 
+    /** Every operation started, in order. */
+    val calls = mutableListOf<String>()
+
     inline fun <T> around(op: String, path: String, block: () -> T): T {
+        calls += op
         before(op, path)
         return block().also { after(op, path) }
     }
 }
 
 @Suppress("TooManyFunctions")
-private class HookedRemote(private val drive: FakeRemoteDriveStore, private val hooks: Hooks) : RemoteDriveStore {
+internal class HookedRemote(private val drive: FakeRemoteDriveStore, private val hooks: Hooks) : RemoteDriveStore {
     /** Calls that would delete a folder without the atomic empty-only primitive. */
     var recursiveDeleteRequests = 0
         private set
+
+    override val remoteFolderDeletion get() = drive.remoteFolderDeletion
 
     override suspend fun snapshot() = hooks.around("snapshot", "") { drive.snapshot() }
 
@@ -117,7 +111,7 @@ private class HookedRemote(private val drive: FakeRemoteDriveStore, private val 
 }
 
 @Suppress("TooManyFunctions")
-private class HookedMetadata(private val store: SyncMetadataStore, private val hooks: Hooks) : SyncMetadataStore {
+internal class HookedMetadata(private val store: SyncMetadataStore, private val hooks: Hooks) : SyncMetadataStore {
     override suspend fun all() = hooks.around("metadata.all", "") { store.all() }
 
     override suspend fun upsert(record: SyncRecord) = hooks.around("metadata.upsert", record.path) {
@@ -154,7 +148,7 @@ private class HookedMetadata(private val store: SyncMetadataStore, private val h
         hooks.around("metadata.acknowledgeFolderNotice", "") { store.acknowledgeFolderNotice(generation) }
 }
 
-private class HookedBase(private val store: BaseContentStore, private val hooks: Hooks) : BaseContentStore {
+internal class HookedBase(private val store: BaseContentStore, private val hooks: Hooks) : BaseContentStore {
     override fun get(path: String) = hooks.around("base.get", path) { store.get(path) }
 
     override fun put(path: String, bytes: ByteArray) = hooks.around("base.put", path) { store.put(path, bytes) }
@@ -167,7 +161,7 @@ private class HookedBase(private val store: BaseContentStore, private val hooks:
     override fun clear() = hooks.around("base.clear", "") { store.clear() }
 }
 
-private class HookedConflicts(private val store: ConflictCopyStore, private val hooks: Hooks) : ConflictCopyStore {
+internal class HookedConflicts(private val store: ConflictCopyStore, private val hooks: Hooks) : ConflictCopyStore {
     override fun all() = hooks.around("conflicts.all", "") { store.all() }
 
     override fun put(pending: PendingConflictCopy) =
@@ -244,9 +238,14 @@ private class Scenarios(private val root: File) {
         local.write("F/a.md", "a\n")
         syncCleanly()
         local.delete("F")
-        // Android drives have no capability flag: an adapter without the atomic primitive inherits the default
-        // deleteFolderIfEmpty, which throws, whether or not it says so explicitly.
-        if ("unsupported" in scenario) drive.supportsSafeFolderDeletion = false
+        if ("unsupported" in scenario) {
+            // Without the atomic primitive the inherited deleteFolderIfEmpty throws. The default scenario keeps
+            // the default ATOMIC_EMPTY_ONLY declaration, so only the others declare their removal unsupported.
+            drive.supportsSafeFolderDeletion = false
+            if (scenario != "folder-delete-default-unsupported") {
+                drive.remoteFolderDeletion = RemoteFolderDeletion.UNSUPPORTED
+            }
+        }
         when (scenario) {
             "folder-delete-concurrent-upload" -> afterListing { drive.putFile("F/new.md", "unseen\n", 9) }
 
@@ -267,8 +266,7 @@ private class Scenarios(private val root: File) {
             "changedChildPreserved" to JsonPrimitive(drive.content("F/a.md") == "changed\n"),
             "childRecordRetained" to JsonPrimitive(recorded("F/a.md")),
             "recursiveDeleteRequests" to JsonPrimitive(remote.recursiveDeleteRequests),
-            // The Android executor has no deferred-removal notices, so it never creates one.
-            "notices" to JsonPrimitive(0)
+            "notices" to JsonPrimitive(metadata.folderNotices().size)
         )
     }
 
