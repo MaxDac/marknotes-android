@@ -157,7 +157,7 @@ the external website under its own terms and privacy policy.
 ## Build
 
 Requirements: JDK 21+ (Android Studio's bundled JBR works) and the Android SDK with platform 37
-(compileSdk 37, targetSdk 36, minSdk 29). The Gradle wrapper (9.8.1, AGP 9.4 with built-in Kotlin 2.4) is included:
+(compileSdk 37, targetSdk 36, minSdk 29). The Gradle wrapper (9.8.2, AGP 9.4 with built-in Kotlin 2.4) is included:
 
 ```sh
 ./gradlew assembleDebug                      # build the debug APK
@@ -170,14 +170,14 @@ Requirements: JDK 21+ (Android Studio's bundled JBR works) and the Android SDK w
 By default the build downloads marknotes-sync (the Kotlin bindings and the native library) from its
 [GitHub releases](https://github.com/MaxDac/marknotes-sync/releases), at the version in `gradle/libs.versions.toml`.
 
-For the unreleased 0.3 sync integration, `gradle/marknotes-sync-source.properties` instead pins an exact source
-commit. Initialize `marknotes-sync`, build its artifacts with `scripts/build-sync-from-source.sh` on Linux,
-then run Gradle normally: dependency resolution defaults to that checkout's `bindings/kotlin/build/libs`.
-CI performs this source prerequisite automatically with Rust 1.99.1, cargo-ndk 4.1.2 and NDK 30.0.16248370.
-`-Pmarknotes.sync.fromSource=<checkout>` remains a path-valued override. No native binaries are committed.
-Development pins are checked by `scripts/check-sync-pin.sh` and rejected by release validation; they must be
-promoted to the matching published shared-library release tag before an app release. Pin guard regression tests
-run with `python scripts/test-sync-pin.py`.
+The current sync integration is the released **0.4.1**, not a required development source pin.
+Gradle verifies the Kotlin JAR, host natives JAR and Android AAR against reviewed checked-in SHA256 entries.
+An optional `gradle/marknotes-sync-source.properties` can pin an unreleased API; when present, CI builds it
+with Rust 1.99.1, cargo-ndk 4.1.2 and NDK 30.0.16248370. `-Pmarknotes.sync.fromSource=<checkout>` overrides
+that default. Source builds require a fresh ignored build receipt and validate the actual selected checkout.
+No native binaries are committed. Development pins are rejected by signed release validation, not unsigned
+`assembleRelease` development checks. See [the dependency map](docs/dependencies.md) for source receipts,
+local experiments, offline resolution, checksum trust limits, Pro root integration and regression commands.
 
 On Windows, use a Visual Studio developer terminal with Git Bash, the same pinned Rust/NDK tools, and
 `READELF="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/windows-x86_64/bin/llvm-readelf.exe"`.

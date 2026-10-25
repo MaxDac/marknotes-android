@@ -36,6 +36,8 @@ jobs:
           setup-gradle: "false"
       - if: github.event_name == 'workflow_dispatch' || github.event.pull_request.head.repo.full_name == github.repository
         uses: gradle/actions/dependency-submission@v6
+        with:
+          additional-arguments: --dependency-verification strict
       # On workflow_dispatch there is no PR event: compare the dispatched commit against main.
       - uses: actions/dependency-review-action@v5
         with:

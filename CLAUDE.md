@@ -8,3 +8,5 @@
 - Use `/parity-check <feature>` (`.claude/commands/parity-check.md`) before and after changing anything in
   the cross-app parity areas listed in `AGENTS.md`.
 - Read sibling repos (marknotes-electron, marknotes-web, marknotes-spec) with `gh` rather than cloning them.
+- Dependency/release work uses `docs/dependencies.md` and the local `marknotes-dependencies` / `marknotes-release`
+  skills, which load common guidance from marknotes-spec. Do not duplicate that workflow in this wrapper.

@@ -40,6 +40,10 @@ and `MarkNotesApp`. So:
 
 Requirements: JDK 21+ (Android Studio's JBR works) and the Android SDK with platform 37. On Windows use
 `.\gradlew.bat` and set `JAVA_HOME`/`ANDROID_HOME` if they aren't set.
+The wrapper is Gradle 9.8.2. The current sync dependency is released 0.4.1; development source mode is optional.
+Read [docs/dependencies.md](docs/dependencies.md) before changing package consumption, checksums, source pins,
+toolchain pins, or release plumbing. Use the local `marknotes-dependencies` / `marknotes-release` skill
+entrypoints for the canonical common workflow in marknotes-spec (Copilot and Claude share these).
 
 These mirror the required CI checks in `.github/workflows/checks.yml` (do not rename the jobs: the `main`
 ruleset requires them by name):
@@ -76,6 +80,11 @@ format, sync, link or attachment logic in `:core` so it can be tested on the JVM
 - Kotlin style is enforced by ktlint (`android_studio` style, 120 columns, see `.editorconfig`) and detekt
   (`config/detekt/detekt.yml`). Run `ktlintFormat` before committing.
 - Dependencies go in `gradle/libs.versions.toml`.
+- Sync release bytes are verified by native Gradle against root `gradle/verification-metadata.xml` (three assets,
+  only the sync group). Source builds require the builder's ignored receipt; never turn verification off to
+  consume local outputs. `python3 scripts/sync-contract.py` checks catalog/gitlink/metadata offline.
+  Run `python3 scripts/test-sync-pin.py` and `python3 scripts/test-sync-verification.py` for plumbing changes.
+  Pro owns separate root settings/metadata but applies this repo's shared settings helper; see the dependency map.
 - Sync changes need `SyncEngineTest`/`MultiDriveSyncTest` coverage; UI changes need an emulator run.
 - Never commit secrets, keystores or `local.properties`. The Dropbox app key in `app/build.gradle.kts` is public by
   design (PKCE) and committed on purpose, so F-Droid can build a working app.
@@ -93,11 +102,13 @@ F-Droid builds the app from source with the recipe in [`.fdroid.yml`](.fdroid.ym
   (`scripts/build-sync-from-source.sh`, `-Pmarknotes.sync.fromSource=marknotes-sync`); fdroiddata prefers submodules
   to srclibs. Bumping `marknotesSync` in `gradle/libs.versions.toml` needs a marknotes-sync release tag and the
   submodule moved to it in the same commit (`scripts/fdroid-lint.sh` checks it). The recipe's `rm:` drops the
-  unlicensed `spec/` submodules and the sync's `gradle-wrapper.jar`.
+  unlicensed `spec/` submodules and the sync's `gradle-wrapper.jar`, `gradlew` and `gradlew.bat`.
 - **Development source pins**: an unreleased shared API may temporarily use
   `gradle/marknotes-sync-source.properties` (exact source commit and matching catalog version). Gradle and CI then
   use locally built source artifacts by default; `scripts/check-sync-pin.sh` verifies the gitlink. This is not a
-  release: remove the development pin and promote to a matching published shared release tag before releasing.
+  release: remove the development pin and promote to a matching published shared release tag before signing or
+  publishing. Unsigned release-variant development checks remain allowed; CI requires reviewed clean build inputs
+  (only the exact reviewed F-Droid non-build-file deletions are allowed; see docs/dependencies.md).
 - **Reproducible**: F-Droid ships our signed APK only if its rebuild matches. Keep `vcsInfo` and `dependenciesInfo`
   off, keep the Rust/NDK/cargo-ndk pins in `scripts/build-sync-from-source.sh`, `.fdroid.yml` and
   `.github/actions/setup-sync-toolchain` identical, and don't add build inputs that depend on time, paths or the
@@ -129,6 +140,11 @@ These areas are shared with the desktop and web apps and must behave identically
 - attachments (`attachments/<sha256>.<ext>`, accepted types, size limits, cleanup);
 - chord sequences (`type: chords` detection, body grammar, canonical serialisation, validation, display names);
 - sync: `.marknotes/manifest.json` format, hashing, what is synced, three-way merge and conflict handling.
+
+Ownership spans all six repositories above: marknotes-spec owns the contract/fixtures and common workflows,
+marknotes-sync owns Rust planning/merging and published bindings, this repo owns Android adapters/shared UI,
+MarkNotes owns Pro providers/root build, and marknotes-electron/marknotes-web own their clients/adapters.
+Trace sync fixes through marknotes-sync rather than independently rewriting its algorithm in each app.
 
 Rules:
 

@@ -20,6 +20,10 @@ runs:
       with:
         cache-read-only: ${{ github.ref != 'refs/heads/main' }}
 
+    - name: Check sync dependency contract
+      shell: bash
+      run: python3 "$GITHUB_ACTION_PATH/../../../scripts/sync-contract.py"
+
     - name: Install Android SDK platform 37
       shell: bash
       run: |

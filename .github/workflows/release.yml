@@ -46,6 +46,7 @@ jobs:
             echo "::error::Promote the development sync source pin to a published matching release tag before releasing."
             exit 1
           fi
+          python3 scripts/sync-contract.py --release
           read -r version code < <(scripts/app-version.sh)
           echo "Releasing $version (versionCode $code)"
           if git rev-parse -q --verify "refs/tags/v$version" > /dev/null; then

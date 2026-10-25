@@ -1,0 +1,149 @@
+import groovy.json.JsonSlurper
+import java.security.MessageDigest
+import java.nio.file.Files
+import org.gradle.api.artifacts.verification.DependencyVerificationMode
+
+// Pro applies this same helper with marknotesSyncOwner=file("libre"); paths from -P remain root-relative.
+def owner = settings.ext.marknotesSyncOwner.canonicalFile
+def group = 'io.github.maxdac.marknotes'
+def modules = ['marknotes-sync-kotlin': 'jar', 'marknotes-sync-natives': 'jar', 'marknotes-sync-android': 'aar']
+def fail = { String message -> throw new GradleException("marknotes-sync: $message") }
+def git = { File dir, List<String> args ->
+    def process = new ProcessBuilder(['git', '-C', dir.absolutePath] + args).redirectError(ProcessBuilder.Redirect.INHERIT).start()
+    def output = process.inputStream.readAllBytes()
+    if (process.waitFor() != 0) fail("git ${args.join(' ')} failed in $dir")
+    output
+}
+def text = { File dir, List<String> args -> new String(git(dir, args), 'UTF-8').trim() }
+def sha = { byte[] bytes -> MessageDigest.getInstance('SHA-256').digest(bytes).encodeHex().toString() }
+def versionMatch = owner.toPath().resolve('gradle/libs.versions.toml').toFile().text =~ /(?m)^marknotesSync = "([^"]+)"\r?$/
+if (!versionMatch.find()) fail('catalog marknotesSync is missing')
+def version = versionMatch.group(1)
+def pin = new File(owner, 'gradle/marknotes-sync-source.properties')
+def expected = text(owner, ['ls-tree', 'HEAD', 'marknotes-sync']).tokenize().getAt(2)
+if (!(expected ==~ /[0-9a-f]{40}/)) fail('missing reviewed marknotes-sync gitlink')
+def signed = System.getenv('MARKNOTES_KEYSTORE_PATH') || System.getenv('RELEASE_KEYSTORE_BASE64')
+def protectedBuild = System.getenv('CI') == 'true' || System.getenv('GITHUB_ACTIONS') == 'true' || signed
+if (!new File(settingsDir, 'gradle/verification-metadata.xml').isFile()) fail('root gradle/verification-metadata.xml is required (also under Pro)')
+if (protectedBuild && (gradle.startParameter.dependencyVerificationMode != DependencyVerificationMode.STRICT ||
+        !gradle.startParameter.writeDependencyVerifications.empty)) {
+    fail('CI/signed builds require --dependency-verification strict and cannot write verification metadata')
+}
+if (pin.isFile()) {
+    def properties = new Properties()
+    pin.withInputStream { properties.load(it) }
+    if (properties.getProperty('version') != version || properties.getProperty('commit') != expected) {
+        fail('development pin must match catalog and reviewed gitlink')
+    }
+    if (signed) fail('signed releases cannot use a development source pin')
+} else {
+    def metadata = new File(owner, 'gradle/verification-metadata.xml').text
+    if (!metadata.contains("sync-source-commit: $expected")) fail('release metadata source commit differs from gitlink')
+}
+def selected = providers.gradleProperty('marknotes.sync.fromSource').orNull
+if (selected != null && selected.trim().empty) fail('marknotes.sync.fromSource must be a checkout path')
+def selectedFile = selected == null ? null : new File(selected)
+def source = selectedFile != null ? (selectedFile.isAbsolute() ? selectedFile : new File(settingsDir, selected)).canonicalFile :
+        (pin.isFile() ? new File(owner, 'marknotes-sync').canonicalFile : null)
+def pruning = new File(owner, 'gradle/marknotes-sync-fdroid-prune.txt').readLines('UTF-8').findAll { it && !it.startsWith('#') }
+def recipeSections = new File(owner, '.fdroid.yml').text.replace('\r\n', '\n') =~ /(?m)^    rm:\n((?:      - [^\n]+\n)+)/
+def recipePruning = []
+recipeSections.each { section ->
+    recipePruning = section[1].readLines().findAll { it.startsWith('      - marknotes-sync/') }
+            .collect { it.substring('      - marknotes-sync/'.length()) }
+}
+if (pruning.size() != pruning.toSet().size() || pruning.toSet() != recipePruning.toSet() ||
+        pruning.any { it.startsWith('/') || it.split('/', -1).any { part -> part in ['', '.', '..'] } }) {
+    fail('reviewed sync pruning policy differs from .fdroid.yml rm paths')
+}
+def validateSource = {
+    if (source == null) return
+    if (gradle.startParameter.configurationCacheRequested) fail('source mode requires --no-configuration-cache so receipts are revalidated on every invocation')
+    def experimental = providers.gradleProperty('marknotes.sync.allowUnreviewedSource').orNull == 'true'
+    if (experimental && protectedBuild) fail('unreviewed source opt-in is forbidden in CI/signed builds')
+    def actual = text(source, ['rev-parse', 'HEAD'])
+    def dirty = new String(git(source, ['status', '--porcelain=v1', '-z', '--untracked-files=all']), 'UTF-8').split('\u0000').findAll { it }
+    def unreviewed = dirty.findAll { entry ->
+        def path = entry.substring(3)
+        def deleted = entry.take(2) in [' D', 'D '] && pruning.any { approved -> path == approved || path.startsWith(approved + '/') }
+        // Some upstream CRLF blobs are marked dirty by Git's text normalization even on a fresh checkout.
+        def exactHeadBytes = entry.take(2) == ' M' && new File(source, path).isFile() &&
+                text(source, ['hash-object', '--no-filters', '--', path]) == text(source, ['rev-parse', "HEAD:$path".toString()]) &&
+                text(source, ['diff', '--summary', '--no-ext-diff', 'HEAD', '--', path]).empty
+        !deleted && !exactHeadBytes
+    }
+    if (!experimental && (actual != expected || !unreviewed.empty)) fail('selected checkout must match reviewed gitlink and be clean except reviewed F-Droid deletions; local experiments require -Pmarknotes.sync.allowUnreviewedSource=true')
+    if (!(new File(source, 'Cargo.toml').text =~ /(?m)^version = "\Q${version}\E"\r?$/).find()) fail('selected checkout version differs from catalog')
+    def receiptFile = new File(source, 'bindings/kotlin/build/libs/marknotes-sync-receipt.json')
+    if (!receiptFile.isFile()) fail('source receipt missing; run scripts/build-sync-from-source.sh for the selected checkout')
+    def receipt
+    try {
+        receipt = new JsonSlurper().parse(receiptFile)
+    } catch (groovy.json.JsonException error) {
+        throw new GradleException("marknotes-sync: invalid source receipt; rebuild source artifacts", error)
+    }
+    if (!(receipt instanceof Map) || !(receipt.outputs instanceof Map)) fail('invalid source receipt outputs')
+    // Bind all non-ignored source files, including opted-in untracked files, not only HEAD or mtimes.
+    Closure state
+    state = { File checkout ->
+        def digest = MessageDigest.getInstance('SHA-256')
+        digest.update(git(checkout, ['diff', '--binary', '--no-ext-diff', '--no-textconv', 'HEAD', '--']))
+        def paths = new String(git(checkout, ['ls-files', '-z', '--cached', '--others', '--exclude-standard']), 'UTF-8').split('\u0000').toList().unique()
+        paths.sort { a, b -> Arrays.compareUnsigned(a.getBytes('UTF-8'), b.getBytes('UTF-8')) }
+        paths.each { path ->
+            digest.update((path + '\u0000').getBytes('UTF-8'))
+            def file = new File(checkout, path)
+            def hash
+            if (Files.isSymbolicLink(file.toPath())) {
+                hash = sha(Files.readSymbolicLink(file.toPath()).toString().getBytes('UTF-8'))
+            } else if (file.isDirectory()) {
+                hash = new File(file, '.git').exists() ? "tree:${text(file, ['rev-parse', 'HEAD'])}:${state(file)}" : 'uninitialized'
+            } else {
+                hash = file.isFile() ? sha(file.bytes) : 'missing'
+            }
+            digest.update((hash + '\n').getBytes('UTF-8'))
+        }
+        digest.digest().encodeHex().toString()
+    }
+    if (receipt.schema != 1 || receipt.version != version || receipt.commit != actual ||
+            receipt.source != source.absolutePath.replace('\\', '/') || receipt.state != state(source)) {
+        fail('source receipt is stale or belongs to another checkout; rebuild source artifacts')
+    }
+    def names = modules.collect { module, ext -> "$module-$version.$ext".toString() }.sort()
+    if (receipt.outputs.keySet().sort() != names) fail('source receipt must cover exactly Kotlin, host natives and Android artifacts')
+    names.each { name ->
+        def artifact = new File(receiptFile.parentFile, name)
+        if (!artifact.isFile() || receipt.outputs[name] != sha(artifact.bytes)) fail("source receipt hash mismatch: $name")
+    }
+}
+validateSource()
+
+dependencyResolutionManagement.repositories {
+    exclusiveContent {
+        forRepository {
+            ivy {
+                name = source == null ? 'marknotesSyncRelease' : 'marknotesSyncSource'
+                url = source == null ? uri('https://github.com/MaxDac/marknotes-sync/releases/download') : new File(source, 'bindings/kotlin/build/libs').toURI()
+                patternLayout { artifact(source == null ? 'v[revision]/[module]-[revision].[ext]' : '[module]-[revision].[ext]') }
+                metadataSources { artifact() }
+            }
+        }
+        filter { includeGroup(group) }
+    }
+}
+
+gradle.beforeProject { project ->
+    project.configurations.configureEach {
+        if (source != null) {
+            resolutionStrategy.cacheChangingModulesFor(0, 'seconds')
+            incoming.beforeResolve { validateSource() }
+        }
+    }
+    project.dependencies.components.all { details ->
+        if (details.id.group == group) {
+            if (!modules.containsKey(details.id.name) || details.id.version != version) fail("unexpected sync coordinate: ${details.id}")
+            // Gradle skips published-byte verification only for these receipt-validated changing components.
+            details.changing = source != null
+        }
+    }
+}
