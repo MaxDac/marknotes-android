@@ -217,55 +217,62 @@ fun EditorScreen(path: String, onBack: () -> Unit, onOpenNote: (String) -> Unit 
                     onNoteLink = { vm.openNoteLink(it, onOpenNote) }
                 )
 
-                else -> Column(Modifier.fillMaxSize()) {
-                    if (state.importingImage) LinearProgressIndicator(Modifier.fillMaxWidth())
-                    if (notice != null) {
-                        Surface(color = MaterialTheme.colorScheme.errorContainer, modifier = Modifier.fillMaxWidth()) {
-                            Text(
-                                notice,
-                                color = MaterialTheme.colorScheme.onErrorContainer,
-                                style = MaterialTheme.typography.bodyMedium,
-                                modifier = Modifier.padding(12.dp).testTag(EDITOR_NOTICE_TAG)
+                else -> ImageInputReceiver(onImages = vm::receiveImages, modifier = Modifier.fillMaxSize()) {
+                    Column(Modifier.fillMaxSize()) {
+                        if (state.importingImage) LinearProgressIndicator(Modifier.fillMaxWidth())
+                        if (notice != null) {
+                            Surface(
+                                color = MaterialTheme.colorScheme.errorContainer,
+                                modifier = Modifier.fillMaxWidth()
+                            ) {
+                                Text(
+                                    notice,
+                                    color = MaterialTheme.colorScheme.onErrorContainer,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    modifier = Modifier.padding(12.dp).testTag(EDITOR_NOTICE_TAG)
+                                )
+                            }
+                        }
+                        TextField(
+                            value = state.value,
+                            onValueChange = vm::onValueChange,
+                            modifier = Modifier.weight(1f).fillMaxWidth().testTag(EDITOR_FIELD_TAG)
+                                .onPreviewKeyEvent { historyShortcut(it, vm) },
+                            placeholder = { Text("Write markdown…") },
+                            textStyle = MaterialTheme.typography.bodyLarge.copy(fontFamily = FontFamily.Monospace),
+                            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+                            colors = TextFieldDefaults.colors(
+                                focusedContainerColor = Color.Transparent,
+                                unfocusedContainerColor = Color.Transparent,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent
+                            )
+                        )
+                        state.mention?.let { mention ->
+                            MentionPopup(
+                                mention = mention,
+                                onSelect = vm::selectMention,
+                                onCopyId = { id ->
+                                    copyToClipboard(context, id)
+                                    vm.showMessage("Copied $id")
+                                },
+                                onDismiss = vm::dismissMention
                             )
                         }
-                    }
-                    TextField(
-                        value = state.value,
-                        onValueChange = vm::onValueChange,
-                        modifier = Modifier.weight(1f).fillMaxWidth().testTag(EDITOR_FIELD_TAG)
-                            .onPreviewKeyEvent { historyShortcut(it, vm) },
-                        placeholder = { Text("Write markdown…") },
-                        textStyle = MaterialTheme.typography.bodyLarge.copy(fontFamily = FontFamily.Monospace),
-                        keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
-                        colors = TextFieldDefaults.colors(
-                            focusedContainerColor = Color.Transparent,
-                            unfocusedContainerColor = Color.Transparent,
-                            focusedIndicatorColor = Color.Transparent,
-                            unfocusedIndicatorColor = Color.Transparent
-                        )
-                    )
-                    state.mention?.let { mention ->
-                        MentionPopup(
-                            mention = mention,
-                            onSelect = vm::selectMention,
-                            onCopyId = { id ->
-                                copyToClipboard(context, id)
-                                vm.showMessage("Copied $id")
+                        FormattingToolbar(
+                            onAction = vm::applyFormat,
+                            onPickImage = {
+                                pickImage.launch(
+                                    PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly)
+                                )
                             },
-                            onDismiss = vm::dismissMention
+                            onTakePhoto = {
+                                val file = newPhotoFile(context)
+                                pendingPhoto = file.absolutePath
+                                takePhoto.launch(photoUri(context, file))
+                            }
                         )
                     }
-                    FormattingToolbar(
-                        onAction = vm::applyFormat,
-                        onPickImage = {
-                            pickImage.launch(PickVisualMediaRequest(ActivityResultContracts.PickVisualMedia.ImageOnly))
-                        },
-                        onTakePhoto = {
-                            val file = newPhotoFile(context)
-                            pendingPhoto = file.absolutePath
-                            takePhoto.launch(photoUri(context, file))
-                        }
-                    )
                 }
             }
         }

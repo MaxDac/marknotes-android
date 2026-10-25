@@ -5,3 +5,4 @@ Editor undo/redo (top bar, Ctrl+Z, Ctrl+Y).
 Optional sync when back online.
 Locally deleted folders stay on Dropbox (it can't delete them safely); you're told once.
 Reconnect an expired Dropbox drive.
+Paste, drop or keyboard-insert images.
