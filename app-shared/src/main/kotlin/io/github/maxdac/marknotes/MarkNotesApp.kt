@@ -33,7 +33,7 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 /**
- * The Application of both builds: the libre app (Dropbox only) and MarkNotes Pro, which adds its providers
+ * The Application of both builds: the libre app (Dropbox only) and MarkNotes Plus, which adds its providers
  * through [extraConnectors].
  */
 abstract class MarkNotesApp : Application() {

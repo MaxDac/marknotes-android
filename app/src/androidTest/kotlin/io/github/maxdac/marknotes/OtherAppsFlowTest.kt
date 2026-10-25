@@ -42,7 +42,7 @@ class OtherAppsFlowTest {
     private lateinit var scenario: ActivityScenario<MainActivity>
 
     private val expected = mapOf(
-        "MarkNotes Pro for Android (GitHub Releases)" to "https://github.com/MaxDac/MarkNotes/releases",
+        "MarkNotes Plus for Android (GitHub Releases)" to "https://github.com/MaxDac/MarkNotes/releases",
         "MarkNotes Desktop (GitHub Releases)" to "https://github.com/MaxDac/marknotes-electron/releases",
         "MarkNotes Web" to "https://marknotes.fly.dev"
     )

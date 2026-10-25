@@ -11,6 +11,7 @@ import io.github.maxdac.marknotes.core.diagnostics.DiagnosticCode
 import io.github.maxdac.marknotes.core.diagnostics.DiagnosticReporter
 import io.github.maxdac.marknotes.core.importing.ImportException
 import io.github.maxdac.marknotes.core.importing.ImportSource
+import io.github.maxdac.marknotes.shared.R
 import io.github.maxdac.marknotes.ui.editor.ImageImporter
 import io.github.maxdac.marknotes.ui.editor.ImportedImage
 import java.io.ByteArrayOutputStream
@@ -79,7 +80,7 @@ class SharedContentReader(
         Kind.TEXT -> ImportSource.Text(decode(readBytes(file.uri, MAX_TEXT_BYTES)))
 
         Kind.IMAGE, Kind.UNSUPPORTED -> throw ImportException(
-            "MarkNotes can import text, HTML, Markdown, Word (.docx) and PDF files."
+            context.getString(R.string.import_unsupported_file, context.getString(R.string.app_name))
         )
     }
 
@@ -108,7 +109,10 @@ class SharedContentReader(
         val input = try {
             context.contentResolver.openInputStream(uri)
         } catch (e: SecurityException) {
-            throw ImportException("MarkNotes isn't allowed to read the shared file.", e)
+            throw ImportException(
+                context.getString(R.string.import_not_allowed, context.getString(R.string.app_name)),
+                e
+            )
         } ?: throw ImportException("Could not open the shared file.")
         return input.use { readLimited(it, max) }
     }

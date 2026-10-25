@@ -13,7 +13,7 @@ behaviour must stay identical across them (see [Cross-app parity](#cross-app-par
 | Repo | What | Stack |
 | --- | --- | --- |
 | [MaxDac/marknotes-android](https://github.com/MaxDac/marknotes-android) | This repo: Android app, libre build (Dropbox), on F-Droid | Kotlin, Gradle, Jetpack Compose |
-| [MaxDac/MarkNotes](https://github.com/MaxDac/MarkNotes) | MarkNotes Pro: this repo as the `libre/` submodule plus OneDrive and Proton Drive, GitHub releases only | Kotlin, Gradle |
+| [MaxDac/MarkNotes](https://github.com/MaxDac/MarkNotes) | MarkNotes Plus (called "Pro" in code and these docs): this repo as the `libre/` submodule plus OneDrive and Proton Drive, GitHub releases only | Kotlin, Gradle |
 | [MaxDac/marknotes-electron](https://github.com/MaxDac/marknotes-electron) | Desktop app (Windows, macOS, Linux) | Electron, TypeScript, CodeMirror |
 | [MaxDac/marknotes-web](https://github.com/MaxDac/marknotes-web) | Web app | Phoenix (Elixir), TypeScript assets |
 | [MaxDac/marknotes-sync](https://github.com/MaxDac/marknotes-sync) | Shared Rust sync core with UniFFI Kotlin bindings | Rust |

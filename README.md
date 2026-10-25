@@ -4,7 +4,7 @@ Simple Android markdown notes app with folders, offline-first, and optional two-
 
 This is the libre build of MarkNotes, published on [F-Droid](https://f-droid.org/packages/io.github.maxdac.marknotes.libre/)
 and on [GitHub Releases](https://github.com/MaxDac/marknotes-android/releases): free software only, built from source,
-reproducible. [MarkNotes Pro](https://github.com/MaxDac/MarkNotes) is the same app (it includes this repo as a git
+reproducible. [MarkNotes Plus](https://github.com/MaxDac/MarkNotes) is the same app (it includes this repo as a git
 submodule) with OneDrive and Proton Drive sync added, released on GitHub only. The two install side by side
 (`io.github.maxdac.marknotes.libre` and `io.github.maxdac.marknotes`).
 
@@ -16,7 +16,7 @@ submodule) with OneDrive and Proton Drive sync added, released on GitHub only. T
   Skip, Finish, Close or Android Back dismisses it; replay it from **Settings → Help**. The practice editor is
   memory-only, never creates notes or attachments, and never syncs; it survives rotation but is discarded when
   the app locks, the guide is dismissed or the app process ends. The offline Markdown reference shows source and
-  rendered examples, the toolbar's limits, and Android-specific link/image support. Both screens are shared with Pro.
+  rendered examples, the toolbar's limits, and Android-specific link/image support. Both screens are shared with MarkNotes Plus.
 - **Folder system**: create, open, rename, delete and **move** notes and folders (item menu → "Move to…").
   A navigation drawer shows the whole folder tree so you can jump straight to any folder.
 - **Editor**: raw markdown editing with a toggle to a rendered preview (Markwon: tables, strikethrough,
@@ -97,7 +97,7 @@ Dropbox account the app is fully local.
   records an error or exports logs (nothing runs while the app is force-stopped). **Clear logs** removes local
   logs and snapshots without disabling future recording; **Delete all local data** also clears them.
 - **Report a problem** first shows a local review, then asks permission to open a prefilled GitHub issue draft
-  for `MaxDac/marknotes-android` (MarkNotes Pro uses `MaxDac/MarkNotes`). Opening the draft transmits the sanitized
+  for `MaxDac/marknotes-android` (MarkNotes Plus uses `MaxDac/MarkNotes`). Opening the draft transmits the sanitized
   excerpt in a URL to GitHub **before submission**; browser history/sync and server logs may retain it. An issue
   is public after you submit it in the browser. The final encoded URL is limited to 2,000 ASCII characters;
   whole recent events are included in chronological order with an explicit omission count. There is no app
@@ -134,7 +134,7 @@ described in [marknotes-spec](https://github.com/MaxDac/marknotes-spec/blob/main
 The same notes folder works with the other MarkNotes apps (**Settings → About** links to them; the browser opens
 only when you tap a link):
 
-- [MarkNotes Pro for Android (GitHub Releases)](https://github.com/MaxDac/MarkNotes/releases)
+- [MarkNotes Plus for Android (GitHub Releases)](https://github.com/MaxDac/MarkNotes/releases)
 - [MarkNotes Desktop (GitHub Releases)](https://github.com/MaxDac/marknotes-electron/releases)
 - [MarkNotes Web](https://marknotes.fly.dev)
 
@@ -151,7 +151,7 @@ the external website under its own terms and privacy policy.
 | Module | What it contains |
 | --- | --- |
 | `:core` | Pure Kotlin/JVM: local note store, sync engine (single and multi-drive) executing the plans of the shared [marknotes-sync](https://github.com/MaxDac/marknotes-sync) core, `RemoteDriveStore` interface. Fully unit tested. |
-| `:app-shared` | Android library with the whole app: Jetpack Compose + Material 3, Navigation Compose, MVVM with `StateFlow`, Room, manual DI, the Dropbox store and sign-in. Providers plug in through `DriveConnector`; MarkNotes Pro adds OneDrive and Proton Drive this way. |
+| `:app-shared` | Android library with the whole app: Jetpack Compose + Material 3, Navigation Compose, MVVM with `StateFlow`, Room, manual DI, the Dropbox store and sign-in. Providers plug in through `DriveConnector`; MarkNotes Plus adds OneDrive and Proton Drive this way. |
 | `:app` | The libre application (`io.github.maxdac.marknotes.libre`): `LibreApp` with the Dropbox connector. |
 
 ## Build

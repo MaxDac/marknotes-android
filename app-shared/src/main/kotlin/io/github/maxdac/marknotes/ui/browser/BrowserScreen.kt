@@ -67,12 +67,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.maxdac.marknotes.appContainer
 import io.github.maxdac.marknotes.core.notes.NoteEntry
 import io.github.maxdac.marknotes.core.notes.NotePaths
+import io.github.maxdac.marknotes.shared.R
 import io.github.maxdac.marknotes.sync.FolderRemovalNotice
 import io.github.maxdac.marknotes.sync.SyncState
 import io.github.maxdac.marknotes.ui.MarkNotesLogo
@@ -146,7 +148,7 @@ fun BrowserScreen(
                         if (folder.isEmpty()) {
                             Row(verticalAlignment = Alignment.CenterVertically) {
                                 MarkNotesLogo(Modifier.padding(end = 8.dp), size = 28.dp)
-                                Text("MarkNotes")
+                                Text(stringResource(R.string.app_name))
                             }
                         } else {
                             Text(NotePaths.name(folder))
@@ -512,7 +514,7 @@ private fun MoveDialog(entry: NoteEntry, folders: List<String>, onDismiss: () ->
                         },
                         headlineContent = {
                             Text(
-                                if (target.isEmpty()) "MarkNotes" else NotePaths.name(target),
+                                if (target.isEmpty()) stringResource(R.string.app_name) else NotePaths.name(target),
                                 color = if (enabled) Color.Unspecified else MaterialTheme.colorScheme.outline
                             )
                         }

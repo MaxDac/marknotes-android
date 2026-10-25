@@ -184,7 +184,10 @@ class MainActivity : ComponentActivity() {
         val appLock = appContainer.appLock
         if (!appLock.locked.value || !appLock.beginAuthentication()) return
         unlockError.value = null
-        DeviceAuth.authenticate(this, "Unlock MarkNotes") { success, error ->
+        DeviceAuth.authenticate(this, getString(R.string.unlock_prompt_title, getString(R.string.app_name))) {
+                success,
+                error
+            ->
             appLock.endAuthentication(success)
             unlockError.value = error
         }
