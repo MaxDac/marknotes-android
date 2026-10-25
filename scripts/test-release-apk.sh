@@ -35,3 +35,5 @@ adb shell am instrument -w \
   | tr -d '\r' | tee "$work/result.txt"
 # am instrument may exit zero even when instrumentation fails.
 grep -qx 'RELEASE_SMOKE_OK' "$work/result.txt"
+adb uninstall io.github.maxdac.marknotes.libre.test
+adb uninstall io.github.maxdac.marknotes.libre
