@@ -93,6 +93,16 @@ class AppSettings(context: Context, private val dynamicColorSupported: Boolean) 
      */
     val chordSequencesEnabled: StateFlow<Boolean> = _chordSequencesEnabled
 
+    private val _syncOnReconnect = MutableStateFlow(prefs.getBoolean(KEY_SYNC_ON_RECONNECT, false))
+
+    /** "Sync when reconnected": sync when the network comes back while the app is open and unlocked. Off by default. */
+    val syncOnReconnect: StateFlow<Boolean> = _syncOnReconnect
+
+    fun setSyncOnReconnect(enabled: Boolean) {
+        prefs.edit().putBoolean(KEY_SYNC_ON_RECONNECT, enabled).apply()
+        _syncOnReconnect.value = enabled
+    }
+
     fun setChordSequencesEnabled(enabled: Boolean) {
         prefs.edit().putBoolean(KEY_CHORD_SEQUENCES, enabled).apply()
         _chordSequencesEnabled.value = enabled
@@ -147,6 +157,7 @@ class AppSettings(context: Context, private val dynamicColorSupported: Boolean) 
         private const val KEY_THEME_MODE = "theme_mode"
         private const val KEY_THEME_COLOR = "theme_color"
         private const val KEY_CHORD_SEQUENCES = "chord_sequences_enabled"
+        private const val KEY_SYNC_ON_RECONNECT = "sync_on_reconnect"
         private const val KEY_APP_LOCK = "app_lock"
         private const val KEY_LOCK_TIMEOUT = "lock_timeout"
         private const val KEY_SECURE_SCREEN = "secure_screen"

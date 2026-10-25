@@ -39,7 +39,10 @@ submodule) with OneDrive and Proton Drive sync added, released on GitHub only. T
   from 8 palettes or **Dynamic** (Material You, Android 12+).
 - **Dropbox two-way sync** (optional): connect Dropbox accounts (Settings → Add drive), browse to a folder and
   optionally create a root folder inside it (default `MarkNotes`):
-  - sync runs on app launch and when you tap **Sync now**; there is no background or periodic polling;
+  - sync runs on app launch and when you tap **Sync now**; there is no background or periodic polling.
+    **Sync when reconnected** (Settings, off by default) also syncs when the network comes back while the app
+    is open and unlocked (after 2 seconds, retrying temporary failures after 5, 15 and 30 seconds); it needs the
+    `ACCESS_NETWORK_STATE` permission and never syncs while the app is closed;
   - only folders, `.md` files and images under `attachments/` are synced, plus a small manifest at
     `.marknotes/manifest.json` on the drive;
   - edits made on both sides are merged line by line (a three-way merge against the last synced version).

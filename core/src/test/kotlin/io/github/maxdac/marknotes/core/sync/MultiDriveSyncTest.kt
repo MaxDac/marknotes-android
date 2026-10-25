@@ -50,6 +50,27 @@ class MultiDriveSyncTest {
     }
 
     @Test
+    fun keepsTheExceptionsBehindDriveAndFileErrors() = runTest {
+        val failure = java.net.SocketTimeoutException("offline")
+        val snapshotFailure = object : RemoteDriveStore by driveA {
+            override suspend fun snapshot(): List<RemoteEntry> = throw failure
+        }
+        val stopped = sync.sync(listOf(DriveSyncTarget("a", snapshotFailure, targets[0].metadata, targets[0].base)))
+        assertTrue(stopped.outcomes.single().failure === failure)
+
+        local.write("n.md", "offline edit")
+        val uploadFailure = object : RemoteDriveStore by driveA {
+            override suspend fun uploadNew(path: String, bytes: ByteArray, modifiedMillis: Long): RemoteEntry =
+                throw failure
+        }
+        val partial = sync.sync(listOf(DriveSyncTarget("a", uploadFailure, targets[0].metadata, targets[0].base)))
+            .outcomes.single().result!!
+        assertEquals(1, partial.errors.size)
+        assertTrue(partial.failures.single() === failure)
+        assertEquals("offline edit", local.read("n.md"))
+    }
+
+    @Test
     fun localNotesArePushedToEveryDrive() = runTest {
         local.write("f/n.md", "hello")
 
