@@ -2,6 +2,7 @@ package io.github.maxdac.marknotes.sync
 
 import android.content.Context
 import android.os.SystemClock
+import androidx.activity.ComponentActivity
 import io.github.maxdac.marknotes.core.diagnostics.DiagnosticCode
 import io.github.maxdac.marknotes.core.diagnostics.DiagnosticReporter
 import io.github.maxdac.marknotes.core.notes.LocalNoteStore
@@ -178,6 +179,37 @@ class SyncManager(
         scope.launch {
             mutex.withLock {
                 if (accounts.get(signedIn.id) == null) signOut(signedIn.provider, signedIn.id)
+            }
+        }
+    }
+
+    /**
+     * Signs in to [account]'s provider again and replaces only its credentials, once the connector verified it is
+     * the same provider account. The drive, its folder and options, sync records, base copies and journals are
+     * kept; a different account, cancellation or failure leaves the old sign-in in place. Returns false when the
+     * user cancels; throws when the reconnect failed. Holds the sync lock so no sync uses half-replaced credentials.
+     */
+    suspend fun reconnectDrive(activity: ComponentActivity, account: DriveAccount): Boolean {
+        migrated.await()
+        return mutex.withLock {
+            _state.update { it.copy(running = true, message = "Reconnecting ${account.label}…") }
+            try {
+                val current = accounts.get(account.id)?.toAccount()?.takeIf { it.provider == account.provider }
+                    ?: error("This drive is no longer connected")
+                val reconnected = connector(current.provider).reconnect(activity, current)
+                _state.update {
+                    it.copy(message = if (reconnected) "Reconnected ${current.label}" else "Reconnect cancelled")
+                }
+                reconnected
+            } catch (e: CancellationException) {
+                _state.update { it.copy(message = "Reconnect cancelled") }
+                throw e
+            } catch (e: Exception) {
+                diagnostics.report(DiagnosticCode.SIGN_IN, e)
+                _state.update { it.copy(message = "Reconnect failed: ${describe(e)}") }
+                throw e
+            } finally {
+                _state.update { it.copy(running = false) }
             }
         }
     }

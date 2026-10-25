@@ -42,6 +42,37 @@ interface DriveConnector {
      */
     suspend fun signIn(activity: ComponentActivity): SignedInAccount?
 
+    /**
+     * Whether [reconnect] is implemented: Settings shows **Reconnect** on this provider's drive cards only when
+     * it is. Reconnecting signs in to the same provider account again and keeps the drive's sync state.
+     */
+    val supportsReconnect: Boolean get() = false
+
+    /**
+     * Optional in-app sign-in screen shown before [reconnect] for [account], or null when [reconnect] handles
+     * sign-in itself (for example in a browser). Unlike [signInScreen] it must only stage the new session, never
+     * replace the connected one: `onDone` makes the UI call [reconnect], which verifies and commits it; `onBack`
+     * cancels.
+     */
+    fun reconnectScreen(account: DriveAccount): SignInScreen? = null
+
+    /**
+     * Discards whatever [reconnectScreen] staged for [account], leaving its current session as it is. Called when
+     * the reconnect is cancelled and after every [reconnect]; must be idempotent and must not throw.
+     */
+    fun cancelReconnect(account: DriveAccount) {}
+
+    /**
+     * Signs in to [account]'s provider account again and replaces its credentials; returns false when the user
+     * cancels. Before storing anything under [DriveAccount.id], verify that the new session belongs to the same
+     * provider account by its immutable id (never by email or label), and throw otherwise. Never call [signOut].
+     * Cancellation and failures must leave the existing credentials untouched; on success, drop cached clients
+     * and stores so the next sync uses the new credentials. Called with the sync lock held: must not change the
+     * drive's folder, options or sync state.
+     */
+    suspend fun reconnect(activity: ComponentActivity, account: DriveAccount): Boolean =
+        throw UnsupportedOperationException("Reconnect is not supported by ${provider.displayName} in this build")
+
     /** Called whenever the activity resumes, which is when browser-based sign-ins return. */
     fun onActivityResumed() {}
 

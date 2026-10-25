@@ -4,6 +4,9 @@ import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.net.Uri
 import android.text.format.DateUtils
+import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -63,6 +66,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.LifecycleResumeEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.maxdac.marknotes.AppContainer
 import io.github.maxdac.marknotes.about.MarkNotesPeer
 import io.github.maxdac.marknotes.appContainer
@@ -77,6 +81,7 @@ import io.github.maxdac.marknotes.shared.R
 import io.github.maxdac.marknotes.sync.DriveStatus
 import io.github.maxdac.marknotes.sync.SyncManager
 import io.github.maxdac.marknotes.ui.MarkNotesLogo
+import io.github.maxdac.marknotes.ui.drives.ReconnectDriveViewModel
 import io.github.maxdac.marknotes.ui.swatch
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -102,12 +107,21 @@ fun SettingsScreen(
     onAddDrive: () -> Unit,
     onOpenConflicts: () -> Unit,
     onBack: () -> Unit,
-    onLocalDataDeleted: () -> Unit = onBack
+    onLocalDataDeleted: () -> Unit = onBack,
+    syncManager: SyncManager = LocalContext.current.appContainer.syncManager
 ) {
     val container = LocalContext.current.appContainer
-    val syncManager = container.syncManager
     val state by syncManager.state.collectAsStateWithLifecycle()
     var removing by remember { mutableStateOf<DriveStatus?>(null) }
+    val activity = LocalActivity.current as ComponentActivity
+    val reconnectModel = viewModel { ReconnectDriveViewModel(syncManager, container.diagnostics) }
+    val reconnect by reconnectModel.state.collectAsStateWithLifecycle()
+    val enabled = !state.running && !reconnect.busy
+    reconnect.screen?.let { screen ->
+        BackHandler { reconnectModel.cancel() }
+        screen({ reconnectModel.complete(activity) }, { reconnectModel.cancel() })
+        return
+    }
 
     Scaffold(
         topBar = {
@@ -134,26 +148,33 @@ fun SettingsScreen(
             Text("Drives", style = MaterialTheme.typography.titleMedium)
             if (state.drives.isEmpty()) Text(NO_DRIVES_TEXT)
             state.drives.forEach { drive ->
-                DriveCard(drive, enabled = !state.running, onRemove = { removing = drive })
+                DriveCard(
+                    drive,
+                    enabled = enabled,
+                    supportsReconnect = syncManager.connector(drive.account.provider).supportsReconnect,
+                    onReconnect = { reconnectModel.start(drive.account, activity) },
+                    onRemove = { removing = drive }
+                )
             }
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = onAddDrive, enabled = !state.running) { Text("Add drive") }
-                Button(onClick = syncManager::syncNow, enabled = state.hasDrives && !state.running) {
+                OutlinedButton(onClick = onAddDrive, enabled = enabled) { Text("Add drive") }
+                Button(onClick = syncManager::syncNow, enabled = state.hasDrives && enabled) {
                     Text("Sync now")
                 }
             }
             if (state.running) LinearProgressIndicator(Modifier.fillMaxWidth())
             state.message?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+            reconnect.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
             if (state.conflicts.isNotEmpty()) {
                 Button(onClick = onOpenConflicts) { Text("Resolve ${state.conflicts.size} conflict(s)") }
             }
             SyncOnReconnectSection(container.settings, syncManager)
 
             HorizontalDivider()
-            ImagesSection(container, enabled = !state.running)
+            ImagesSection(container, enabled = enabled)
 
             HorizontalDivider()
-            PrivacySection(syncManager, enabled = !state.running, onDeleted = onLocalDataDeleted)
+            PrivacySection(syncManager, enabled = enabled, onDeleted = onLocalDataDeleted)
             AppLockSection(container)
 
             HorizontalDivider()
@@ -348,7 +369,13 @@ private fun ColorSwatch(color: ThemeColor, selected: Boolean, onClick: () -> Uni
 }
 
 @Composable
-private fun DriveCard(drive: DriveStatus, enabled: Boolean, onRemove: () -> Unit) {
+private fun DriveCard(
+    drive: DriveStatus,
+    enabled: Boolean,
+    supportsReconnect: Boolean,
+    onReconnect: () -> Unit,
+    onRemove: () -> Unit
+) {
     val account = drive.account
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -365,8 +392,14 @@ private fun DriveCard(drive: DriveStatus, enabled: Boolean, onRemove: () -> Unit
             drive.unavailableReason?.let {
                 Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             }
-            TextButton(onClick = onRemove, enabled = enabled, modifier = Modifier.align(Alignment.End)) {
-                Text("Disconnect")
+            Row(Modifier.align(Alignment.End)) {
+                // Signs in to the same account again, keeping the drive's folder, options and sync history.
+                if (supportsReconnect) {
+                    TextButton(onClick = onReconnect, enabled = enabled && drive.unavailableReason == null) {
+                        Text("Reconnect")
+                    }
+                }
+                TextButton(onClick = onRemove, enabled = enabled) { Text("Disconnect") }
             }
         }
     }
