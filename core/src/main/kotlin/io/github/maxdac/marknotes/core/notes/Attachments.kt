@@ -1,6 +1,7 @@
 package io.github.maxdac.marknotes.core.notes
 
 import io.github.maxdac.marknotes.core.sync.Hashing
+import java.io.File
 
 /**
  * Images embedded in notes. They live in the root [FOLDER], named after the SHA-256 of their bytes,
@@ -19,6 +20,15 @@ object Attachments {
     )
     private val mimeByExtension = extensionsByMime.entries.associate { (mime, ext) -> ext to mime }
     private val referenceRegex = Regex("$FOLDER/[A-Za-z0-9._-]+")
+    private val previewPathRegex = Regex("$FOLDER/[0-9a-f]{64}\\.(png|jpg|gif|webp)")
+
+    /** Resolves only canonical image destinations, including confinement of symlinks to the attachment root. */
+    fun previewFile(notesRoot: File, destination: String): File? {
+        if (!previewPathRegex.matches(destination)) return null
+        val root = File(notesRoot.canonicalFile, FOLDER)
+        val image = File(notesRoot, destination).canonicalFile
+        return image.takeIf { root.canonicalFile == root && it.parentFile == root && it.isFile }
+    }
 
     /** File extension for an accepted image MIME type, or null when the type isn't supported. */
     fun extensionFor(mime: String?): String? = mime?.lowercase()?.substringBefore(';')?.trim()?.let {

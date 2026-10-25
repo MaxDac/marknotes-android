@@ -94,7 +94,6 @@ import androidx.core.content.FileProvider
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import io.github.maxdac.marknotes.appContainer
-import io.github.maxdac.marknotes.core.notes.Attachments
 import io.github.maxdac.marknotes.core.notes.IndexedNote
 import io.github.maxdac.marknotes.core.notes.NoteIndex
 import io.github.maxdac.marknotes.core.notes.NoteLinks
@@ -109,8 +108,6 @@ import io.noties.markwon.ext.strikethrough.StrikethroughPlugin
 import io.noties.markwon.ext.tables.TablePlugin
 import io.noties.markwon.ext.tasklist.TaskListPlugin
 import io.noties.markwon.image.ImagesPlugin
-import io.noties.markwon.image.destination.ImageDestinationProcessor
-import io.noties.markwon.image.file.FileSchemeHandler
 import io.noties.markwon.syntax.Prism4jThemeDarkula
 import io.noties.markwon.syntax.Prism4jThemeDefault
 import io.noties.markwon.syntax.SyntaxHighlightPlugin
@@ -411,24 +408,14 @@ private fun FormattingToolbar(
 }
 
 /**
- * Markwon plugin for MarkNotes specifics: `attachments/…` images are read from the notes root and
  * `marknotes:` links open the linked note, with links to unknown notes styled as broken.
  */
 private class MarkNotesPlugin(
-    private val notesRoot: File,
     private val index: NoteIndex?,
     private val brokenColor: Int,
     private val onNoteLink: (String) -> Unit
 ) : AbstractMarkwonPlugin() {
     override fun configureConfiguration(builder: MarkwonConfiguration.Builder) {
-        builder.imageDestinationProcessor(object : ImageDestinationProcessor() {
-            override fun process(destination: String): String =
-                if (Attachments.isInFolder(destination)) {
-                    Uri.fromFile(File(notesRoot, destination)).toString()
-                } else {
-                    destination
-                }
-        })
         val fallback = LinkResolverDef()
         builder.linkResolver { view: View, link: String ->
             if (NoteLinks.idOf(link) != null) onNoteLink(link) else fallback.resolve(view, link)
@@ -461,8 +448,9 @@ internal fun MarkdownPreview(text: String, notesRoot: File, index: NoteIndex?, o
             .usePlugin(TablePlugin.create(context))
             .usePlugin(TaskListPlugin.create(context))
             .usePlugin(SyntaxHighlightPlugin.create(Prism4j(CodeGrammars.create()), theme))
-            .usePlugin(ImagesPlugin.create { it.addSchemeHandler(FileSchemeHandler.create()) })
-            .usePlugin(MarkNotesPlugin(notesRoot, index, brokenColor) { currentOnNoteLink(it) })
+            .usePlugin(ImagesPlugin.create())
+            .usePlugin(AttachmentImagesPlugin(notesRoot))
+            .usePlugin(MarkNotesPlugin(index, brokenColor) { currentOnNoteLink(it) })
             .build()
     }
     val textColor = MaterialTheme.colorScheme.onSurface.toArgb()
