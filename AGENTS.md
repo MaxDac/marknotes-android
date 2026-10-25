@@ -102,7 +102,7 @@ F-Droid builds the app from source with the recipe in [`.fdroid.yml`](.fdroid.ym
   (`scripts/build-sync-from-source.sh`, `-Pmarknotes.sync.fromSource=marknotes-sync`); fdroiddata prefers submodules
   to srclibs. Bumping `marknotesSync` in `gradle/libs.versions.toml` needs a marknotes-sync release tag and the
   submodule moved to it in the same commit (`scripts/fdroid-lint.sh` checks it). The recipe's `rm:` drops the
-  unlicensed `spec/` submodules and the sync's `gradle-wrapper.jar`.
+  unlicensed `spec/` submodules and the sync's `gradle-wrapper.jar`, `gradlew` and `gradlew.bat`.
 - **Development source pins**: an unreleased shared API may temporarily use
   `gradle/marknotes-sync-source.properties` (exact source commit and matching catalog version). Gradle and CI then
   use locally built source artifacts by default; `scripts/check-sync-pin.sh` verifies the gitlink. This is not a

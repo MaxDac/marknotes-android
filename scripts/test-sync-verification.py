@@ -60,6 +60,8 @@ class VerificationTest(unittest.TestCase):
         self.git(self.source, "config", "core.fsmonitor", "false")
         (self.source / ".gitignore").write_text("bindings/kotlin/build/\nbindings/kotlin/natives/\ntarget/\n")
         (self.source / "Cargo.toml").write_text('[package]\nname = "marknotes-sync"\nversion = "0.4.0"\n')
+        (self.source / "bindings/kotlin").mkdir(parents=True)
+        (self.source / "bindings/kotlin/gradlew").write_text("#!/bin/sh\nexit 99\n", newline="\n")
         for path in ("package.json", "bindings/npm/index.js", "bindings/kotlin/gradle/wrapper/gradle-wrapper.jar"):
             file = self.source / path
             file.parent.mkdir(parents=True, exist_ok=True)
@@ -373,7 +375,8 @@ tasks.register('assembleRelease') { dependsOn 'resolveKotlin' }
 
     def test_builder_success_and_failure_receipt_lifecycle(self):
         # Execute the real owner builder; only the expensive Rust/Gradle packaging tools are fixture stubs.
-        for path in ("package.json", "bindings/npm/index.js", "bindings/kotlin/gradle/wrapper/gradle-wrapper.jar"):
+        for path in ("package.json", "bindings/npm/index.js", "bindings/kotlin/gradle/wrapper/gradle-wrapper.jar",
+                     "bindings/kotlin/gradlew", "bindings/kotlin/gradlew.bat"):
             (self.source / path).unlink()
         scripts = self.owner / "scripts"
         scripts.mkdir()
@@ -423,7 +426,8 @@ for module, entries, ext in (
             self.assertFalse((output / f"{module}-{VERSION}.{ext}").exists())
 
     def test_reviewed_fdroid_pruning_is_not_an_unreviewed_source_bypass(self):
-        for path in ("package.json", "bindings/npm/index.js", "bindings/kotlin/gradle/wrapper/gradle-wrapper.jar"):
+        for path in ("package.json", "bindings/npm/index.js", "bindings/kotlin/gradle/wrapper/gradle-wrapper.jar",
+                     "bindings/kotlin/gradlew", "bindings/kotlin/gradlew.bat"):
             (self.source / path).unlink()
         self.build_source()
         override = f"-Pmarknotes.sync.fromSource={self.source}"

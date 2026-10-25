@@ -138,7 +138,10 @@ def check_source(source, version, expected, allow=False, protected=False, prunin
         )
     ]
     if not allow and (actual != expected or unreviewed):
-        raise ValueError("selected checkout does not match reviewed commit or has uncommitted files outside reviewed F-Droid deletions")
+        raise ValueError(
+            "selected checkout does not match reviewed commit or has uncommitted files outside reviewed F-Droid deletions"
+            f"; actual={actual}, expected={expected}, changes={unreviewed!r}"
+        )
     if not re.search(rf'^version = "{re.escape(version)}"$', (source / "Cargo.toml").read_text(), re.M):
         raise ValueError("selected source version mismatch with catalog")
 

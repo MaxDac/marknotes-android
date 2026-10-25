@@ -80,6 +80,9 @@ non-build npm/spec/wrapper paths already removed by `.fdroid.yml`. The consisten
 list to the recipe; edits, renames, untracked files, and deletions elsewhere still fail. This is not an
 unreviewed-source opt-in. The receipt binds the actual pruned file state, so changing between clean/pruned
 trees also requires rebuilding.
+The profile explicitly includes the Kotlin `gradlew` and `gradlew.bat` scripts as well as the wrapper
+JAR: real `fdroid build` removes the scripts during build-system cleanup/scanning, even when a plain
+source build leaves them present. F-Droid builds the bindings with its supplied `GRADLE=gradle`.
 Git can report an upstream CRLF/text-normalization mismatch immediately after checkout. An unstaged
 modification is accepted only if its raw Git blob hash exactly equals `HEAD:<path>`; actual edits and
 staged modifications still fail. Dependency-submission actions pass `--dependency-verification strict`

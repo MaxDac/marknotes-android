@@ -30,7 +30,9 @@ checking that its own build matches it. The same APK is on F-Droid and GitHub, s
   (marknotes-spec, test fixtures only) have no licence, so the recipe deletes them with `rm:` before building.
 - **No binaries in the source**: the scanner rejects committed jars, APKs and native libraries. The recipe's `rm:`
   also deletes the parts of marknotes-sync the Rust/Kotlin build doesn't use (`bindings/npm`, its root npm
-  `package.json`, the Kotlin bindings' `gradle-wrapper.jar`); the npm-only entry manifest has no root lockfile.
+  `package.json`, the Kotlin bindings' `gradle-wrapper.jar`, `gradlew` and `gradlew.bat`); the npm-only entry manifest
+  has no root lockfile. The explicit wrapper-script entries also match the real buildserver's automatic cleanup;
+  source receipts allow only these reviewed deletions, not arbitrary scanner-driven source edits.
   `scripts/fdroid-scan-source.sh` must report no problems and prints each fatal path, not just a count.
 - **Signing key**: the release key lives outside the repo. Its certificate SHA-256 is in three places that must
   match: `AllowedAPKSigningKeys` in `.fdroid.yml`, the `RELEASE_CERT_SHA256` repository variable, and the keystore
