@@ -11,19 +11,21 @@ pitfalls. Delete it with the other inclusion-only docs in
 
 | What | Value |
 | --- | --- |
-| MR | Open, no labels, no reviewer comments yet. The description (v0.1.5) was pasted by the maintainer |
-| Fork branch head | `4b24b8d38c8070b98f3ca5362876ec4d23851ff4`: one commit, `New app: MarkNotes`, on fdroiddata `master` |
-| Fork pipeline | [2986624239](https://gitlab.com/MaxDac/fdroiddata/-/pipelines/2986624239): all 9 jobs passed |
-| `fdroid build` job | [17448963010](https://gitlab.com/MaxDac/fdroiddata/-/jobs/17448963010): "compared built binary to supplied reference binary successfully", allowed signer `ffafda02…70e4` |
-| Release in the MR | [v0.1.5](https://github.com/MaxDac/marknotes-android/releases/tag/v0.1.5), commit `9eb94b5d7922577b98435530c66c37a36865fa3e`, versionCode 105 |
-| Release APK | `marknotes-libre-0.1.5.apk`, SHA-256 `a785ae1a6b0b9acf13dd4b96ac1bd6cbcfc50f007a1e8769a6421af2e40a2102`, 65 MB |
+| MR | Open, no labels or reviewer comments. Metadata and live description are updated to v0.1.6; the public API confirms the description matches `fdroid/inclusion-mr.md` |
+| Fork branch head | `ca389100d076e0567328cb03ce6be252d0ecd179`: one commit, `New app: MarkNotes`, same parent `25d23ee7ce82bd09c71f6579cd3ca2e7e7fb9117`; no rebase |
+| Fork pipeline | [2987009671](https://gitlab.com/MaxDac/fdroiddata/-/pipelines/2987009671): all 9 jobs passed |
+| `fdroid build` job | [17451134534](https://gitlab.com/MaxDac/fdroiddata/-/jobs/17451134534): "compared built binary to supplied reference binary successfully", unchanged allowed signer `ffafda02…70e4` |
+| Release in the MR metadata | [v0.1.6](https://github.com/MaxDac/marknotes-android/releases/tag/v0.1.6), commit `db4eb433300476c6777919fdc6a903822c747252`, versionCode 106 |
+| Release APK | `marknotes-libre-0.1.6.apk`, SHA-256 `7056829d6727a75f92142abb787c948ad18c9e04395ce9e8e73cf59984ddaa66`, 8,276,017 bytes (8.28 MB) |
+| Release workflow | [40222414142](https://github.com/MaxDac/marknotes-android/actions/runs/40222414142): all release gates, signature pinning and signed/unsigned comparison passed |
+| Quality report | Missing-R8 warning replaced with an informational full-mode release R8 marker; required permissions and metadata/signing/ABI entries remain explained |
 | Signing certificate | SHA-256 `ffafda02fa9af06b1927095c8d843ae862173512d4cdaca09bbaaef84d1d70e4` (`AllowedAPKSigningKeys`, repo variable `RELEASE_CERT_SHA256`). It must never change |
 | Permissions | `INTERNET`, `ACCESS_NETWORK_STATE`, `USE_BIOMETRIC`, plus AndroidX's `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`. Checks / F-Droid build fails on anything else |
 | Native libraries per ABI (arm64-v8a, x86_64) | `libmarknotes_sync.so` (built from source, about 0.7 MB), `libjnidispatch.so` (JNA 5.19.1 from Maven Central), `libandroidx.graphics.path.so` (AndroidX) |
 | marknotes-sync | Submodule `marknotes-sync/` at tag v0.4.1 (`5e68e80ab6f0731767334e9e7e967fd01e793450`), catalog `marknotesSync = "0.4.1"` |
 | Toolchain pins | Rust 1.99.1 (through fdroiddata's `rustup@1.29.2` srclib), cargo-ndk 4.1.2, NDK r30. Identical in `.fdroid.yml`, `scripts/build-sync-from-source.sh` and `.github/actions/setup-sync-toolchain` |
 | `rm:` | `spec`, `marknotes-sync/spec`, `marknotes-sync/bindings/npm`, `marknotes-sync/package.json`, and the sync Kotlin bindings' `gradle-wrapper.jar`, `gradlew` and `gradlew.bat` |
-| MarkNotes Pro | `libre/` at v0.1.5 ([MaxDac/MarkNotes#49](https://github.com/MaxDac/MarkNotes/pull/49)) |
+| MarkNotes Pro | Last verified adoption: `libre/` at v0.1.5 ([MaxDac/MarkNotes#49](https://github.com/MaxDac/MarkNotes/pull/49)); this release does not update Pro's pin |
 
 Before acting, check this is still true: compare the MR's head SHA and the latest GitHub release with the table.
 
@@ -39,6 +41,9 @@ Before acting, check this is still true: compare the MR's head SHA and the lates
   `gradlew`/`gradlew.bat` during its Gradle cleanup and scanner run, so those paths went into `rm:` and into the
   reviewed prune profile. The prune profile allows only deletions; `scripts/check-sync-pin.sh` rejects any other
   change to the sync checkout.
+- v0.1.6 enabled full-mode R8 and resource shrinking, reducing the signed APK by 87.90% while preserving
+  permissions, both ABIs and signing identity. The final minified APK is exercised on an emulator, and CI checks
+  its R8 marker, native libraries and exact permissions. No sync/spec pins or public APIs changed.
 
 ## Lessons from FPInk (fdroid/fdroiddata!50122, same author, merged)
 
@@ -65,6 +70,9 @@ All requests below were addressed before submission. Keep them true, and expect 
   empty list anonymously). Raw job logs: `https://gitlab.com/MaxDac/fdroiddata/-/jobs/<id>/raw` with a browser
   user agent. Only the maintainer can comment, resolve threads or edit the description: hand over fenced
   copy-paste blocks.
+- **Public report artifacts**: the job-detail/trace API can answer 401, and the archive-file endpoint can answer
+  404 for report-only artifacts. Read logs through the web raw endpoint above. Download quality JSON through
+  `https://gitlab.com/MaxDac/fdroiddata/-/jobs/<id>/artifacts/download?file_type=codequality`.
 - **Pushing** works over SSH to `git@gitlab.com:MaxDac/fdroiddata.git` on the maintainer's machine. After
   `git push -f`, a "not our ref" message is harmless; confirm with `git ls-remote origin
   refs/heads/io.github.maxdac.marknotes.libre`.
