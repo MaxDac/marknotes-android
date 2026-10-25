@@ -41,7 +41,8 @@ import kotlinx.serialization.json.put
 
 /**
  * Sync fixtures (plan, reconcile, scheduling, manifest, merge), run through the shared sync core's Kotlin bindings
- * that the app uses (`io.github.maxdac.marknotes.sync`, from marknotes-sync).
+ * that the app uses (`io.github.maxdac.marknotes.sync`, from marknotes-sync). `sync/executor-safety` runs against the
+ * app's own executor instead ([ExecutorSafetyParity]).
  */
 object SyncParity {
     val mappings: Map<String, ParityMapping> = mapOf(
@@ -55,9 +56,7 @@ object SyncParity {
             val records = c.input.getValue("records").jsonArray.map { record(it.jsonObject) }
             buildJsonObject { put("paths", strings(localDeletions(local, records))) }
         },
-        "sync/executor-safety" to ParityMapping.Elsewhere(
-            "marknotes-sync executor contract suite; Android adapters and restart recovery: SyncEngineTest"
-        ),
+        "sync/executor-safety" to ParityMapping.Run(run = ExecutorSafetyParity::run),
         "sync/multi-drive" to ParityMapping.Run { c -> scheduleJson(c.input) },
         "manifest/parse" to ParityMapping.Run { c ->
             buildJsonObject { put("manifest", parseManifest(c.string("json"))?.let(::manifestJson) ?: JsonNull) }
