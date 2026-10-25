@@ -58,6 +58,9 @@ class EditorViewModel(private val container: AppContainer, val path: String) : V
     private var indexJob: Job? = null
     private val history = EditorHistory()
 
+    /** Image imports still running, so the progress bar stays until the last one ends. Main thread only. */
+    private var imageImports = 0
+
     /** Front-matter block of the note, re-attached to the body on save. */
     @Volatile
     private var header = ""
@@ -252,16 +255,30 @@ class EditorViewModel(private val container: AppContainer, val path: String) : V
     }
 
     /** Stores the image at [uri] as an attachment and inserts a markdown image at the cursor. */
-    fun insertImage(uri: Uri, fallbackName: String, mimeHint: String? = null, onDone: () -> Unit = {}) {
+    fun insertImage(uri: Uri, fallbackName: String, mimeHint: String? = null, onDone: () -> Unit = {}) =
+        insertImages(listOf(uri), fallbackName, mimeHint, onDone)
+
+    /** Inserts pasted, dropped or keyboard-inserted [images], see [insertImages]. */
+    fun receiveImages(images: ReceivedImages) =
+        insertImages(images.uris, PASTED_IMAGE_NAME, images.mimeType, images.release)
+
+    /**
+     * Stores the images at [uris] as attachments, in order, and inserts a markdown image for each at the cursor. The
+     * first image that can't be added stops the rest and is reported. [onDone] runs once all were read.
+     */
+    fun insertImages(uris: List<Uri>, fallbackName: String, mimeHint: String? = null, onDone: () -> Unit = {}) {
+        imageImports++
         _state.value = _state.value.copy(importingImage = true)
         viewModelScope.launch {
             try {
-                val (path, name) = withContext(Dispatchers.IO) {
-                    val image = container.imageImporter.import(uri, fallbackName, mimeHint)
-                    check(writable()) { "the local data was deleted" }
-                    Attachments.save(notes, image.bytes, image.extension) to image.fileName
+                for (uri in uris) {
+                    val (path, name) = withContext(Dispatchers.IO) {
+                        val image = container.imageImporter.import(uri, fallbackName, mimeHint)
+                        check(writable()) { "the local data was deleted" }
+                        Attachments.save(notes, image.bytes, image.extension) to image.fileName
+                    }
+                    applyFormat { MarkdownEditing.insertBlock(it, Attachments.markdown(name, path)) }
                 }
-                applyFormat { MarkdownEditing.insertBlock(it, Attachments.markdown(name, path)) }
             } catch (e: ImageImportException) {
                 container.diagnostics.report(DiagnosticCode.IMAGE_IMPORT, e)
                 _state.value = _state.value.copy(error = e.message)
@@ -271,7 +288,8 @@ class EditorViewModel(private val container: AppContainer, val path: String) : V
                 container.diagnostics.report(DiagnosticCode.IMAGE_IMPORT, e)
                 _state.value = _state.value.copy(error = "Could not add the image: ${e.message}")
             } finally {
-                _state.value = _state.value.copy(importingImage = false)
+                imageImports--
+                _state.value = _state.value.copy(importingImage = imageImports > 0)
                 withContext(Dispatchers.IO + NonCancellable) { onDone() }
             }
         }
@@ -345,5 +363,8 @@ class EditorViewModel(private val container: AppContainer, val path: String) : V
 
     private companion object {
         const val AUTOSAVE_DELAY_MS = 800L
+
+        /** Alt text of a pasted or dropped image whose source gives no file name. */
+        const val PASTED_IMAGE_NAME = "image"
     }
 }

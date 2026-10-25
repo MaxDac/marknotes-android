@@ -1,5 +1,13 @@
 package io.github.maxdac.marknotes
 
+import android.content.ClipData
+import android.content.ClipDescription
+import android.content.ClipboardManager
+import android.content.Context
+import android.graphics.Bitmap
+import android.net.Uri
+import android.view.inputmethod.EditorInfo
+import android.view.inputmethod.InputContentInfo
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
@@ -29,6 +37,7 @@ import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.test.printToString
 import androidx.compose.ui.test.withKeyDown
 import androidx.compose.ui.text.AnnotatedString
+import androidx.core.content.FileProvider
 import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
@@ -291,6 +300,82 @@ class MarkNotesFlowTest {
         val note = File(notesDir, "Todo.md")
         compose.waitUntil(timeoutMillis = 5_000) { note.isFile && bodyOf(note).isNotEmpty() }
         assertEquals("- [ ] milk\n- [ ] eggs\n**done**", bodyOf(note))
+    }
+
+    /** A small PNG shared through the app's FileProvider, like an image another app copies or a keyboard sends. */
+    private fun sharedPng(name: String): Uri {
+        val file = File(context.cacheDir, "camera/$name").apply { parentFile?.mkdirs() }
+        val bitmap = Bitmap.createBitmap(4, 4, Bitmap.Config.ARGB_8888).apply { eraseColor(android.graphics.Color.RED) }
+        file.outputStream().use { bitmap.compress(Bitmap.CompressFormat.PNG, 100, it) }
+        return FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+    }
+
+    /** Creates the note [name] and focuses its editor. */
+    private fun openNewNote(name: String) {
+        newNoteFromFab()
+        compose.onNode(hasSetTextAction()).performTextInput(name)
+        compose.onNodeWithText("OK").performClick()
+        compose.waitUntilExactlyOneExists(hasTestTag(EDITOR_FIELD_TAG), timeoutMillis = 5_000)
+        compose.onNodeWithTag(EDITOR_FIELD_TAG).performClick()
+        compose.waitForIdle()
+    }
+
+    /** The autosaved body of the note [name], once it holds an attachment image. */
+    private fun savedImageBody(name: String): String {
+        val note = File(notesDir, "$name.md")
+        compose.waitUntil(timeoutMillis = 10_000) { note.isFile && "](attachments/" in bodyOf(note) }
+        return bodyOf(note)
+    }
+
+    private val attachmentImage = Regex("""!\[(.*)]\(attachments/([0-9a-f]{64})\.png\)""")
+
+    @Test
+    fun pastedImageIsStoredAsAttachment() {
+        val uri = sharedPng("pasted.png")
+        openNewNote("Pasted")
+        InstrumentationRegistry.getInstrumentation().runOnMainSync {
+            val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+            clipboard.setPrimaryClip(ClipData.newUri(context.contentResolver, "image", uri))
+        }
+        // Android only lets the focused window read the clipboard.
+        compose.waitUntil(timeoutMillis = 10_000) {
+            var focused = false
+            scenario.onActivity { focused = it.hasWindowFocus() }
+            focused
+        }
+
+        compose.onNodeWithTag(EDITOR_FIELD_TAG).performKeyInput {
+            keyDown(Key.CtrlLeft)
+            pressKey(Key.V)
+            keyUp(Key.CtrlLeft)
+        }
+
+        val match = attachmentImage.find(savedImageBody("Pasted"))
+        assertNotNull(match)
+        assertEquals("pasted", match!!.groupValues[1])
+        assertTrue(File(notesDir, "attachments/${match.groupValues[2]}.png").isFile)
+    }
+
+    @Test
+    fun keyboardInsertedImageIsStoredAsAttachment() {
+        val uri = sharedPng("sticker.png")
+        openNewNote("Sticker")
+
+        var accepted = false
+        var mimeTypes: List<String> = emptyList()
+        scenario.onActivity { activity ->
+            val editor = EditorInfo()
+            val connection = requireNotNull(activity.window.decorView.findFocus()?.onCreateInputConnection(editor))
+            mimeTypes = editor.contentMimeTypes?.toList().orEmpty()
+            val content = InputContentInfo(uri, ClipDescription("sticker", arrayOf("image/png")))
+            accepted = connection.commitContent(content, 0, null)
+        }
+
+        assertTrue("image/png" in mimeTypes)
+        assertTrue(accepted)
+        val match = attachmentImage.find(savedImageBody("Sticker"))
+        assertNotNull(match)
+        assertEquals("sticker", match!!.groupValues[1])
     }
 
     @Test
