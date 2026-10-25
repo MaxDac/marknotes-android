@@ -15,7 +15,13 @@ android {
         // Set by the "Prepare release" workflow (versionCode = X*10000 + Y*100 + Z); F-Droid reads these literals.
         versionCode = 105
         versionName = "0.1.5"
-        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        testInstrumentationRunner = if (
+            providers.gradleProperty("marknotes.releaseSmoke").map(String::toBooleanStrict).getOrElse(false)
+        ) {
+            "io.github.maxdac.marknotes.ReleaseSmokeInstrumentation"
+        } else {
+            "androidx.test.runner.AndroidJUnitRunner"
+        }
         // marknotes-sync's native library is built for devices (arm64) and emulators (x86_64) only.
         ndk {
             abiFilters += listOf("arm64-v8a", "x86_64")
@@ -47,7 +53,8 @@ android {
             if (releaseKeystore != null) {
                 signingConfig = signingConfigs.getByName("release")
             }
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
             // The git commit recorded in the APK would differ between F-Droid's rebuild and ours.
             vcsInfo.include = false
