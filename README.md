@@ -39,6 +39,11 @@ submodule) with OneDrive and Proton Drive sync added, released on GitHub only. T
   from 8 palettes or **Dynamic** (Material You, Android 12+).
 - **Dropbox two-way sync** (optional): connect Dropbox accounts (Settings → Add drive), browse to a folder and
   optionally create a root folder inside it (default `MarkNotes`):
+  - **Reconnect** on a drive card signs in to the same Dropbox account again, for example after its sign-in
+    expired or was revoked, without removing the drive: its folder, options, sync history and base copies are
+    kept. Signing in to a different account, cancelling or a failed sign-in leaves the drive as it was. Drives
+    connected by an older version save their account identity at their next successful sync; if one's sign-in
+    expired before that, its account can't be verified, so disconnect it and add it again;
   - sync runs on app launch and when you tap **Sync now**; there is no background or periodic polling.
     **Sync when reconnected** (Settings, off by default) also syncs when the network comes back while the app
     is open and unlocked (after 2 seconds, retrying temporary failures after 5, 15 and 30 seconds); it needs the

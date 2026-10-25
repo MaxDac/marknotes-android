@@ -30,6 +30,14 @@ class DropboxConnector(
     private val config = DbxRequestConfig.newBuilder("MarkNotes").build()
     private var pendingSignIn: CompletableDeferred<DbxCredential?>? = null
     private val stores = HashMap<String, Pair<String, DropboxDriveStore>>()
+    private val sessions = DropboxSession(credentials::load, credentials::save, { stores.remove(it) }) { credential ->
+        withContext(Dispatchers.IO) {
+            val account = DbxClientV2(config, credential).users().currentAccount
+            DropboxIdentity(account.accountId, account.email.ifBlank { account.name.displayName })
+        }
+    }
+
+    override val supportsReconnect = true
 
     override val unavailableReason: String?
         get() = if (appKey == UNCONFIGURED) {
@@ -39,21 +47,27 @@ class DropboxConnector(
         }
 
     override suspend fun signIn(activity: ComponentActivity): SignedInAccount? {
+        val credential = authorize(activity) ?: return null
+        val id = "dropbox-" + UUID.randomUUID()
+        val identity = sessions.saveNew(id, credential)
+        return SignedInAccount(id, provider, identity.label)
+    }
+
+    override suspend fun reconnect(activity: ComponentActivity, account: DriveAccount): Boolean {
+        require(account.provider == provider)
+        return sessions.reconnect(account.id) { authorize(activity) }
+    }
+
+    private suspend fun authorize(activity: ComponentActivity): DbxCredential? {
+        check(pendingSignIn == null) { "A Dropbox sign-in is already in progress" }
         val deferred = CompletableDeferred<DbxCredential?>()
         pendingSignIn = deferred
-        Auth.startOAuth2PKCE(activity, appKey, config, SCOPES)
-        val credential = try {
+        return try {
+            Auth.startOAuth2PKCE(activity, appKey, config, SCOPES)
             deferred.await()
         } finally {
             pendingSignIn = null
-        } ?: return null
-        val label = withContext(Dispatchers.IO) {
-            val account = DbxClientV2(config, credential).users().currentAccount
-            account.email.ifBlank { account.name.displayName }
         }
-        val id = "dropbox-" + UUID.randomUUID()
-        credentials.save(id, DbxCredential.Writer.writeToString(credential))
-        return SignedInAccount(id, provider, label)
     }
 
     /** Completes a pending sign-in: the activity resumes when the Dropbox sign-in returns. */
@@ -66,6 +80,14 @@ class DropboxConnector(
 
     override suspend fun store(account: DriveAccount): RemoteDriveStore {
         stores[account.id]?.takeIf { it.first == account.syncFolder }?.let { return it.second }
+        try {
+            sessions.rememberIdentity(account.id)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            // Retried when the store is next created; the sync itself reports a signed-out or offline drive.
+            diagnostics.report(DiagnosticCode.SIGN_IN, e)
+        }
         return DropboxDriveStore(client(account.id), account.syncFolder).also {
             stores[account.id] = account.syncFolder to it
         }
@@ -85,8 +107,8 @@ class DropboxConnector(
     }
 
     private fun client(accountId: String): DbxClientV2 {
-        val stored = credentials.load(accountId) ?: throw RemoteUnavailableException("Sign in to Dropbox again")
-        return DbxClientV2(config, DbxCredential.Reader.readFully(stored))
+        if (credentials.load(accountId) == null) throw RemoteUnavailableException("Sign in to Dropbox again")
+        return DbxClientV2(config, sessions.credential(accountId))
     }
 
     private companion object {
