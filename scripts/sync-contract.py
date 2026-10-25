@@ -130,6 +130,11 @@ def check_source(source, version, expected, allow=False, protected=False, prunin
     unreviewed = [
         entry for entry in dirty if entry and not (
             entry[:2] in (" D", "D ") and any(entry[3:] == path or entry[3:].startswith(path + "/") for path in pruning)
+        ) and not (
+            entry[:2] == " M" and (source / entry[3:]).is_file()
+            and git(source, "hash-object", "--no-filters", "--", entry[3:]).strip()
+            == git(source, "rev-parse", f"HEAD:{entry[3:]}").strip()
+            and not git(source, "diff", "--summary", "--no-ext-diff", "HEAD", "--", entry[3:]).strip()
         )
     ]
     if not allow and (actual != expected or unreviewed):

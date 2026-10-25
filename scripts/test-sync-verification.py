@@ -79,6 +79,15 @@ class VerificationTest(unittest.TestCase):
         for script in (self.source / "scripts").iterdir():
             script.chmod(0o755)
         self.git(self.source, "add", ".")
+        (self.source / ".gitattributes").write_text("*.bat text eol=crlf\n")
+        self.git(self.source, "add", ".gitattributes")
+        wrapper = self.source / "bindings/kotlin/gradlew.bat"
+        wrapper.write_bytes(b"@echo off\r\nrem committed upstream CRLF blob\r\n")
+        blob = subprocess.run(
+            ["git", "-C", str(self.source), "hash-object", "-w", "--stdin"],
+            input=wrapper.read_bytes(), check=True, capture_output=True,
+        ).stdout.decode().strip()
+        self.git(self.source, "update-index", "--add", "--cacheinfo", f"100644,{blob},bindings/kotlin/gradlew.bat")
         self.commit(self.source)
         self.commit_id = self.git(self.source, "rev-parse", "HEAD").strip()
         self.git(self.owner, "init", "--quiet")
@@ -443,6 +452,9 @@ for module, entries, ext in (
             CONTRACT.receipt(self.owner, self.source, "verify", False, False)
 
     def test_protected_mode_and_consistency(self):
+        # The submission action injects -D...=off; its additional CLI argument must win, not bypass the guard.
+        self.run_gradle("help", "-Dorg.gradle.dependency.verification=off", "--dependency-verification", "strict",
+                        env={**self.environment, "CI": "true"})
         for mode in ("off", "lenient"):
             self.run_gradle("help", "--dependency-verification", mode, ok=False, contains="require --dependency-verification strict",
                             env={**self.environment, "CI": "true"})
@@ -461,6 +473,19 @@ for module, entries, ext in (
         ))
         with self.assertRaisesRegex(ValueError, "differ from Android owner"):
             CONTRACT.contract(self.owner, self.root)
+
+    def test_checkout_normalization_is_accepted_but_actual_wrapper_edits_fail(self):
+        status = self.git(self.source, "status", "--porcelain=v1")
+        self.assertIn(" M bindings/kotlin/gradlew.bat", status)
+        self.build_source()
+        override = f"-Pmarknotes.sync.fromSource={self.source}"
+        self.run_gradle("resolveKotlin", "resolveNatives", "resolveAndroid", override, "--offline",
+                        env={**self.environment, "CI": "true"})
+        wrapper = self.source / "bindings/kotlin/gradlew.bat"
+        wrapper.write_bytes(wrapper.read_bytes() + b"rem actual edit\r\n")
+        with self.assertRaisesRegex(ValueError, "uncommitted files"):
+            CONTRACT.receipt(self.owner, self.source, "verify", False, False)
+        self.run_gradle("help", override, ok=False, contains="must match reviewed gitlink")
 
 
 if __name__ == "__main__":

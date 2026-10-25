@@ -31,3 +31,5 @@ jobs:
         with:
           setup-gradle: "false"
       - uses: gradle/actions/dependency-submission@v6
+        with:
+          additional-arguments: --dependency-verification strict

@@ -64,7 +64,13 @@ def validateSource = {
     def actual = text(source, ['rev-parse', 'HEAD'])
     def dirty = new String(git(source, ['status', '--porcelain=v1', '-z', '--untracked-files=all']), 'UTF-8').split('\u0000').findAll { it }
     def unreviewed = dirty.findAll { entry ->
-        !(entry.take(2) in [' D', 'D '] && pruning.any { path -> entry.substring(3) == path || entry.substring(3).startsWith(path + '/') })
+        def path = entry.substring(3)
+        def deleted = entry.take(2) in [' D', 'D '] && pruning.any { approved -> path == approved || path.startsWith(approved + '/') }
+        // Some upstream CRLF blobs are marked dirty by Git's text normalization even on a fresh checkout.
+        def exactHeadBytes = entry.take(2) == ' M' && new File(source, path).isFile() &&
+                text(source, ['hash-object', '--no-filters', '--', path]) == text(source, ['rev-parse', "HEAD:$path".toString()]) &&
+                text(source, ['diff', '--summary', '--no-ext-diff', 'HEAD', '--', path]).empty
+        !deleted && !exactHeadBytes
     }
     if (!experimental && (actual != expected || !unreviewed.empty)) fail('selected checkout must match reviewed gitlink and be clean except reviewed F-Droid deletions; local experiments require -Pmarknotes.sync.allowUnreviewedSource=true')
     if (!(new File(source, 'Cargo.toml').text =~ /(?m)^version = "\Q${version}\E"\r?$/).find()) fail('selected checkout version differs from catalog')

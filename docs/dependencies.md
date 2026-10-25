@@ -80,6 +80,11 @@ non-build npm/spec/wrapper paths already removed by `.fdroid.yml`. The consisten
 list to the recipe; edits, renames, untracked files, and deletions elsewhere still fail. This is not an
 unreviewed-source opt-in. The receipt binds the actual pruned file state, so changing between clean/pruned
 trees also requires rebuilding.
+Git can report an upstream CRLF/text-normalization mismatch immediately after checkout. An unstaged
+modification is accepted only if its raw Git blob hash exactly equals `HEAD:<path>`; actual edits and
+staged modifications still fail. Dependency-submission actions pass `--dependency-verification strict`
+through `additional-arguments`, overriding the action's default verification-off system property without
+relaxing the protected-build guard.
 Signed releases additionally reject development pins. Protected builds are identified by `CI=true`,
 `GITHUB_ACTIONS=true`, or the signing-keystore environment used by the release workflow.
 
