@@ -122,3 +122,34 @@ Three CI checks guard it, on every PR, on `main` and again in the Release workfl
 
 The Release workflow then runs `apksigcopier compare` between the signed release APK and the F-Droid build, which is
 exactly the check F-Droid runs before publishing.
+
+## Release optimization and quality reports
+
+Release APKs use R8 code optimization and resource shrinking. `:app-shared` supplies the JNA/UniFFI keep rules
+needed by the native sync binding. Narrow missing-class rules cover only Markwon's optional SVG/GIF decoders
+and PDFBox's optional JPEG 2000 image decoder, which are not shipped; note attachments use the bitmap decoder
+and PDF import extracts text. Do not replace these with blanket warning suppression or keep the whole app.
+
+Checks / F-Droid build runs `scripts/check-release-apk.py` on the final APK to require an R8 marker, the exact
+permission set and both native ABIs, and logs its byte size. Checks / Instrumented tests (emulator) also installs
+that same from-source release APK with a disposable debug signature and runs the platform-only
+`ReleaseSmokeInstrumentation`: native plan/merge, note editing/persistence, syntax-highlighted Markdown preview,
+Room account storage, app-lock availability and PDF import. This does not change the published APK or production
+signing key.
+It deliberately does not use a debug AndroidX/Kotlin runner, whose unoptimized references cannot link against
+obfuscated application classes.
+The F-Droid build job preserves `mapping.txt` as the `release-r8-mapping` artifact for deobfuscating diagnostics.
+
+To repeat the release smoke check on a **disposable emulator** (the script clears Libre app data):
+
+```sh
+./gradlew :app:assembleRelease :app:assembleDebugAndroidTest -Pmarknotes.releaseSmoke=true
+bash scripts/test-release-apk.sh app/build/outputs/apk/release/app-release-unsigned.apk
+```
+
+The inclusion report's remaining permission entries are expected: `INTERNET` enables Dropbox, `ACCESS_NETWORK_STATE`
+supports reconnect sync, `USE_BIOMETRIC` supports optional app lock, and AndroidX's signature-protected
+`DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` protects its receivers. Removing them to silence the report would
+break functionality or platform safeguards. Fastlane listing information, the reproducible reference APK,
+the signing-certificate identity, and ABI/size information are informational, not defects. Preserve both ABIs;
+code/resource shrinking, rather than ABI splitting, addresses the bulk of the old APK size.

@@ -46,6 +46,8 @@ jobs:
         run: |
           python3 scripts/test-sync-pin.py
           python3 scripts/test-sync-verification.py
+      - name: Verify optimized release APK guard
+        run: python3 scripts/test-release-apk.py
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v7
@@ -84,6 +86,7 @@ jobs:
 
   instrumented-tests:
     name: Instrumented tests (emulator)
+    needs: fdroid-build
     runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
@@ -101,6 +104,10 @@ jobs:
       - uses: ./.github/actions/setup-android-build
       - name: Build test APKs
         run: ./gradlew :app:assembleDebug :app:assembleDebugAndroidTest :app-shared:assembleDebugAndroidTest
+      - uses: actions/download-artifact@v8
+        with:
+          name: fdroid-unsigned-apk
+          path: ${{ runner.temp }}/fdroid-build
       - name: Run instrumented tests
         uses: reactivecircus/android-emulator-runner@v2
         with:
@@ -112,7 +119,10 @@ jobs:
           disk-size: 4096M
           emulator-options: -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim -camera-back none
           disable-animations: true
-          script: ./gradlew --continue :app:connectedDebugAndroidTest :app-shared:connectedDebugAndroidTest
+          script: |
+            ./gradlew --continue :app:connectedDebugAndroidTest :app-shared:connectedDebugAndroidTest
+            ./gradlew :app:assembleDebugAndroidTest -Pmarknotes.releaseSmoke=true
+            bash scripts/test-release-apk.sh "$RUNNER_TEMP/fdroid-build/app-release-unsigned.apk"
       - name: Upload test reports
         if: always()
         uses: actions/upload-artifact@v7
@@ -164,27 +174,21 @@ jobs:
         run: fdroid scanner --exit-code app/build/outputs/apk/release/app-release-unsigned.apk
       # F-Droid lists the permissions, and the inclusion MR describes them. Libraries without uses-sdk make the
       # manifest merger silently add READ_PHONE_STATE and the storage permissions.
-      - name: Check the APK permissions
+      - name: Check release optimization, permissions and native ABIs
         run: |
           aapt2="$(find "$ANDROID_HOME/build-tools" -name aapt2 | sort -V | tail -n 1)"
-          actual="$("$aapt2" dump permissions app/build/outputs/apk/release/app-release-unsigned.apk \
-            | sed -n "s/^uses-permission: name='\([^']*\)'.*/\1/p" | sort)"
-          expected="$(printf '%s\n' \
-            android.permission.INTERNET \
-            android.permission.ACCESS_NETWORK_STATE \
-            android.permission.USE_BIOMETRIC \
-            io.github.maxdac.marknotes.libre.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION | sort)"
-          if [ "$actual" != "$expected" ]; then
-            echo "::error::The APK's permissions changed. Update this list and the F-Droid MR description if intended."
-            diff <(echo "$expected") <(echo "$actual")
-            exit 1
-          fi
-          echo "$actual"
+          python3 scripts/check-release-apk.py app/build/outputs/apk/release/app-release-unsigned.apk --aapt2 "$aapt2"
       - name: Upload the unsigned release APK
         uses: actions/upload-artifact@v7
         with:
           name: fdroid-unsigned-apk
           path: app/build/outputs/apk/release/app-release-unsigned.apk
+          if-no-files-found: error
+      - name: Upload the release R8 mapping
+        uses: actions/upload-artifact@v7
+        with:
+          name: release-r8-mapping
+          path: app/build/outputs/mapping/release/mapping.txt
           if-no-files-found: error
 
   reproducible-build:
