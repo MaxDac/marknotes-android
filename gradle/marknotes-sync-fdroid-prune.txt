@@ -1,0 +1,5 @@
+# Reviewed non-build inputs removed by .fdroid.yml; only deletions are permitted, never edits.
+spec
+bindings/npm
+package.json
+bindings/kotlin/gradle/wrapper/gradle-wrapper.jar

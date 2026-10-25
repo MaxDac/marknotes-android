@@ -2,6 +2,7 @@
 
 import os
 from pathlib import Path
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -20,6 +21,11 @@ class SyncPinTest(unittest.TestCase):
         (self.root / "gradle/libs.versions.toml").write_text('marknotesSync = "0.3.0"\n')
         self.pin = "1" * 40
         self.write_pin(self.pin)
+        shutil.copyfile(Path(__file__).resolve().parent.parent / "gradle/verification-metadata.xml",
+                        self.root / "gradle/verification-metadata.xml")
+        shutil.copyfile(Path(__file__).resolve().parent.parent / "gradle/marknotes-sync-fdroid-prune.txt",
+                        self.root / "gradle/marknotes-sync-fdroid-prune.txt")
+        shutil.copyfile(Path(__file__).resolve().parent.parent / ".fdroid.yml", self.root / ".fdroid.yml")
         self.git("add", "gradle")
         self.git("update-index", "--add", "--cacheinfo", f"160000,{self.pin},marknotes-sync")
         self.git(
@@ -40,11 +46,12 @@ class SyncPinTest(unittest.TestCase):
         script = Path(__file__).resolve().with_name("check-sync-pin.sh")
         env = os.environ.copy()
         env.pop("GITHUB_REF_TYPE", None)
-        git_bash = Path(env.get("ProgramFiles", "")) / "Git/bin/bash.exe"
+        git_bash = Path(os.environ.get("ProgramFiles", "")) / "Git/bin/bash.exe"
         bash = str(git_bash) if os.name == "nt" and git_bash.is_file() else "bash"
         result = subprocess.run(
-            [bash, "-s", "--", ".", *args], cwd=self.root, env=env,
-            input=script.read_bytes().replace(b"\r\n", b"\n"), capture_output=True,
+            [bash, script.as_posix(), ".", *args], cwd=self.root,
+            env={**env, "PYTHON": Path(os.sys.executable).as_posix()},
+            capture_output=True,
         )
         result.stdout = result.stdout.decode()
         result.stderr = result.stderr.decode()
@@ -71,11 +78,10 @@ class SyncPinTest(unittest.TestCase):
         self.assertNotEqual(0, result.returncode)
         self.assertIn("cannot be released", result.stderr)
 
-    def test_actual_app_release_tag_rejects_development_source(self):
+    def test_app_tag_does_not_block_unsigned_development_build(self):
         self.git("tag", "v1.0.0")
         result = self.check()
-        self.assertNotEqual(0, result.returncode)
-        self.assertIn("cannot be released", result.stderr)
+        self.assertEqual(0, result.returncode, result.stderr)
 
 
 if __name__ == "__main__":

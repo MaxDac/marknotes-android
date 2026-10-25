@@ -30,9 +30,13 @@ elif [ ! -f "$dir/Cargo.toml" ]; then
 fi
 dir="$(cd "$dir" && pwd)"
 cd "$dir"
-"$root/scripts/check-sync-pin.sh"
+"$root/scripts/check-sync-pin.sh" "$root" "" "$dir"
 grep -q "^version = \"$version\"" Cargo.toml \
   || { echo "$dir is not marknotes-sync $version (check out tag v$version)" >&2; exit 1; }
+
+receipt_args=(--root "$root" --source "$dir")
+if [ "${MARKNOTES_SYNC_ALLOW_UNREVIEWED_SOURCE:-}" = true ]; then receipt_args+=(--allow-unreviewed); fi
+"${PYTHON:-python3}" "$root/scripts/sync-contract.py" "${receipt_args[@]}" --receipt begin
 
 if [ -z "${ANDROID_NDK_HOME:-}" ] && [ -n "${ANDROID_HOME:-}" ]; then
   export ANDROID_NDK_HOME="$ANDROID_HOME/ndk/$MARKNOTES_NDK_VERSION"
@@ -49,6 +53,8 @@ esac
 SOURCE_DATE_EPOCH="$(git log -1 --format=%ct 2>/dev/null || echo 1)"
 export SOURCE_DATE_EPOCH
 
+# Never package other hosts' stale native libraries left by a previous source checkout.
+rm -rf bindings/kotlin/natives/jvm
 scripts/android-libs.sh
 scripts/kotlin-bindings.sh
 case "$(uname -s):$(uname -m)" in
@@ -61,7 +67,8 @@ case "$(uname -s):$(uname -m)" in
 esac
 mkdir -p "bindings/kotlin/natives/jvm/$host"
 cp "target/release/$library" "bindings/kotlin/natives/jvm/$host/$library"
-(cd bindings/kotlin && ${GRADLE:-./gradlew} assemble --console=plain --no-daemon)
+(cd bindings/kotlin && "${GRADLE:-./gradlew}" assemble --console=plain --no-daemon)
 
+"${PYTHON:-python3}" "$root/scripts/sync-contract.py" "${receipt_args[@]}" --receipt finish
 ls -l bindings/kotlin/build/libs
 echo "Built marknotes-sync $version. Build the app with -Pmarknotes.sync.fromSource=$dir"

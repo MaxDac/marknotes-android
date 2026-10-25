@@ -13,3 +13,4 @@
 *.keystore
 !debug.keystore
 *.jks
+/scripts/__pycache__/
