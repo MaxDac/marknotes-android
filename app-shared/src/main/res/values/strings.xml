@@ -1,6 +1,63 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="app_name">MarkNotes</string>
+    <string name="help_title">Help</string>
+    <string name="help_back">Back</string>
+    <string name="help_intro">Learn the basics again or explore the Markdown supported by this app. These guides work offline.</string>
+    <string name="getting_started_title">Getting started</string>
+    <string name="guide_close">Close guide</string>
+    <string name="guide_skip">Skip</string>
+    <string name="guide_save_error">Could not save that the guide was dismissed. The guide is still open; please try Skip, Finish or Close again.</string>
+    <string name="guide_progress">Step %1$d of %2$d</string>
+    <string name="guide_previous">Previous</string>
+    <string name="guide_next">Next</string>
+    <string name="guide_finish">Finish</string>
+    <string name="guide_local_title">Your notes, on this device</string>
+    <string name="guide_local_body">MarkNotes keeps plain Markdown files on your device. You can write and read without an account or connection.\n\nEdits save automatically after a short pause and when leaving a note. Saving locally is not the same as syncing: connecting a drive is optional.</string>
+    <string name="guide_browser_title">Find your way around</string>
+    <string name="guide_new_highlight">New → a note</string>
+    <string name="guide_new_body">Use New at the bottom of the note list, then give your note a name. If Chord sequences is enabled in Settings, New also offers a chord sequence.</string>
+    <string name="guide_folders_highlight">Folders → your workspace</string>
+    <string name="guide_folders_body">Use the Folders button to jump through your folder tree. New folder creates a folder; a note or folder menu lets you rename, move or delete it.</string>
+    <string name="guide_import_body">To import content, use Share in another Android app and choose MarkNotes. Review the import before saving it. This guide will wait while you handle a share.</string>
+    <string name="guide_demo_title">Try writing Markdown</string>
+    <string name="guide_demo_privacy">This is a temporary practice editor, not a real note. Nothing here is saved or synced. Your workspace stays unchanged. Practice text is discarded when you leave the guide or lock the app.</string>
+    <string name="guide_demo_label">Demo - changes are not saved</string>
+    <string name="guide_edit">Edit practice text</string>
+    <string name="guide_preview">Preview practice text</string>
+    <string name="guide_demo_source" formatted="false"># Welcome to MarkNotes\n\nTry **bold**, _italic_ and ~~strikethrough~~.\n\n## A small plan\n\n- Write an idea\n- Organize your notes\n\n1. Edit the source\n2. Switch to Preview\n\n- [ ] Try formatting\n- [x] Open the guide\n\n&gt; This demonstration is temporary. Its changes are not saved.\n\nUse `inline code` or a code block:\n\n```javascript\nconst greeting = \"Hello\";\n```\n\n| Mode | Purpose |\n| --- | --- |\n| Edit | Write Markdown |\n| Preview | Read the result |</string>
+    <string name="guide_demo_concepts">Use the toolbar on selected text, or type the syntax yourself; scroll the toolbar for more actions. Preview shows the result.\n\nIn real notes, typing @ at the start of a line or after a space finds other notes. Image actions add local attachments from a photo, the camera, paste or supported keyboard input. Practice mode does not search your notes, import images or open links.</string>
+    <string name="guide_drives_title">Sync only if you want to</string>
+    <string name="guide_drives_body">Open Settings → Add drive, sign in, and choose the notes folder. Use the same folder in your other MarkNotes apps.\n\nSync runs on app launch and when you tap Sync now. Optionally enable Sync when reconnected while the app is open and unlocked. There is no background polling. Sync conflicts can be reviewed and resolved in the app.</string>
+    <string name="guide_providers">Providers available in this edition: %1$s. No account is connected by this guide.</string>
+    <string name="guide_no_providers">none currently available</string>
+    <string name="guide_help_title">Help is always here</string>
+    <string name="guide_help_body">Open Settings → Help to replay this guide or read the offline Markdown reference.\n\nSkip, Finish, Close or the Android Back action dismisses the automatic guide for this installation. Closing the app, rotating the device or handling another task does not count as finishing it. You can always replay it from Help.</string>
+    <string name="markdown_help_title">Markdown guide</string>
+    <string name="markdown_intro">Markdown is plain text with a little punctuation for structure and formatting. You edit the source and switch to Preview to see it rendered. Your notes remain readable text files, not a proprietary document format.</string>
+    <string name="markdown_preview_safety">The examples below use the same renderer as your notes. Links and image loading are disabled in this reference, so exploring it cannot open another app or access your attachments. Each rendered example can be scrolled.</string>
+    <string name="markdown_source_label">Source</string>
+    <string name="markdown_result_label">Rendered preview</string>
+    <string name="markdown_basic_title">Text, headings and links</string>
+    <string name="markdown_basic_source" formatted="false"># Heading\n\nA paragraph with **bold**, _italic_, ~~strikethrough~~ and `inline code`.\n\n[Link text](https://example.org)\n\n#### A manually typed level-four heading</string>
+    <string name="markdown_blocks_title">Lists, quotes and separators</string>
+    <string name="markdown_blocks_source" formatted="false">- First item\n- Second item\n\n1. First step\n2. Next step\n\n&gt; A quotation\n\n---</string>
+    <string name="markdown_extensions_title">Tables and read-only task lists</string>
+    <string name="markdown_extensions_source" formatted="false">| Item | Status |\n| --- | --- |\n| Notes | Ready |\n\n- [ ] To do\n- [x] Complete</string>
+    <string name="markdown_controls_title">Toolbar vs typed syntax</string>
+    <string name="markdown_controls">The toolbar provides bold, italic, strikethrough, headings, bullet and numbered lists, checkboxes, quotes, inline and fenced code, links and images. The heading button cycles H1, H2, H3, then plain text; manually typed H4–H6 also render.\n\nTables and horizontal rules can be typed manually; they have no toolbar button. Task boxes display in Preview but are not interactive: change [ ] to [x] in the source. Pressing Enter continues lists, tasks and quotes; an empty marker ends the list. Undo and Redo are available in the editor, including Ctrl+Z, Ctrl+Y and Ctrl+Shift+Z on a hardware keyboard.</string>
+    <string name="markdown_code_title">Code and highlighting</string>
+    <string name="markdown_code">Use backticks for inline code or three backticks around a code block. Add a language after the opening fence for highlighting.\n\nConfigured grammars: c, clike, clojure, cpp, csharp, css, dart, git, go, groovy, java, javascript, json, kotlin, latex, makefile, markdown, markup, python, scala, sql, swift, yaml. Other fenced code still displays, without a configured language highlighter. The latex grammar highlights source code; it does not render equations.</string>
+    <string name="markdown_code_example_title">A fenced code block</string>
+    <string name="markdown_code_source" formatted="false">```kotlin\nval greeting = \"Hello\"\n```</string>
+    <string name="markdown_marknotes_title">MarkNotes-specific features</string>
+    <string name="markdown_marknotes">Type @ at the start of a line or after whitespace to find a note. Selecting a result inserts a Markdown link using its stable MarkNotes ID. The note ID and other front matter are managed separately from the visible editor body. In a real note preview, note links open the referenced note; unresolved note links are styled as broken.</string>
+    <string name="markdown_links_title">A note link</string>
+    <string name="markdown_links_source" formatted="false">[Another note](marknotes:demo)</string>
+    <string name="markdown_images">Images are local attachments, referenced relative to the notes root, and synced alongside notes. Only canonical attachments/&lt;sha256&gt;.&lt;extension&gt; destinations can be previewed. Remote images, data URLs and arbitrary local file/content paths are not loaded.\n\nSupported images: PNG, JPEG, GIF and WebP. Stored images must be at most 10 MiB. Non-GIF images are downscaled to a longest side of 2048 pixels when needed; GIFs are left unchanged. The image importer reads at most 64 MiB before processing.</string>
+    <string name="markdown_image_source" formatted="false">![Description](attachments/&lt;sha256&gt;.png)</string>
+    <string name="markdown_limits_title">Coverage and limits</string>
+    <string name="markdown_limits">The preview uses Markwon with CommonMark syntax plus strikethrough, tables, task lists, code highlighting and restricted attachment images. This is not a promise of full GitHub Flavored Markdown.\n\nThere are no configured extensions for rendered math, Mermaid diagrams, footnotes, arbitrary HTML, emoji shortcodes or automatic links for bare URLs. Use explicit Markdown links. Support can differ in other MarkNotes apps; this page describes the Android renderer, not a new file format.</string>
     <string name="leave_a_tip">Leave a tip</string>
     <string name="tip_description">Optionally support development with a one-off tip on Ko-fi. Tips unlock no features. Opens in your external browser.</string>
     <string name="tip_no_browser">Could not open Ko-fi: no browser is available. Install or enable a browser and try again.</string>

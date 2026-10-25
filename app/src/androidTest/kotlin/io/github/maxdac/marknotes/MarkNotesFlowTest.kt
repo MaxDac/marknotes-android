@@ -86,6 +86,7 @@ class MarkNotesFlowTest {
 
     @Before
     fun setUp() {
+        settings.setGettingStartedConsumed(true)
         notesDir.deleteRecursively()
         settings.setChordSequencesEnabled(false)
         scenario = ActivityScenario.launch(MainActivity::class.java)

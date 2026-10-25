@@ -406,10 +406,11 @@ private val formatActions = listOf(
 )
 
 @Composable
-private fun FormattingToolbar(
+internal fun FormattingToolbar(
     onAction: ((EditorText) -> EditorText) -> Unit,
     onPickImage: () -> Unit,
-    onTakePhoto: () -> Unit
+    onTakePhoto: () -> Unit,
+    imagesEnabled: Boolean = true
 ) {
     var imageMenu by remember { mutableStateOf(false) }
     Surface(tonalElevation = 3.dp, modifier = Modifier.fillMaxWidth().testTag(FORMAT_TOOLBAR_TAG)) {
@@ -420,7 +421,7 @@ private fun FormattingToolbar(
                 }
             }
             Box {
-                IconButton(onClick = { imageMenu = true }) {
+                IconButton(onClick = { imageMenu = true }, enabled = imagesEnabled) {
                     Icon(Icons.Filled.Image, contentDescription = "Insert image")
                 }
                 DropdownMenu(expanded = imageMenu, onDismissRequest = { imageMenu = false }) {
@@ -452,12 +453,17 @@ private fun FormattingToolbar(
 private class MarkNotesPlugin(
     private val index: NoteIndex?,
     private val brokenColor: Int,
-    private val onNoteLink: (String) -> Unit
+    private val onNoteLink: (String) -> Unit,
+    private val allowExternalLinks: Boolean
 ) : AbstractMarkwonPlugin() {
     override fun configureConfiguration(builder: MarkwonConfiguration.Builder) {
         val fallback = LinkResolverDef()
         builder.linkResolver { view: View, link: String ->
-            if (NoteLinks.idOf(link) != null) onNoteLink(link) else fallback.resolve(view, link)
+            if (NoteLinks.idOf(link) != null) {
+                onNoteLink(link)
+            } else if (allowExternalLinks) {
+                fallback.resolve(view, link)
+            }
         }
     }
 
@@ -475,27 +481,27 @@ private class MarkNotesPlugin(
 }
 
 @Composable
-internal fun MarkdownPreview(text: String, notesRoot: File, index: NoteIndex?, onNoteLink: (String) -> Unit) {
+internal fun MarkdownPreview(
+    text: String,
+    notesRoot: File?,
+    index: NoteIndex?,
+    onNoteLink: (String) -> Unit,
+    modifier: Modifier = Modifier.fillMaxSize(),
+    allowExternalLinks: Boolean = true
+) {
     val context = LocalContext.current
     val dark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
     val brokenColor = MaterialTheme.colorScheme.error.toArgb()
     val currentOnNoteLink by rememberUpdatedState(onNoteLink)
-    val markwon = remember(context, dark, notesRoot, index, brokenColor) {
-        val theme = if (dark) Prism4jThemeDarkula.create() else Prism4jThemeDefault.create()
-        Markwon.builder(context)
-            .usePlugin(StrikethroughPlugin.create())
-            .usePlugin(TablePlugin.create(context))
-            .usePlugin(TaskListPlugin.create(context))
-            .usePlugin(SyntaxHighlightPlugin.create(Prism4j(CodeGrammars.create()), theme))
-            .usePlugin(ImagesPlugin.create())
-            .usePlugin(AttachmentImagesPlugin(notesRoot))
-            .usePlugin(MarkNotesPlugin(index, brokenColor) { currentOnNoteLink(it) })
-            .build()
+    val markwon = remember(context, dark, notesRoot, index, brokenColor, allowExternalLinks) {
+        createMarkdownRenderer(context, dark, notesRoot, index, brokenColor, allowExternalLinks) {
+            currentOnNoteLink(it)
+        }
     }
     val textColor = MaterialTheme.colorScheme.onSurface.toArgb()
     val linkColor = MaterialTheme.colorScheme.primary.toArgb()
     AndroidView(
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(16.dp).testTag(PREVIEW_TAG),
+        modifier = modifier.verticalScroll(rememberScrollState()).padding(16.dp).testTag(PREVIEW_TAG),
         factory = { ctx ->
             TextView(ctx).apply {
                 textSize = 16f
@@ -508,4 +514,25 @@ internal fun MarkdownPreview(text: String, notesRoot: File, index: NoteIndex?, o
             markwon.setMarkdown(view, text)
         }
     )
+}
+
+internal fun createMarkdownRenderer(
+    context: Context,
+    dark: Boolean,
+    notesRoot: File?,
+    index: NoteIndex? = null,
+    brokenColor: Int = android.graphics.Color.RED,
+    allowExternalLinks: Boolean = true,
+    onNoteLink: (String) -> Unit = {}
+): Markwon {
+    val theme = if (dark) Prism4jThemeDarkula.create() else Prism4jThemeDefault.create()
+    return Markwon.builder(context)
+        .usePlugin(StrikethroughPlugin.create())
+        .usePlugin(TablePlugin.create(context))
+        .usePlugin(TaskListPlugin.create(context))
+        .usePlugin(SyntaxHighlightPlugin.create(Prism4j(CodeGrammars.create()), theme))
+        .usePlugin(ImagesPlugin.create())
+        .usePlugin(AttachmentImagesPlugin(notesRoot))
+        .usePlugin(MarkNotesPlugin(index, brokenColor, onNoteLink, allowExternalLinks))
+        .build()
 }

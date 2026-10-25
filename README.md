@@ -12,6 +12,11 @@ submodule) with OneDrive and Proton Drive sync added, released on GitHub only. T
 
 - **Offline-first notes**: every note is a `.md` file in a folder tree inside the app's private storage
   (`filesDir/notes`). Folders map to real directories.
+- **Getting started and Markdown help**: a skippable guide appears once for new and existing installations.
+  Skip, Finish, Close or Android Back dismisses it; replay it from **Settings → Help**. The practice editor is
+  memory-only, never creates notes or attachments, and never syncs; it survives rotation but is discarded when
+  the app locks, the guide is dismissed or the app process ends. The offline Markdown reference shows source and
+  rendered examples, the toolbar's limits, and Android-specific link/image support. Both screens are shared with Pro.
 - **Folder system**: create, open, rename, delete and **move** notes and folders (item menu → "Move to…").
   A navigation drawer shows the whole folder tree so you can jump straight to any folder.
 - **Editor**: raw markdown editing with a toggle to a rendered preview (Markwon: tables, strikethrough,

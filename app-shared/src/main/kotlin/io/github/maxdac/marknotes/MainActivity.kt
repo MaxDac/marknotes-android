@@ -18,10 +18,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalView
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.window.Dialog
 import androidx.compose.ui.window.DialogProperties
@@ -34,17 +39,22 @@ import androidx.lifecycle.repeatOnLifecycle
 import androidx.navigation.NavType
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
+import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
 import io.github.maxdac.marknotes.core.sync.DriveProvider
 import io.github.maxdac.marknotes.data.ThemeMode
 import io.github.maxdac.marknotes.security.DeviceAuth
+import io.github.maxdac.marknotes.shared.R
 import io.github.maxdac.marknotes.sync.connections
 import io.github.maxdac.marknotes.ui.MarkNotesTheme
 import io.github.maxdac.marknotes.ui.NoteScreen
 import io.github.maxdac.marknotes.ui.browser.BrowserScreen
 import io.github.maxdac.marknotes.ui.conflicts.ConflictsScreen
 import io.github.maxdac.marknotes.ui.drives.AddDriveScreen
+import io.github.maxdac.marknotes.ui.help.GettingStartedHost
+import io.github.maxdac.marknotes.ui.help.HelpScreen
+import io.github.maxdac.marknotes.ui.help.MarkdownHelpScreen
 import io.github.maxdac.marknotes.ui.importing.ImportScreen
 import io.github.maxdac.marknotes.ui.importing.SharedContent
 import io.github.maxdac.marknotes.ui.lock.LockScreen
@@ -101,7 +111,7 @@ class MainActivity : ComponentActivity() {
                 Box(Modifier.fillMaxSize()) {
                     // Kept composed while locked, so unlocking returns to the same screen.
                     Box(if (locked) Modifier.clearAndSetSemantics {} else Modifier) {
-                        MarkNotesNavHost(sharedContent, shareRequests, onFinish = ::finish)
+                        MarkNotesNavHost(sharedContent, shareRequests, unlocked = !locked, onFinish = ::finish)
                     }
                     if (locked) LockDialog(dark = dark, error = error)
                 }
@@ -240,6 +250,8 @@ object Routes {
     const val CONFLICTS = "conflicts"
     const val ADD_DRIVE = "add_drive"
     const val IMPORT = "import"
+    const val HELP = "help"
+    const val MARKDOWN_HELP = "help/markdown"
 
     fun browser(path: String) = "browser?path=${Uri.encode(path)}"
     fun editor(path: String) = "editor?path=${Uri.encode(path)}"
@@ -250,9 +262,15 @@ object Routes {
 private fun MarkNotesNavHost(
     sharedContent: StateFlow<SharedContent?>,
     shareRequests: StateFlow<Int>,
+    unlocked: Boolean,
     onFinish: () -> Unit
 ) {
     val navController = rememberNavController()
+    val container = LocalContext.current.appContainer
+    val backStackEntry by navController.currentBackStackEntryAsState()
+    val guideConsumed by container.settings.gettingStartedConsumed.collectAsStateWithLifecycle()
+    var replayGuide by rememberSaveable { mutableStateOf(false) }
+    var handledShare by rememberSaveable { mutableIntStateOf(0) }
     val pathArg = listOf(
         navArgument("path") {
             type = NavType.StringType
@@ -265,9 +283,17 @@ private fun MarkNotesNavHost(
             // A new share replaces an import screen that is still open.
             navController.popBackStack(Routes.IMPORT, inclusive = true)
             navController.navigate(Routes.IMPORT)
+            handledShare = shareRequest
         }
     }
-    NavHost(navController = navController, startDestination = Routes.BROWSER) {
+    val guideDestination = backStackEntry?.destination?.route in setOf(Routes.BROWSER, Routes.HELP)
+    val guidePending = (!guideConsumed || replayGuide) &&
+        (guideDestination || backStackEntry == null) && shareRequest <= handledShare
+    NavHost(
+        navController = navController,
+        startDestination = Routes.BROWSER,
+        modifier = if (guidePending) Modifier.clearAndSetSemantics {} else Modifier
+    ) {
         composable(Routes.BROWSER, arguments = pathArg) { entry ->
             BrowserScreen(
                 folder = entry.arguments?.getString("path").orEmpty(),
@@ -301,6 +327,7 @@ private fun MarkNotesNavHost(
                 onAddDrive = { navController.navigate(Routes.ADD_DRIVE) },
                 onOpenConflicts = { navController.navigate(Routes.CONFLICTS) },
                 onBack = { navController.navigateUp() },
+                onOpenHelp = { navController.navigate(Routes.HELP) },
                 // Editors of deleted notes must not stay open: back to the (now empty) note list.
                 onLocalDataDeleted = {
                     navController.popBackStack(navController.graph.startDestinationId, inclusive = false)
@@ -345,5 +372,28 @@ private fun MarkNotesNavHost(
                 )
             }
         }
+        composable(Routes.HELP) {
+            HelpScreen(
+                onReplay = { replayGuide = true },
+                onMarkdown = { navController.navigate(Routes.MARKDOWN_HELP) },
+                onBack = { navController.navigateUp() }
+            )
+        }
+        composable(Routes.MARKDOWN_HELP) {
+            MarkdownHelpScreen(onBack = { navController.navigateUp() })
+        }
     }
+    val providers = container.connectors.values.filter { it.unavailableReason == null }
+        .joinToString(", ") { it.provider.displayName }
+        .ifEmpty { stringResource(R.string.guide_no_providers) }
+    GettingStartedHost(
+        settings = container.settings,
+        replay = replayGuide,
+        onReplayFinished = { replayGuide = false },
+        unlocked = unlocked,
+        safeDestination = guideDestination,
+        pendingShare = shareRequest > handledShare,
+        providers = providers,
+        onMarkdown = { navController.navigate(Routes.MARKDOWN_HELP) }
+    )
 }

@@ -108,7 +108,8 @@ fun SettingsScreen(
     onOpenConflicts: () -> Unit,
     onBack: () -> Unit,
     onLocalDataDeleted: () -> Unit = onBack,
-    syncManager: SyncManager = LocalContext.current.appContainer.syncManager
+    syncManager: SyncManager = LocalContext.current.appContainer.syncManager,
+    onOpenHelp: (() -> Unit)? = null
 ) {
     val container = LocalContext.current.appContainer
     val state by syncManager.state.collectAsStateWithLifecycle()
@@ -140,6 +141,11 @@ fun SettingsScreen(
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
             AppearanceSection(container.settings)
+
+            if (onOpenHelp != null) {
+                HorizontalDivider()
+                TextButton(onClick = onOpenHelp) { Text(stringResource(R.string.help_title)) }
+            }
 
             HorizontalDivider()
             ChordSequencesSection(container.settings)

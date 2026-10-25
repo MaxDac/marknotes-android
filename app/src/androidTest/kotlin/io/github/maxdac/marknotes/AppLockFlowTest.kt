@@ -45,6 +45,7 @@ class AppLockFlowTest {
 
     @Before
     fun setUp() {
+        container.settings.setGettingStartedConsumed(true)
         notesDir.deleteRecursively()
         reset()
     }
