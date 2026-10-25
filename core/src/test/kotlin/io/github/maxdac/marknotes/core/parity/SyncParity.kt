@@ -11,6 +11,7 @@ import io.github.maxdac.marknotes.sync.ManifestEntry
 import io.github.maxdac.marknotes.sync.ReconcileInput
 import io.github.maxdac.marknotes.sync.ReconcileOutcome
 import io.github.maxdac.marknotes.sync.RemoteEntry
+import io.github.maxdac.marknotes.sync.RemoteFolderDeletion
 import io.github.maxdac.marknotes.sync.Side
 import io.github.maxdac.marknotes.sync.SyncInput
 import io.github.maxdac.marknotes.sync.SyncRecord
@@ -115,7 +116,8 @@ object SyncParity {
         o.str("remoteVersion"),
         o.str("localHash"),
         o.long("syncedAt"),
-        o["localDeleted"]?.jsonPrimitive?.boolean ?: false
+        o["localDeleted"]?.jsonPrimitive?.boolean ?: false,
+        o["remoteFolderPreserved"]?.jsonPrimitive?.boolean ?: false
     )
 
     private fun planJson(i: JsonObject): JsonElement {
@@ -126,7 +128,12 @@ object SyncParity {
             },
             remote = i.getValue("remote").jsonArray.map { remote(it.jsonObject) },
             records = i.getValue("records").jsonArray.map { record(it.jsonObject) },
-            manifest = i.strOrNull("manifest")
+            manifest = i.strOrNull("manifest"),
+            remoteFolderDeletion = when (val value = i.strOrNull("remoteFolderDeletion")) {
+                null, "atomicEmptyOnly" -> RemoteFolderDeletion.ATOMIC_EMPTY_ONLY
+                "unsupported" -> RemoteFolderDeletion.UNSUPPORTED
+                else -> error("Unknown remoteFolderDeletion: $value")
+            }
         )
         return buildJsonObject { put("actions", JsonArray(plan(input).actions.map(::actionJson))) }
     }
@@ -234,6 +241,8 @@ object SyncParity {
             }
 
             is Action.Forget -> action("forget", a.path)
+
+            is Action.PreserveRemoteFolder -> action("preserveRemoteFolder", a.path, a.remote)
 
             is Action.UploadNew -> action("uploadNew", a.path)
 

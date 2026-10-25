@@ -172,11 +172,13 @@ class SyncEngine(
             val remoteEntries = remote.snapshot()
             knownPaths += localEntries.map { it.path } + remoteEntries.map { it.path }
             rememberLocalDeletions(localEntries, metadata)
+            retireReplacedFolders(remoteEntries)
             val input = SyncInput(
                 local = localEntries,
                 remote = remoteEntries.map { it.toCore() },
                 records = metadata.all().map { it.toCore() },
-                manifest = manifest
+                manifest = manifest,
+                remoteFolderDeletion = remote.remoteFolderDeletion
             )
             for (action in plan(input).actions) {
                 if (blockedPaths.none { it == action.path || NotePaths.isAncestor(it, action.path) }) {
@@ -184,6 +186,25 @@ class SyncEngine(
                 }
                 if (renamed) break
             }
+        }
+
+        /**
+         * A folder recreated locally whose drive folder now has another identity than the one it had when its
+         * deferred removal ended: the old descendant history must not authorize anything in the new folder.
+         * [remoteEntries] is a complete listing (see [RemoteDriveStore.snapshot]).
+         */
+        private suspend fun retireReplacedFolders(remoteEntries: List<RemoteEntry>) {
+            for ((path, oldId) in metadata.recreatedFolderIdentities()) {
+                if (remoteEntries.any { it.path == path && it.isFolder && it.id != oldId }) {
+                    retireDescendants(path)
+                }
+            }
+        }
+
+        /** Base copies live outside [metadata]: retire them first, so a failed commit can't leave them behind. */
+        private suspend fun retireDescendants(path: String) {
+            base.delete(path)
+            metadata.retireFolderDescendants(path)
         }
 
         private suspend fun readManifest(): String? = try {
@@ -213,23 +234,15 @@ class SyncEngine(
 
                 is Action.Forget -> forget(action.path)
 
-                is Action.UploadNew -> {
-                    val modifiedMillis = local.modifiedMillis(action.path)
-                    val bytes = local.readBytes(action.path)
-                    recordFile(action.path, remote.uploadNew(action.path, bytes, modifiedMillis), bytes)
-                    uploaded++
+                // The drive can't remove the folder safely: keep it and ask the user once (not a deletion).
+                is Action.PreserveRemoteFolder -> {
+                    if (!unchanged(action.path)) return
+                    metadata.preserveFolder(action.path, action.remote.id)
                 }
 
-                is Action.UploadRevision -> {
-                    val modifiedMillis = local.modifiedMillis(action.path)
-                    val bytes = local.readBytes(action.path)
-                    recordFile(
-                        action.path,
-                        remote.uploadRevision(action.remote.toApp(), bytes, modifiedMillis),
-                        bytes
-                    )
-                    uploaded++
-                }
+                is Action.UploadNew -> upload(action.path, null)
+
+                is Action.UploadRevision -> upload(action.path, action.remote.toApp())
 
                 is Action.Download -> download(action.path, action.remote.toApp())
 
@@ -289,6 +302,18 @@ class SyncEngine(
             renames.put(PendingRename(action.path, action.toPath, false, action.remote.toApp(), null))
             recoverRenames()
             renamed = true
+        }
+
+        private suspend fun upload(path: String, revisionOf: RemoteEntry?) {
+            val modifiedMillis = local.modifiedMillis(path)
+            val bytes = local.readBytes(path)
+            val entry = if (revisionOf == null) {
+                remote.uploadNew(path, bytes, modifiedMillis)
+            } else {
+                remote.uploadRevision(revisionOf, bytes, modifiedMillis)
+            }
+            recordFile(path, entry, bytes)
+            uploaded++
         }
 
         private suspend fun download(path: String, entry: RemoteEntry) {
@@ -517,17 +542,20 @@ class SyncEngine(
             metadata.upsert(SyncRecord(path, false, entry.id, entry.version, hash, clock()))
         }
 
+        /** Records a folder; a new remote identity at its path first retires the old descendants' history. */
         private suspend fun recordFolder(path: String, remoteId: String) {
-            metadata.upsert(SyncRecord(path, true, remoteId, "", "", clock()))
+            val old = metadata.all().firstOrNull { it.path == path }
+            if (old != null && old.isFolder && old.remoteId != remoteId) base.delete(path)
+            metadata.saveFolder(SyncRecord(path, true, remoteId, "", "", clock()))
         }
 
         private suspend fun forget(path: String) {
-            metadata.delete(path)
+            metadata.forget(listOf(path))
             base.delete(path)
         }
 
         private suspend fun forgetTree(folder: String, paths: List<String>) {
-            paths.forEach { metadata.delete(it) }
+            metadata.forget(paths)
             base.delete(folder)
         }
     }
@@ -543,6 +571,7 @@ private val Action.path: String
         is Action.CreateRemoteFolder -> path
         is Action.CreateLocalFolder -> path
         is Action.Forget -> path
+        is Action.PreserveRemoteFolder -> path
         is Action.UploadNew -> path
         is Action.UploadRevision -> path
         is Action.Download -> path
@@ -561,11 +590,12 @@ private fun RemoteEntry.toCore() = CoreRemoteEntry(path, id, isFolder, version, 
 private fun CoreRemoteEntry.toApp() = RemoteEntry(path, id, isFolder, version, modifiedMillis)
 
 internal fun SyncRecord.toCore() = CoreSyncRecord(
-    path,
-    isFolder,
-    remoteId,
-    remoteVersion,
-    localHash,
-    syncedAt,
-    localDeleted
+    path = path,
+    isFolder = isFolder,
+    remoteId = remoteId,
+    remoteVersion = remoteVersion,
+    localHash = localHash,
+    syncedAt = syncedAt,
+    localDeleted = localDeleted,
+    remoteFolderPreserved = remoteFolderPreserved
 )

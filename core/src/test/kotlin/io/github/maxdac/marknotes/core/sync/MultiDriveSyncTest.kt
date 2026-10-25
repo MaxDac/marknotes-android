@@ -3,8 +3,10 @@ package io.github.maxdac.marknotes.core.sync
 import io.github.maxdac.marknotes.core.diagnostics.DiagnosticCode
 import io.github.maxdac.marknotes.core.diagnostics.DiagnosticReporter
 import io.github.maxdac.marknotes.core.notes.LocalNoteStore
+import io.github.maxdac.marknotes.sync.RemoteFolderDeletion
 import java.io.File
 import java.nio.file.Files
+import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.test.runTest
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -199,5 +201,82 @@ class MultiDriveSyncTest {
         assertEquals("offline", result.outcomes.first().error)
         assertEquals(listOf(DiagnosticCode.SYNC), codes)
         assertEquals("x", driveB.content("n.md"))
+    }
+
+    private suspend fun notices(index: Int) = targets[index].metadata.folderNotices()
+
+    @Test
+    fun eachDriveThatCantRemoveAFolderGetsItsOwnNoticeAndTheOtherDeletesIt() = runTest {
+        driveB.remoteFolderDeletion = RemoteFolderDeletion.UNSUPPORTED
+        local.createFolder("Old")
+        syncAll()
+        local.delete("Old")
+
+        val result = syncAll()
+
+        assertFalse(driveA.exists("Old"))
+        assertTrue(driveB.isFolder("Old"))
+        assertEquals(1, result.outcomes.sumOf { it.result!!.deletedRemote })
+        assertTrue(notices(0).isEmpty())
+        assertTrue(notices(1).single().pending)
+        assertTrue(targets[1].metadata.all().single().remoteFolderPreserved)
+        syncAll()
+        assertFalse(local.exists("Old"))
+        assertEquals(1, notices(1).size)
+    }
+
+    @Test
+    fun noticeGenerationsAreUniqueAcrossDrives() = runTest {
+        val generations = AtomicLong()
+        targets = listOf(
+            DriveSyncTarget("a", driveA, InMemorySyncMetadataStore(generations), InMemoryBaseContentStore()),
+            DriveSyncTarget("b", driveB, InMemorySyncMetadataStore(generations), InMemoryBaseContentStore())
+        )
+        driveA.remoteFolderDeletion = RemoteFolderDeletion.UNSUPPORTED
+        driveB.remoteFolderDeletion = RemoteFolderDeletion.UNSUPPORTED
+        local.createFolder("Old")
+        syncAll()
+        local.delete("Old")
+
+        syncAll()
+
+        val a = notices(0).single()
+        val b = notices(1).single()
+        assertTrue(a.pending && b.pending)
+        assertTrue(a.generation != b.generation)
+        targets[1].metadata.clear()
+        assertEquals(listOf(a), notices(0))
+    }
+
+    @Test
+    fun localRecreationEndsTheDeferredRemovalOnEveryDriveBeforeAnyIsPlanned() = runTest {
+        driveA.remoteFolderDeletion = RemoteFolderDeletion.UNSUPPORTED
+        driveB.remoteFolderDeletion = RemoteFolderDeletion.UNSUPPORTED
+        local.createFolder("Old")
+        syncAll()
+        local.delete("Old")
+        syncAll()
+        val ids = listOf(driveA.entry("Old")!!.id, driveB.entry("Old")!!.id)
+        // Drive B lost the folder meanwhile: it must be created again, not deleted locally by A's stale history.
+        driveB.remove("Old")
+        local.createFolder("Old")
+
+        syncAll()
+
+        assertTrue(local.isFolder("Old"))
+        assertEquals(ids[0], driveA.entry("Old")!!.id)
+        assertTrue(driveB.isFolder("Old"))
+        for (target in targets) {
+            val record = target.metadata.all().single()
+            assertFalse(record.remoteFolderPreserved)
+            assertTrue(target.metadata.folderNotices().none { it.active })
+            assertTrue(target.metadata.recreatedFolderIdentities().isEmpty())
+        }
+        local.delete("Old")
+        syncAll()
+        for (index in targets.indices) {
+            assertEquals(1, notices(index).count { it.pending })
+            assertEquals(2, notices(index).map { it.generation }.toSet().size)
+        }
     }
 }

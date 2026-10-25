@@ -116,6 +116,7 @@ private class HookedRemote(private val drive: FakeRemoteDriveStore, private val 
     }
 }
 
+@Suppress("TooManyFunctions")
 private class HookedMetadata(private val store: SyncMetadataStore, private val hooks: Hooks) : SyncMetadataStore {
     override suspend fun all() = hooks.around("metadata.all", "") { store.all() }
 
@@ -129,6 +130,28 @@ private class HookedMetadata(private val store: SyncMetadataStore, private val h
         hooks.around("metadata.rename", path) { store.rename(path, toPath) }
 
     override suspend fun clear() = hooks.around("metadata.clear", "") { store.clear() }
+
+    override suspend fun folderNotices() = hooks.around("metadata.folderNotices", "") { store.folderNotices() }
+
+    override suspend fun recreatedFolderIdentities() =
+        hooks.around("metadata.recreatedFolderIdentities", "") { store.recreatedFolderIdentities() }
+
+    override suspend fun preserveFolder(path: String, remoteId: String) =
+        hooks.around("metadata.preserveFolder", path) { store.preserveFolder(path, remoteId) }
+
+    override suspend fun retireRecreatedFolders(paths: List<String>) =
+        hooks.around("metadata.retireRecreatedFolders", "") { store.retireRecreatedFolders(paths) }
+
+    override suspend fun saveFolder(record: SyncRecord) =
+        hooks.around("metadata.saveFolder", record.path) { store.saveFolder(record) }
+
+    override suspend fun retireFolderDescendants(path: String) =
+        hooks.around("metadata.retireFolderDescendants", path) { store.retireFolderDescendants(path) }
+
+    override suspend fun forget(paths: List<String>) = hooks.around("metadata.forget", "") { store.forget(paths) }
+
+    override suspend fun acknowledgeFolderNotice(generation: Long) =
+        hooks.around("metadata.acknowledgeFolderNotice", "") { store.acknowledgeFolderNotice(generation) }
 }
 
 private class HookedBase(private val store: BaseContentStore, private val hooks: Hooks) : BaseContentStore {
