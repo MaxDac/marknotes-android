@@ -94,6 +94,7 @@ dependencies {
     debugImplementation(libs.androidx.compose.ui.tooling)
 
     testImplementation(libs.junit)
+    testImplementation(libs.kotlinx.coroutines.test)
     // marknotes-spec fixture loader (core/src/testFixtures).
     testImplementation(testFixtures(project(":core")))
     androidTestImplementation(libs.androidx.test.ext.junit)

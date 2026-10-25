@@ -17,8 +17,16 @@ class DriveSyncTarget(
     val renames: RenameStore = InMemoryRenameStore()
 )
 
-/** Outcome of syncing one drive: the last [SyncResult], or the [error] that stopped it. */
-data class DriveSyncOutcome(val driveId: String, val result: SyncResult?, val error: String?)
+/**
+ * Outcome of syncing one drive: the last [SyncResult], or the [error] that stopped it, with the exception itself as
+ * [failure] so callers can tell temporary network failures from permanent ones.
+ */
+data class DriveSyncOutcome(
+    val driveId: String,
+    val result: SyncResult?,
+    val error: String?,
+    val failure: Exception? = null
+)
 
 /**
  * [outcomes] holds the last pass of each drive; [conflicts] the conflicted copies made by every pass.
@@ -66,7 +74,7 @@ class MultiDriveSync(
                     throw e
                 } catch (e: Exception) {
                     diagnostics.report(DiagnosticCode.SYNC, e)
-                    DriveSyncOutcome(driveId, null, e.message ?: e.javaClass.simpleName)
+                    DriveSyncOutcome(driveId, null, e.message ?: e.javaClass.simpleName, e)
                 }
                 outcomes[driveId] = outcome
                 conflicts += outcome.result?.conflicts.orEmpty()

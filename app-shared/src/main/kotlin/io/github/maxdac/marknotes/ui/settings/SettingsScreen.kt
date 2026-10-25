@@ -85,6 +85,7 @@ import kotlinx.coroutines.withContext
 
 const val NO_DRIVES_TEXT = "No drives connected. Notes are only stored on this device."
 const val CHORD_SEQUENCES_SWITCH_TAG = "chord-sequences-switch"
+const val SYNC_ON_RECONNECT_SWITCH_TAG = "sync-on-reconnect-switch"
 const val DELETE_ALL_LOCAL_DATA_TEXT = "Delete all local data"
 const val DELETE_LOCAL_NOTES_TEXT = "Also delete the notes stored on this device"
 const val TURN_ON_APP_LOCK_TEXT = "Turn on app lock"
@@ -146,6 +147,7 @@ fun SettingsScreen(
             if (state.conflicts.isNotEmpty()) {
                 Button(onClick = onOpenConflicts) { Text("Resolve ${state.conflicts.size} conflict(s)") }
             }
+            SyncOnReconnectSection(container.settings, syncManager)
 
             HorizontalDivider()
             ImagesSection(container, enabled = !state.running)
@@ -167,8 +169,9 @@ fun SettingsScreen(
                 Text(notice, style = MaterialTheme.typography.bodyMedium)
             }
             Text(
-                "MarkNotes is free software (GPL-3.0-or-later). Sync happens on app launch and when you tap " +
-                    "\"Sync now\"; there is no background polling.",
+                "MarkNotes is free software (GPL-3.0-or-later). Sync happens on app launch, when you tap " +
+                    "\"Sync now\" and, if you turn it on, when the network comes back while the app is open; " +
+                    "there is no background polling.",
                 style = MaterialTheme.typography.bodySmall
             )
             TipSection()
@@ -264,6 +267,30 @@ private fun AppearanceSection(settings: AppSettings) {
             ColorSwatch(option, selected = option == color) { settings.setThemeColor(option) }
         }
     }
+}
+
+@Composable
+private fun SyncOnReconnectSection(settings: AppSettings, syncManager: SyncManager) {
+    val enabled by settings.syncOnReconnect.collectAsStateWithLifecycle()
+    val status by syncManager.reconnectStatus.collectAsStateWithLifecycle()
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .toggleable(value = enabled, role = Role.Switch, onValueChange = settings::setSyncOnReconnect)
+            .testTag(SYNC_ON_RECONNECT_SWITCH_TAG),
+        verticalAlignment = Alignment.CenterVertically
+    ) {
+        Column(Modifier.weight(1f)) {
+            Text("Sync when reconnected", style = MaterialTheme.typography.bodyLarge)
+            Text(
+                "Off by default. When the network comes back, syncs while the app is open and unlocked; " +
+                    "temporary failures retry after 5, 15 and 30 seconds. Never syncs while the app is closed.",
+                style = MaterialTheme.typography.bodySmall
+            )
+        }
+        Switch(checked = enabled, onCheckedChange = null, modifier = Modifier.padding(start = 12.dp))
+    }
+    status?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
 }
 
 @Composable

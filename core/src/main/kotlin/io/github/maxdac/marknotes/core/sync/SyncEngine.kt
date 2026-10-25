@@ -49,7 +49,9 @@ data class SyncResult(
     val createdLocalFolders: Int = 0,
     /** Steps skipped because the local file changed while the sync ran; the next sync picks them up. */
     val skipped: Int = 0,
-    val renamedLocal: Int = 0
+    val renamedLocal: Int = 0,
+    /** The exceptions behind [errors] that came from a store, so callers can tell temporary failures apart. */
+    val failures: List<Exception> = emptyList()
 ) {
     /**
      * Number of changes made to the local note tree (created folders and conflicted copies included), which other
@@ -110,6 +112,7 @@ class SyncEngine(
         private var renamedLocal = 0
         private val conflicts = mutableListOf<SyncConflict>()
         private val errors = mutableListOf<String>()
+        private val failures = mutableListOf<Exception>()
         private val modified = HashMap<String, Long>()
         private val knownPaths = HashSet<String>()
         private val blockedPaths = HashSet<String>()
@@ -148,7 +151,8 @@ class SyncEngine(
                 merged,
                 createdLocalFolders,
                 skipped,
-                renamedLocal
+                renamedLocal,
+                failures.toList()
             )
         }
 
@@ -499,6 +503,7 @@ class SyncEngine(
             } catch (e: Exception) {
                 diagnostics.report(DiagnosticCode.SYNC, e)
                 errors += "$path: ${e.message ?: e.javaClass.simpleName}"
+                failures += e
             }
         }
 

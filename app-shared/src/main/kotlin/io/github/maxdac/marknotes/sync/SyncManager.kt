@@ -1,6 +1,7 @@
 package io.github.maxdac.marknotes.sync
 
 import android.content.Context
+import android.os.SystemClock
 import io.github.maxdac.marknotes.core.diagnostics.DiagnosticCode
 import io.github.maxdac.marknotes.core.diagnostics.DiagnosticReporter
 import io.github.maxdac.marknotes.core.notes.LocalNoteStore
@@ -56,8 +57,9 @@ data class SyncState(
 }
 
 /**
- * Keeps the local notes in sync with every connected drive. Sync is only triggered on app launch and on
- * demand: no background or periodic polling. Editors' pending saves are written first ([beforeSync]), and the
+ * Keeps the local notes in sync with every connected drive. Sync is only triggered on app launch, on demand and,
+ * with "Sync when reconnected" on, when the network comes back while the app is open ([reconnect]): no background
+ * or periodic polling. Editors' pending saves are written first ([beforeSync]), and the
  * conflicts waiting for the merge-back UI are kept across restarts.
  */
 class SyncManager(
@@ -87,6 +89,15 @@ class SyncManager(
 
     private val _state = MutableStateFlow(SyncState(message = settings.lastSyncSummary.ifBlank { null }))
     val state: StateFlow<SyncState> = _state
+
+    /**
+     * The optional "Sync when reconnected" scheduler. `MainActivity` feeds it the network and the foreground,
+     * [AppContainer][io.github.maxdac.marknotes.AppContainer] the setting and the app lock.
+     */
+    internal val reconnect = ReconnectSync(scope, SystemClock::elapsedRealtime, ::syncOnReconnect)
+
+    /** What the reconnect sync is doing, or why it stopped; shown in Settings. */
+    val reconnectStatus: StateFlow<String?> get() = reconnect.status
 
     init {
         scope.launch {
@@ -252,6 +263,8 @@ class SyncManager(
     }
 
     fun syncNow() {
+        // Like on the web, a manual sync replaces a pending reconnect sync.
+        reconnect.cancel()
         if (_state.value.running) return
         scope.launch { runSync() }
     }
@@ -324,16 +337,25 @@ class SyncManager(
         syncLocked()
     }
 
-    private suspend fun syncLocked(): Unit = mutex.withLock {
+    /** One automatic reconnect sync: the same sync as "Sync now", telling [reconnect] whether to retry. */
+    internal suspend fun syncOnReconnect(): ReconnectResult {
+        migrated.await()
+        // The setting may have been turned off while the attempt waited.
+        if (!settings.syncOnReconnect.value) return ReconnectResult.Stop
+        return syncLocked()
+    }
+
+    private suspend fun syncLocked(): ReconnectResult = mutex.withLock {
         beforeSync()
         val drives = accounts.all().mapNotNull { it.toAccount() }.filter { it.provider in connectors }
         if (drives.isEmpty()) {
             _state.update { it.copy(message = "Add a drive in Settings to sync", conflicts = emptyList()) }
-            return@withLock
+            return@withLock ReconnectResult.Stop
         }
         _state.update { it.copy(running = true, message = "Syncing…") }
         try {
             val messages = linkedMapOf<String, String>()
+            val failures = mutableListOf<Exception>()
             val targets = drives.mapNotNull { account ->
                 try {
                     target(account)
@@ -342,6 +364,7 @@ class SyncManager(
                 } catch (e: Exception) {
                     diagnostics.report(DiagnosticCode.SYNC, e)
                     messages[account.id] = describe(e)
+                    failures += e
                     null
                 }
             }
@@ -363,11 +386,13 @@ class SyncManager(
                 it.copy(message = summary, conflicts = (pending + result.conflicts).distinctBy { c -> c.copyPath })
             }
             onLocalChanged()
+            result.reconnectResult(failures)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             diagnostics.report(DiagnosticCode.SYNC, e)
             _state.update { it.copy(message = "Sync failed: ${describe(e)}") }
+            e.reconnectResult()
         } finally {
             _state.update { it.copy(running = false) }
         }

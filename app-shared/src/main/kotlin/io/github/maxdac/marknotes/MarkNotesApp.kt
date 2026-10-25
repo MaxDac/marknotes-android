@@ -29,6 +29,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.launch
 
 /**
  * The Application of both builds: the libre app (Dropbox only) and MarkNotes Pro, which adds its providers
@@ -144,6 +146,14 @@ class AppContainer(
         },
         diagnostics = diagnostics
     )
+
+    init {
+        appScope.launch {
+            combine(settings.syncOnReconnect, appLock.locked, ::Pair).collect { (enabled, locked) ->
+                syncManager.reconnect.update(enabled = enabled, unlocked = !locked)
+            }
+        }
+    }
 }
 
 val Context.appContainer: AppContainer
