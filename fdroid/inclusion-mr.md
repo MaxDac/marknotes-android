@@ -10,8 +10,8 @@ the MR description and in sync with the recipe and the latest release: reviewers
 
 **Title**: `New app: MarkNotes`
 
-**Posting status**: The v0.1.6 description below is ready for the maintainer to paste. The live MR description
-still refers to v0.1.5; verify the public API after posting.
+**Posting status**: The maintainer posted the v0.1.6 description. Verified through the public API on
+2026-10-25: the live description matches the block below, and the fork pipeline passed.
 
 **Files** (nothing else): `metadata/io.github.maxdac.marknotes.libre.yml`, a copy of `.fdroid.yml` with
 `commit: vX.Y.Z` replaced by the tag's full commit hash (`git rev-parse "vX.Y.Z^{commit}"`).

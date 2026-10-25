@@ -11,7 +11,7 @@ pitfalls. Delete it with the other inclusion-only docs in
 
 | What | Value |
 | --- | --- |
-| MR | Open. Metadata is updated to v0.1.6; the live description still says v0.1.5. The prepared description in `fdroid/inclusion-mr.md` needs the maintainer to paste it |
+| MR | Open, no labels or reviewer comments. Metadata and live description are updated to v0.1.6; the public API confirms the description matches `fdroid/inclusion-mr.md` |
 | Fork branch head | `ca389100d076e0567328cb03ce6be252d0ecd179`: one commit, `New app: MarkNotes`, same parent `25d23ee7ce82bd09c71f6579cd3ca2e7e7fb9117`; no rebase |
 | Fork pipeline | [2987009671](https://gitlab.com/MaxDac/fdroiddata/-/pipelines/2987009671): all 9 jobs passed |
 | `fdroid build` job | [17451134534](https://gitlab.com/MaxDac/fdroiddata/-/jobs/17451134534): "compared built binary to supplied reference binary successfully", unchanged allowed signer `ffafda02…70e4` |
