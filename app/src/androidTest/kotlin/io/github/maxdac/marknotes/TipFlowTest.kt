@@ -42,6 +42,7 @@ class TipFlowTest {
 
     @Before
     fun setUp() {
+        context.appContainer.settings.setGettingStartedConsumed(true)
         scenario = ActivityScenario.launch(MainActivity::class.java)
     }
 
