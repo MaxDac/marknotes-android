@@ -12,7 +12,7 @@ import io.noties.markwon.image.destination.ImageDestinationProcessor
 import java.io.File
 
 /** No note-supplied URI is ever passed to a general-purpose file, content or network loader. */
-internal class AttachmentImagesPlugin(private val notesRoot: File) : AbstractMarkwonPlugin() {
+internal class AttachmentImagesPlugin(private val notesRoot: File?) : AbstractMarkwonPlugin() {
     override fun configure(registry: MarkwonPlugin.Registry) {
         registry.require(ImagesPlugin::class.java) { plugin ->
             plugin.removeSchemeHandler("http")
@@ -23,7 +23,7 @@ internal class AttachmentImagesPlugin(private val notesRoot: File) : AbstractMar
 
                     override fun handle(raw: String, uri: Uri): ImageItem {
                         val destination = raw.removePrefix("$SCHEME:")
-                        val file = requireNotNull(Attachments.previewFile(notesRoot, destination)) {
+                        val file = requireNotNull(notesRoot?.let { Attachments.previewFile(it, destination) }) {
                             "Blocked image: only canonical note attachments can be previewed"
                         }
                         return ImageItem.withDecodingNeeded(

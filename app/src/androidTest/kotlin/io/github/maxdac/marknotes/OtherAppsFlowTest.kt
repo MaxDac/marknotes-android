@@ -49,6 +49,7 @@ class OtherAppsFlowTest {
 
     @Before
     fun setUp() {
+        context.appContainer.settings.setGettingStartedConsumed(true)
         scenario = ActivityScenario.launch(MainActivity::class.java)
     }
 
@@ -62,6 +63,7 @@ class OtherAppsFlowTest {
         assertEquals(MarkNotesEdition.Libre, context.appContainer.edition)
         assertEquals(expected.keys.toList(), MarkNotesPeer.others(context.appContainer.edition).map { it.label })
         showSettings { }
+        compose.onNodeWithText("Help").assertDoesNotExist()
         expected.keys.forEach { compose.onNodeWithText(it).performScrollTo().assertIsDisplayed() }
         compose.onNodeWithText(MarkNotesPeer.AndroidLibre.label).assertDoesNotExist()
     }
