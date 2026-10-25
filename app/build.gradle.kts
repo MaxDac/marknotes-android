@@ -13,8 +13,8 @@ android {
         minSdk = 29
         targetSdk = 36
         // Set by the "Prepare release" workflow (versionCode = X*10000 + Y*100 + Z); F-Droid reads these literals.
-        versionCode = 105
-        versionName = "0.1.5"
+        versionCode = 106
+        versionName = "0.1.6"
         testInstrumentationRunner = if (
             providers.gradleProperty("marknotes.releaseSmoke").map(String::toBooleanStrict).getOrElse(false)
         ) {

@@ -1,0 +1,1 @@
+Smaller APKs with R8 code optimization and resource shrinking.
