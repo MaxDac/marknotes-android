@@ -16,7 +16,7 @@ typealias SignInScreen = @Composable (onDone: () -> Unit, onBack: () -> Unit) ->
 
 /**
  * Signs in to a cloud provider and creates [RemoteDriveStore]s for its accounts. The libre app ships the
- * Dropbox connector; MarkNotes Pro adds its own through [io.github.maxdac.marknotes.MarkNotesApp.extraConnectors].
+ * Dropbox connector; MarkNotes Plus adds its own through [io.github.maxdac.marknotes.MarkNotesApp.extraConnectors].
  */
 interface DriveConnector {
     val provider: DriveProvider

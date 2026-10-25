@@ -155,12 +155,12 @@ private fun GuideStage(
     }
     HelpHeading(stringResource(title))
     when (step) {
-        0 -> Text(stringResource(R.string.guide_local_body))
+        0 -> Text(stringResource(R.string.guide_local_body, stringResource(R.string.app_name)))
 
         1 -> {
             Highlight(stringResource(R.string.guide_new_highlight), stringResource(R.string.guide_new_body))
             Highlight(stringResource(R.string.guide_folders_highlight), stringResource(R.string.guide_folders_body))
-            Text(stringResource(R.string.guide_import_body))
+            Text(stringResource(R.string.guide_import_body, stringResource(R.string.app_name)))
         }
 
         2 -> {

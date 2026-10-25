@@ -34,7 +34,7 @@ class MarkNotesPeerTest {
         assertEquals(
             listOf(
                 "MarkNotes for Android (F-Droid)",
-                "MarkNotes Pro for Android (GitHub Releases)",
+                "MarkNotes Plus for Android (GitHub Releases)",
                 "MarkNotes Desktop (GitHub Releases)",
                 "MarkNotes Web"
             ),

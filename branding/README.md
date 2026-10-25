@@ -26,3 +26,18 @@ used for the Gradle build):
 ```sh
 java branding/GenerateIcons.java
 ```
+
+The generator takes optional positional arguments, `[brandingDir [resDir [baseName]]]`, defaulting to
+`branding`, `app-shared/src/main/res` and `marknotes` (so the command above is unchanged). It reads
+`<brandingDir>/<baseName>-icon.svg`, `-mark.svg` and `-monochrome.svg`, writes
+`<brandingDir>/png/<baseName>-icon-512.png` and `-1024.png`, and writes the Android resources above into
+`<resDir>`. The Android resource names stay fixed, so another app's resources override the shared ones. Each
+generated file's header names the generator path as launched and the source SVG relative to the working
+directory. MarkNotes Plus, which has this repo as its `libre/` submodule, regenerates its own icon from its
+repository root with:
+
+```sh
+java libre/branding/GenerateIcons.java branding app/src/main/res marknotes-plus
+```
+
+`java branding/GenerateIcons.java --help` prints the usage.

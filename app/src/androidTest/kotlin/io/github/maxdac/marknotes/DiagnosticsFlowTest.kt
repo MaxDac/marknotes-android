@@ -16,7 +16,7 @@ import androidx.test.core.app.ActivityScenario
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import io.github.maxdac.marknotes.core.diagnostics.DiagnosticCode
-import io.github.maxdac.marknotes.ui.lock.LOCKED_TITLE
+import io.github.maxdac.marknotes.ui.lock.lockedTitle
 import java.io.File
 import java.io.FileNotFoundException
 import java.io.IOException
@@ -128,7 +128,7 @@ class DiagnosticsFlowTest {
             container.settings.setAppLockEnabled(true)
             container.appLock.lock()
         }
-        compose.onNodeWithText(LOCKED_TITLE).assertExists()
+        compose.onNodeWithText(lockedTitle(context)).assertExists()
         compose.onNodeWithText("Open draft in browser").assertDoesNotExist()
     }
 

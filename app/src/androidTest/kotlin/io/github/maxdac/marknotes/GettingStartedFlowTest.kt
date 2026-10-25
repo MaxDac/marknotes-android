@@ -118,7 +118,9 @@ class GettingStartedFlowTest {
         waitForGuide()
         next()
         next()
-        compose.onNodeWithTag(DEMO_EDITOR_TAG).assertTextContains(context.getString(R.string.guide_demo_source))
+        compose.onNodeWithTag(
+            DEMO_EDITOR_TAG
+        ).assertTextContains(context.getString(R.string.guide_demo_source, context.getString(R.string.app_name)))
         assertEquals(before, snapshot())
     }
 
@@ -145,7 +147,9 @@ class GettingStartedFlowTest {
             container.appLock.onEnabledChanged()
         }
         waitForGuide()
-        compose.onNodeWithTag(DEMO_EDITOR_TAG).assertTextContains(context.getString(R.string.guide_demo_source))
+        compose.onNodeWithTag(
+            DEMO_EDITOR_TAG
+        ).assertTextContains(context.getString(R.string.guide_demo_source, context.getString(R.string.app_name)))
         Espresso.pressBack()
         assertTrue(settings.gettingStartedConsumed.value)
     }
