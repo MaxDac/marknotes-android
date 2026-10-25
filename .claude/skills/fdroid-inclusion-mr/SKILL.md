@@ -22,6 +22,7 @@ This skill is temporary: once the MR is merged, implement
 | Upstream copy of the recipe | `.fdroid.yml` here: the same content, but with `commit: vX.Y.Z` instead of the full hash |
 | MR description (live copy) | `fdroid/inclusion-mr.md`, the fenced `markdown` block. It must match the MR exactly |
 | Background, reproducibility, reviewer expectations | `docs/fdroid.md` |
+| State at handover, history, FPInk lessons, pitfalls | `fdroid/review-handover.md` |
 | A similar MR that reviewers accepted (same author) | [fdroid/fdroiddata!50122](https://gitlab.com/fdroid/fdroiddata/-/merge_requests/50122) (FPInk) |
 
 ## Access and limits
