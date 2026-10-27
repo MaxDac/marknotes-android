@@ -2,6 +2,7 @@ package io.github.maxdac.marknotes
 
 import android.content.Intent
 import android.graphics.Color
+import android.graphics.drawable.ColorDrawable
 import android.net.ConnectivityManager
 import android.net.Uri
 import android.os.Bundle
@@ -11,9 +12,11 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
@@ -101,6 +104,7 @@ class MainActivity : ComponentActivity() {
             LaunchedEffect(dark) {
                 val style = SystemBarStyle.auto(Color.TRANSPARENT, Color.TRANSPARENT) { dark }
                 enableEdgeToEdge(statusBarStyle = style, navigationBarStyle = style)
+                window.setBackgroundDrawable(ColorDrawable(if (dark) DARK_WINDOW else LIGHT_WINDOW))
             }
             MarkNotesTheme(mode = mode, color = color) {
                 val focusManager = LocalFocusManager.current
@@ -245,6 +249,10 @@ class MainActivity : ComponentActivity() {
 const val APP_LOCK_TURNED_OFF_TEXT = "The app lock was turned off because this device no longer has a screen lock."
 private const val MIN_IDLE_CHECK_MILLIS = 1_000L
 
+// Window background behind the Compose content, matching the theme surfaces so nothing flashes white.
+private const val DARK_WINDOW = 0xFF141218.toInt()
+private const val LIGHT_WINDOW = 0xFFFEF7FF.toInt()
+
 object Routes {
     const val BROWSER = "browser?path={path}"
     const val EDITOR = "editor?path={path}"
@@ -295,7 +303,10 @@ private fun MarkNotesNavHost(
     NavHost(
         navController = navController,
         startDestination = Routes.BROWSER,
-        modifier = if (guidePending) Modifier.clearAndSetSemantics {} else Modifier
+        // Opaque themed backdrop, so screen transitions never show the window behind (white in dark mode).
+        modifier = Modifier
+            .background(MaterialTheme.colorScheme.background)
+            .then(if (guidePending) Modifier.clearAndSetSemantics {} else Modifier)
     ) {
         composable(Routes.BROWSER, arguments = pathArg) { entry ->
             BrowserScreen(

@@ -68,6 +68,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -133,9 +134,9 @@ fun BrowserScreen(
     ModalNavigationDrawer(
         drawerState = drawerState,
         drawerContent = {
-            // A closed drawer stays composed; skip its items so they don't duplicate the list in semantics.
+            // A closed drawer stays composed; hide its items from semantics so they don't duplicate the list.
             val showTree = drawerState.isOpen || drawerState.isAnimationRunning
-            FolderDrawer(if (showTree) sortedFolders else null, current = folder) { target ->
+            FolderDrawer(sortedFolders, current = folder, inSemantics = showTree) { target ->
                 scope.launch { drawerState.close() }
                 if (target != folder) onJumpToFolder(target)
             }
@@ -438,11 +439,12 @@ private fun BrowserDialogs(
 
 /** Folder tree; folders are collapsed except the ancestors of [current]. */
 @Composable
-private fun FolderDrawer(folders: List<String>?, current: String, onSelect: (String) -> Unit) {
-    if (folders == null) {
-        ModalDrawerSheet { }
-        return
-    }
+private fun FolderDrawer(
+    folders: List<String>,
+    current: String,
+    inSemantics: Boolean,
+    onSelect: (String) -> Unit
+) {
     var expanded by rememberSaveable(current) {
         mutableStateOf(generateSequence(current.ifEmpty { null }) { NotePaths.parent(it).ifEmpty { null } }.toSet())
     }
@@ -451,7 +453,7 @@ private fun FolderDrawer(folders: List<String>?, current: String, onSelect: (Str
         generateSequence(NotePaths.parent(path)) { if (it.isEmpty()) null else NotePaths.parent(it) }
             .all { it.isEmpty() || it in expanded }
     }
-    ModalDrawerSheet {
+    ModalDrawerSheet(modifier = if (inSemantics) Modifier else Modifier.clearAndSetSemantics {}) {
         Text("Folders", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(16.dp))
         LazyColumn {
             item {
