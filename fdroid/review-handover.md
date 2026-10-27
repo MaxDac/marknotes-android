@@ -7,17 +7,17 @@ and the live MR description in `fdroid/inclusion-mr.md`. This file adds the stat
 pitfalls. Delete it with the other inclusion-only docs in
 [#21](https://github.com/MaxDac/marknotes-android/issues/21) once the MR is merged.
 
-## State at handover (2026-10-25)
+## State at handover (2026-10-27)
 
 | What | Value |
 | --- | --- |
-| MR | Open, no labels or reviewer comments. Metadata and live description are updated to v0.1.6; the public API confirms the description matches `fdroid/inclusion-mr.md` |
-| Fork branch head | `ca389100d076e0567328cb03ce6be252d0ecd179`: one commit, `New app: MarkNotes`, same parent `25d23ee7ce82bd09c71f6579cd3ca2e7e7fb9117`; no rebase |
-| Fork pipeline | [2987009671](https://gitlab.com/MaxDac/fdroiddata/-/pipelines/2987009671): all 9 jobs passed |
-| `fdroid build` job | [17451134534](https://gitlab.com/MaxDac/fdroiddata/-/jobs/17451134534): "compared built binary to supplied reference binary successfully", unchanged allowed signer `ffafda02…70e4` |
-| Release in the MR metadata | [v0.1.6](https://github.com/MaxDac/marknotes-android/releases/tag/v0.1.6), commit `db4eb433300476c6777919fdc6a903822c747252`, versionCode 106 |
-| Release APK | `marknotes-libre-0.1.6.apk`, SHA-256 `7056829d6727a75f92142abb787c948ad18c9e04395ce9e8e73cf59984ddaa66`, 8,276,017 bytes (8.28 MB) |
-| Release workflow | [40222414142](https://github.com/MaxDac/marknotes-android/actions/runs/40222414142): all release gates, signature pinning and signed/unsigned comparison passed |
+| MR | Open, no labels or reviewer comments. Metadata and live description are updated to v0.1.7; the public API confirms the description matches `fdroid/inclusion-mr.md` |
+| Fork branch head | `440cdaa3e8`: one commit, `New app: MarkNotes`, same parent `25d23ee7ce82bd09c71f6579cd3ca2e7e7fb9117`; no rebase |
+| Fork pipeline | [2994097941](https://gitlab.com/MaxDac/fdroiddata/-/pipelines/2994097941): all 9 jobs passed |
+| `fdroid build` job | [17501534283](https://gitlab.com/MaxDac/fdroiddata/-/jobs/17501534283): "compared built binary to supplied reference binary successfully", unchanged allowed signer `ffafda02…70e4` |
+| Release in the MR metadata | [v0.1.7](https://github.com/MaxDac/marknotes-android/releases/tag/v0.1.7), commit `e77e9c2ba65269f0b98d36d3c24766617871ec74`, versionCode 107 |
+| Release APK | `marknotes-libre-0.1.7.apk`, SHA-256 `d4dd120b3c696cc5b9634c9504c7f225fc75318c873ae08de3cfc9394f20c360`, 8,279,673 bytes (8.28 MB) |
+| Release workflow | [40494238120](https://github.com/MaxDac/marknotes-android/actions/runs/40494238120): all release gates, signature pinning and signed/unsigned comparison passed |
 | Quality report | Missing-R8 warning replaced with an informational full-mode release R8 marker; required permissions and metadata/signing/ABI entries remain explained |
 | Signing certificate | SHA-256 `ffafda02fa9af06b1927095c8d843ae862173512d4cdaca09bbaaef84d1d70e4` (`AllowedAPKSigningKeys`, repo variable `RELEASE_CERT_SHA256`). It must never change |
 | Permissions | `INTERNET`, `ACCESS_NETWORK_STATE`, `USE_BIOMETRIC`, plus AndroidX's `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`. Checks / F-Droid build fails on anything else |

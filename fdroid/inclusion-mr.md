@@ -10,8 +10,8 @@ the MR description and in sync with the recipe and the latest release: reviewers
 
 **Title**: `New app: MarkNotes`
 
-**Posting status**: The maintainer posted the v0.1.6 description. Verified through the public API on
-2026-10-25: the live description matches the block below, and the fork pipeline passed.
+**Posting status**: The v0.1.7 description below is ready to post; the fork pipeline passed on 2026-10-27.
+The previous (v0.1.6) description was posted by the maintainer.
 
 **Files** (nothing else): `metadata/io.github.maxdac.marknotes.libre.yml`, a copy of `.fdroid.yml` with
 `commit: vX.Y.Z` replaced by the tag's full commit hash (`git rev-parse "vX.Y.Z^{commit}"`).
@@ -24,7 +24,7 @@ the MR description and in sync with the recipe and the latest release: reviewers
 MarkNotes (`io.github.maxdac.marknotes.libre`) is an offline-first Markdown notes app. Notes are plain `.md` files in folders, with note links, images, chord sheets and a rendered preview. Optional Dropbox sync shares the same notes folder with the MarkNotes desktop and web apps.
 
 * Upstream: https://github.com/MaxDac/marknotes-android (GPL-3.0-or-later). I am the upstream author.
-* Release: [`v0.1.6`](https://github.com/MaxDac/marknotes-android/releases/tag/v0.1.6), commit `db4eb433300476c6777919fdc6a903822c747252`, versionCode 106.
+* Release: [`v0.1.7`](https://github.com/MaxDac/marknotes-android/releases/tag/v0.1.7), commit `e77e9c2ba65269f0b98d36d3c24766617871ec74`, versionCode 107.
 * Fastlane metadata (en-US title, summary, description, icon, screenshots, changelogs) lives upstream in `fastlane/metadata/android/en-US/`.
 * Anti-features: NonFreeNet. Sync is optional and uses Dropbox (OAuth PKCE, no client secret), only at start-up, on *Sync now* or, if the user turns it on, when the network comes back. There is no tracking, analytics, ads or Google Play Services. Error diagnostics stay on the device unless the user reviews a report and sends it themselves.
 * Permissions: `INTERNET` (Dropbox sync), `ACCESS_NETWORK_STATE` (the opt-in *Sync when reconnected*) and `USE_BIOMETRIC` (optional app lock), plus AndroidX's own `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`. Upstream CI fails if the APK requests anything else.
@@ -44,7 +44,7 @@ MarkNotes (`io.github.maxdac.marknotes.libre`) is an offline-first Markdown note
 ### Validation
 
 * `fdroid lint` and `fdroid rewritemeta` produce no changes.
-* All nine jobs in the fork pipeline pass: https://gitlab.com/MaxDac/fdroiddata/-/pipelines/2987009671. `fdroid build` ([job](https://gitlab.com/MaxDac/fdroiddata/-/jobs/17451134534)) builds versionCode 106 from `db4eb433300476c6777919fdc6a903822c747252` and reports "compared built binary to supplied reference binary successfully".
+* All nine jobs in the fork pipeline pass: https://gitlab.com/MaxDac/fdroiddata/-/pipelines/2994097941. `fdroid build` ([job](https://gitlab.com/MaxDac/fdroiddata/-/jobs/17501534283)) builds versionCode 107 from `e77e9c2ba65269f0b98d36d3c24766617871ec74` and reports "compared built binary to supplied reference binary successfully".
 * The quality report now confirms a full-mode release R8 marker instead of warning that R8 is missing. The remaining permission entries are required for the features explained above; the Fastlane metadata, reproducible-build APK, signing key, ABI/size and R8-marker entries are informational.
 
 ## Checklist
