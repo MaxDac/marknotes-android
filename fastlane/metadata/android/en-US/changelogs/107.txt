@@ -1,0 +1,1 @@
+Smoother folder drawer opening. No more white flashes between screens in dark mode.
