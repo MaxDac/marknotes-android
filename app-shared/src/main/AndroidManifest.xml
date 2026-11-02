@@ -35,19 +35,6 @@
             </intent-filter>
         </activity>
 
-        <!-- Dropbox OAuth (PKCE) redirect; apps set the dropboxAppKey manifest placeholder. -->
-        <activity
-            android:name="com.dropbox.core.android.AuthActivity"
-            android:configChanges="orientation|keyboard"
-            android:exported="true"
-            android:launchMode="singleTask">
-            <intent-filter>
-                <data android:scheme="db-${dropboxAppKey}" />
-                <action android:name="android.intent.action.VIEW" />
-                <category android:name="android.intent.category.BROWSABLE" />
-                <category android:name="android.intent.category.DEFAULT" />
-            </intent-filter>
-        </activity>
 
         <!-- Shares camera capture files (cache/camera) with the camera app. -->
         <provider

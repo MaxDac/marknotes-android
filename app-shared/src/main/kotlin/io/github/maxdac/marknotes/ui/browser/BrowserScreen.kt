@@ -175,8 +175,10 @@ fun BrowserScreen(
                         IconButton(onClick = { dialog = BrowserDialog.NewFolder }) {
                             Icon(Icons.Filled.CreateNewFolder, contentDescription = "New folder")
                         }
-                        IconButton(onClick = vm::sync, enabled = !sync.running && sync.hasDrives) {
-                            Icon(Icons.Filled.Sync, contentDescription = "Sync now")
+                        if (container.syncManager.providers.isNotEmpty()) {
+                            IconButton(onClick = vm::sync, enabled = !sync.running && sync.hasDrives) {
+                                Icon(Icons.Filled.Sync, contentDescription = "Sync now")
+                            }
                         }
                         IconButton(onClick = onOpenSettings) {
                             Icon(Icons.Filled.Settings, contentDescription = "Settings")

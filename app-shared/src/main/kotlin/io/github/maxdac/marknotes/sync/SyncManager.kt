@@ -415,6 +415,10 @@ class SyncManager(
         return syncLocked()
     }
 
+    /** Asks every connector whether it recognises [failure] as temporary; see [DriveConnector.retryBackoffMillis]. */
+    private fun classifyFailure(failure: Exception): Long? =
+        connectors.values.mapNotNull { it.retryBackoffMillis(failure) }.maxOrNull()
+
     private suspend fun syncLocked(): ReconnectResult = mutex.withLock {
         beforeSync()
         val drives = accounts.all().mapNotNull { it.toAccount() }.filter { it.provider in connectors }
@@ -456,13 +460,13 @@ class SyncManager(
                 it.copy(message = summary, conflicts = (pending + result.conflicts).distinctBy { c -> c.copyPath })
             }
             onLocalChanged()
-            result.reconnectResult(failures)
+            result.reconnectResult(failures, ::classifyFailure)
         } catch (e: CancellationException) {
             throw e
         } catch (e: Exception) {
             diagnostics.report(DiagnosticCode.SYNC, e)
             _state.update { it.copy(message = "Sync failed: ${describe(e)}") }
-            e.reconnectResult()
+            e.reconnectResult(::classifyFailure)
         } finally {
             _state.update { it.copy(running = false) }
         }

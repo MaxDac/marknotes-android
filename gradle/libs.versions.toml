@@ -16,7 +16,6 @@ markwon = "4.6.2"
 jsoup = "1.23.2"
 pdfboxAndroid = "2.0.27.0"
 prism4j = "2.0.0"
-dropbox = "8.0.2"
 # Shared sync core (https://github.com/MaxDac/marknotes-sync); the Kotlin bindings need JNA.
 marknotesSync = "0.4.1"
 jna = "5.19.1"
@@ -29,12 +28,11 @@ ktlint = "1.8.0"
 detekt = "1.23.8"
 # Only on the build classpath (AGP and plugins pull it in); pinned above their transitive version for security fixes.
 bouncycastle = "1.86"
-# Dropbox SDK's transitive jackson-core 2.15 has GHSA-r7wm-3cxj-wff9 and GHSA-7hhh-6rmp-j9qf.
-jackson = "2.22.4"
 # Vulnerable transitive build-tool dependencies (AGP's bundletool/jetifier, prism4j-bundler), not shipped.
 commons-io = "2.22.0"
 jose4j = "0.9.7"
 jdom2 = "2.0.6.1"
+guava = "33.7.2-jre"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -65,7 +63,6 @@ jsoup = { group = "org.jsoup", name = "jsoup", version.ref = "jsoup" }
 pdfbox-android = { group = "com.tom-roush", name = "pdfbox-android", version.ref = "pdfboxAndroid" }
 prism4j = { group = "io.noties", name = "prism4j", version.ref = "prism4j" }
 prism4j-bundler = { group = "io.noties", name = "prism4j-bundler", version.ref = "prism4j" }
-dropbox-android = { group = "com.dropbox.core", name = "dropbox-android-sdk", version.ref = "dropbox" }
 marknotes-sync-kotlin = { group = "io.github.maxdac.marknotes", name = "marknotes-sync-kotlin", version.ref = "marknotesSync" }
 marknotes-sync-natives = { group = "io.github.maxdac.marknotes", name = "marknotes-sync-natives", version.ref = "marknotesSync" }
 marknotes-sync-android = { group = "io.github.maxdac.marknotes", name = "marknotes-sync-android", version.ref = "marknotesSync" }
@@ -83,10 +80,10 @@ bouncycastle-bcutil = { group = "org.bouncycastle", name = "bcutil-jdk18on", ver
 bouncycastle-bcprov-jdk15to18 = { group = "org.bouncycastle", name = "bcprov-jdk15to18", version.ref = "bouncycastle" }
 bouncycastle-bcpkix-jdk15to18 = { group = "org.bouncycastle", name = "bcpkix-jdk15to18", version.ref = "bouncycastle" }
 bouncycastle-bcutil-jdk15to18 = { group = "org.bouncycastle", name = "bcutil-jdk15to18", version.ref = "bouncycastle" }
-jackson-core = { group = "com.fasterxml.jackson.core", name = "jackson-core", version.ref = "jackson" }
 commons-io = { group = "commons-io", name = "commons-io", version.ref = "commons-io" }
 jose4j = { group = "org.bitbucket.b_c", name = "jose4j", version.ref = "jose4j" }
 jdom2 = { group = "org.jdom", name = "jdom2", version.ref = "jdom2" }
+guava = { group = "com.google.guava", name = "guava", version.ref = "guava" }
 kotlin-gradle-plugin = { group = "org.jetbrains.kotlin", name = "kotlin-gradle-plugin", version.ref = "kotlin" }
 
 [plugins]

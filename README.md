@@ -1,6 +1,7 @@
 # MarkNotes
 
-Simple Android markdown notes app with folders, offline-first, and optional two-way sync with Dropbox.
+Simple Android markdown notes app with folders, offline-first. This libre edition has no cloud sync; sync with Dropbox, OneDrive and Proton Drive is in
+[MarkNotes Plus](https://github.com/MaxDac/MarkNotes).
 
 This is the libre build of MarkNotes, published on [F-Droid](https://f-droid.org/packages/io.github.maxdac.marknotes.libre/)
 and on [GitHub Releases](https://github.com/MaxDac/marknotes-android/releases): free software only, built from source,
@@ -48,44 +49,16 @@ submodule) with OneDrive and Proton Drive sync added, released on GitHub only. T
   asks whether to turn it on; the setting never changes your notes.
 - **Appearance** (Settings): theme **System** (default), **Light** or **Dark**, and an accent colour chosen
   from 8 palettes or **Dynamic** (Material You, Android 12+).
-- **Dropbox two-way sync** (optional): connect Dropbox accounts (Settings → Add drive), browse to a folder and
-  optionally create a root folder inside it (default `MarkNotes`):
-  - **Reconnect** on a drive card signs in to the same Dropbox account again, for example after its sign-in
-    expired or was revoked, without removing the drive: its folder, options, sync history and base copies are
-    kept. Signing in to a different account, cancelling or a failed sign-in leaves the drive as it was. Drives
-    connected by an older version save their account identity at their next successful sync; if one's sign-in
-    expired before that, its account can't be verified, so disconnect it and add it again;
-  - sync runs on app launch and when you tap **Sync now**; there is no background or periodic polling.
-    **Sync when reconnected** (Settings, off by default) also syncs when the network comes back while the app
-    is open and unlocked (after 2 seconds, retrying temporary failures after 5, 15 and 30 seconds); it needs the
-    `ACCESS_NETWORK_STATE` permission and never syncs while the app is closed;
-  - only folders, `.md` files and images under `attachments/` are synced, plus a small manifest at
-    `.marknotes/manifest.json` on the drive;
-  - edits made on both sides are merged line by line (a three-way merge against the last synced version).
-    When edits overlap, the newest version is kept and the other is saved next to it as
-    `name (conflicted copy).md`; the **Sync conflicts** screen merges a copy back. The copy keeps the losing
-    version's edit time, and a durable per-drive journal reuses its verified note ID after an interrupted sync;
-  - new files and planned folders never replace or adopt a destination created by another device. Unchanged,
-    record-backed remote case-only renames update the stale local spelling. Dropbox does not support a direct
-    case-only remote move, so the opposite direction reports an explicit unsupported-operation error instead
-    of attempting an unsafe temporary rename. Ambiguous or edited case collisions remain errors;
-  - local case renames use kernel-enforced no-replace operations (Linux/Android `renameat2`, or an opened-file
-    Windows rename), never a Java existence-check followed by a replacing move. Unsupported kernels/filesystems
-    fail explicitly without moving anything. New local sync files/copies are privately staged with their exact
-    edit time and flushed before kernel no-replace publication, so a partial copy is never mistaken for an edit;
-  - folder removal never recursively deletes unseen entries. Dropbox has no atomic empty-only deletion API,
-    so remote folder removal reports an explicit error and keeps its sync record for retry; known files are
-    still deleted conditionally. Local sync folder removal is nonrecursive, including for hidden files;
-  - the sync algorithm is the shared Rust core [marknotes-sync](https://github.com/MaxDac/marknotes-sync), also
-    used by the desktop and web apps. Dropbox sign-in uses the official Dropbox SDK (OAuth 2 PKCE); tokens are
-    stored encrypted with an Android Keystore AES-GCM key.
+- **No cloud sync**: the notes stay on this device as plain `.md` files, so you can back them up or copy them
+  yourself. Two-way sync (Dropbox, OneDrive, Proton Drive) with the same note format and the shared Rust sync core
+  [marknotes-sync](https://github.com/MaxDac/marknotes-sync) is in [MarkNotes Plus](https://github.com/MaxDac/MarkNotes),
+  which builds on this repo's `:core` and `:app-shared` modules. Versions before 0.2.0 shipped Dropbox sync here.
 - **Delete local data** (Settings → Privacy): **Delete all local data** disconnects every drive, then deletes the
   notes, images, sync state and cached files stored on this device. When you disconnect the last drive you can
   also tick **Also delete the notes stored on this device**. Nothing is ever deleted from a drive: the deletion is
   local only and is not synced.
 
-Dropbox is a proprietary network service, so F-Droid marks the app with the *NonFreeNet* anti-feature. Without a
-Dropbox account the app is fully local.
+The app is fully local and every dependency is free software, so it has no anti-features.
 
 ### Security and privacy
 
@@ -108,7 +81,7 @@ Dropbox account the app is fully local.
   app supports) encrypts it with file-based encryption tied to your screen lock. The app doesn't add its own note
   encryption on top: the notes stay plain files that the sync core and the other MarkNotes apps read, and a lost
   Keystore key would make them unreadable.
-- App data is excluded from Android backups and device transfers, so notes and Dropbox tokens don't leave the
+- App data is excluded from Android backups and device transfers, so notes and any cloud tokens (MarkNotes Plus) don't leave the
   device that way.
 - The preview never loads remote images: it only shows image files stored on the device.
 - Optional **app lock** (Settings → Privacy, off by default): opening MarkNotes asks for your fingerprint or face,
@@ -151,8 +124,8 @@ the external website under its own terms and privacy policy.
 | Module | What it contains |
 | --- | --- |
 | `:core` | Pure Kotlin/JVM: local note store, sync engine (single and multi-drive) executing the plans of the shared [marknotes-sync](https://github.com/MaxDac/marknotes-sync) core, `RemoteDriveStore` interface. Fully unit tested. |
-| `:app-shared` | Android library with the whole app: Jetpack Compose + Material 3, Navigation Compose, MVVM with `StateFlow`, Room, manual DI, the Dropbox store and sign-in. Providers plug in through `DriveConnector`; MarkNotes Plus adds OneDrive and Proton Drive this way. |
-| `:app` | The libre application (`io.github.maxdac.marknotes.libre`): `LibreApp` with the Dropbox connector. |
+| `:app-shared` | Android library with the whole app: Jetpack Compose + Material 3, Navigation Compose, MVVM with `StateFlow`, Room, manual DI. Providers plug in through `DriveConnector`; MarkNotes Plus adds OneDrive and Proton Drive this way. |
+| `:app` | The libre application (`io.github.maxdac.marknotes.libre`): `LibreApp`, which adds no connector (offline only). |
 
 ## Build
 
@@ -188,10 +161,6 @@ Run `scripts/build-sync-from-source.sh` in Git Bash, then `.\gradlew.bat` for th
 The source prerequisite packages the matching host library as well as both Android ABIs; an empty native
 JAR/AAR is not a usable substitute.
 
-The Dropbox app key is committed in `app/build.gradle.kts` (it is public by design: PKCE, no secret). To use your
-own Dropbox app, pass `-Pmarknotes.dropboxAppKey=<key>` or set it in `~/.gradle/gradle.properties`; create the app
-in the [Dropbox App Console](https://www.dropbox.com/developers/apps) with "Full Dropbox" access and the scopes
-`account_info.read`, `files.metadata.read`, `files.content.read` and `files.content.write`.
 
 ### Building from source, like F-Droid
 

@@ -199,8 +199,12 @@ private fun GuideStage(
         }
 
         3 -> {
-            Text(stringResource(R.string.guide_drives_body))
-            Text(stringResource(R.string.guide_providers, providers))
+            if (providers.isBlank()) {
+                Text(stringResource(R.string.guide_drives_body_offline))
+            } else {
+                Text(stringResource(R.string.guide_drives_body))
+                Text(stringResource(R.string.guide_providers, providers))
+            }
         }
 
         else -> Text(stringResource(R.string.guide_help_body))

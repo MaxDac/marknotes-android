@@ -1,7 +1,7 @@
 # AGENTS.md
 
 Canonical instructions for coding agents (Claude Code, GitHub Copilot, others) working on **MarkNotes for
-Android, libre build** (`io.github.maxdac.marknotes.libre`): Dropbox sync only, every dependency free software,
+Android, libre build** (`io.github.maxdac.marknotes.libre`): offline only (no sync provider), every dependency free software,
 published on F-Droid and GitHub Releases. `CLAUDE.md` and `.github/copilot-instructions.md` point here; keep agent
 guidance in this file.
 
@@ -12,8 +12,8 @@ behaviour must stay identical across them (see [Cross-app parity](#cross-app-par
 
 | Repo | What | Stack |
 | --- | --- | --- |
-| [MaxDac/marknotes-android](https://github.com/MaxDac/marknotes-android) | This repo: Android app, libre build (Dropbox), on F-Droid | Kotlin, Gradle, Jetpack Compose |
-| [MaxDac/MarkNotes](https://github.com/MaxDac/MarkNotes) | MarkNotes Plus (called "Pro" in code and these docs): this repo as the `libre/` submodule plus OneDrive and Proton Drive, GitHub releases only | Kotlin, Gradle |
+| [MaxDac/marknotes-android](https://github.com/MaxDac/marknotes-android) | This repo: Android app, libre build (offline only), on F-Droid | Kotlin, Gradle, Jetpack Compose |
+| [MaxDac/MarkNotes](https://github.com/MaxDac/MarkNotes) | MarkNotes Plus (called "Pro" in code and these docs): this repo as the `libre/` submodule plus Dropbox, OneDrive and Proton Drive, GitHub releases only | Kotlin, Gradle |
 | [MaxDac/marknotes-electron](https://github.com/MaxDac/marknotes-electron) | Desktop app (Windows, macOS, Linux) | Electron, TypeScript, CodeMirror |
 | [MaxDac/marknotes-web](https://github.com/MaxDac/marknotes-web) | Web app | Phoenix (Elixir), TypeScript assets |
 | [MaxDac/marknotes-sync](https://github.com/MaxDac/marknotes-sync) | Shared Rust sync core with UniFFI Kotlin bindings | Rust |
@@ -27,11 +27,11 @@ code with `gh` without cloning, for example
 ### This repo inside MarkNotes Pro
 
 MaxDac/MarkNotes includes this repo as a submodule and builds `:core` and `:app-shared` from it, adding its own
-`:app` (OneDrive, Proton Drive) through the `DriveConnector` extension points in `app-shared/.../sync/DriveConnector.kt`
+`:app` (Dropbox, OneDrive, Proton Drive) through the `DriveConnector` extension points in `app-shared/.../sync/DriveConnector.kt`
 and `MarkNotesApp`. So:
 
 - keep `:core` and `:app-shared` provider-neutral and free of non-free code; provider-specific code goes in a
-  `DriveConnector` (Dropbox lives in `:app-shared` because both apps ship it);
+  `DriveConnector` (Dropbox, OneDrive and Proton Drive live in MarkNotes Pro; this repo ships no provider);
 - changing a public API of `:core` or `:app-shared` (`DriveConnector`, `MarkNotesApp`, `AppContainer`, ...) breaks
   MarkNotes Pro until it bumps the submodule and adapts: say so in the PR and follow up there;
 - dependencies both apps use go in `gradle/libs.versions.toml` here; MarkNotes Pro reads this catalog as `libs`.
@@ -69,8 +69,8 @@ Gradle graph), **actionlint** and **CodeQL**. Required checks and review-thread 
 | Module | Contents |
 | --- | --- |
 | `:core` | Pure Kotlin/JVM, no Android APIs. `notes/` (`LocalNoteStore`, `FrontMatter` note IDs, `NoteIndex` and note links, `NotePaths`, `Attachments`, `ChordSequence`), `sync/` (`SyncEngine`, `MultiDriveSync`, `ConflictMergeBack`, `Hashing`, `RemoteDriveStore` interface). The sync algorithm itself (planning, three-way merge, conflicted copies, manifest, drive scheduling) comes from the shared Rust core [marknotes-sync](https://github.com/MaxDac/marknotes-sync) through its UniFFI Kotlin binding; `SyncEngine` only executes its plan against the local tree and a `RemoteDriveStore`. All format and sync logic lives here and is unit tested. |
-| `:app-shared` | Android library with the app: Compose + Material 3, Navigation Compose, MVVM with `StateFlow`, Room (drive accounts, sync metadata), manual DI (`AppContainer`), `DriveConnector` extension points, Dropbox store and sign-in, encrypted token storage. |
-| `:app` | The libre application: `LibreApp` (Dropbox connector only), manifest, instrumented tests. |
+| `:app-shared` | Android library with the app: Compose + Material 3, Navigation Compose, MVVM with `StateFlow`, Room (drive accounts, sync metadata), manual DI (`AppContainer`), `DriveConnector` extension points (no provider ships here), encrypted token storage. |
+| `:app` | The libre application: `LibreApp` (no connector, offline only), manifest, instrumented tests. |
 
 The sync engine only talks to `RemoteDriveStore`; changes to the sync algorithm go in marknotes-sync (with the spec), not here; tests use the in-memory `FakeRemoteDriveStore`. Put new
 format, sync, link or attachment logic in `:core` so it can be tested on the JVM and against spec fixtures.
@@ -85,9 +85,10 @@ format, sync, link or attachment logic in `:core` so it can be tested on the JVM
   consume local outputs. `python3 scripts/sync-contract.py` checks catalog/gitlink/metadata offline.
   Run `python3 scripts/test-sync-pin.py` and `python3 scripts/test-sync-verification.py` for plumbing changes.
   Pro owns separate root settings/metadata but applies this repo's shared settings helper; see the dependency map.
-- Sync changes need `SyncEngineTest`/`MultiDriveSyncTest` coverage; UI changes need an emulator run.
-- Never commit secrets, keystores or `local.properties`. The Dropbox app key in `app/build.gradle.kts` is public by
-  design (PKCE) and committed on purpose, so F-Droid can build a working app.
+- Sync changes need `SyncEngineTest`/`MultiDriveSyncTest` coverage; UI changes need an emulator run (the CI job, or WayDroid locally: see
+  [docs/waydroid.md](docs/waydroid.md) and `.claude/skills/waydroid-test/SKILL.md`).
+- Never commit secrets, keystores or `local.properties`. This app ships no cloud provider and no provider keys; those
+  live in MarkNotes Pro.
 - Fill in the PR template, including **Parity impact**.
 
 ## F-Droid
@@ -97,7 +98,7 @@ F-Droid builds the app from source with the recipe in [`.fdroid.yml`](.fdroid.ym
 
 - **Free software only**: no Google Play Services, Firebase, proprietary SDKs or analytics, and every Maven
   repository must be a free one F-Droid trusts (Google, Maven Central, Gradle Plugin Portal). The Checks / F-Droid
-  build job runs `fdroid scanner` on the APK. Dropbox is a non-free network service: the *NonFreeNet* anti-feature.
+  build job runs `fdroid scanner` on the APK. This app has no anti-features; a cloud provider (a non-free network service) belongs in MarkNotes Pro, never here.
 - **No prebuilt binaries**: marknotes-sync is built from source from the `marknotes-sync/` git submodule
   (`scripts/build-sync-from-source.sh`, `-Pmarknotes.sync.fromSource=marknotes-sync`); fdroiddata prefers submodules
   to srclibs. Bumping `marknotesSync` in `gradle/libs.versions.toml` needs a marknotes-sync release tag and the

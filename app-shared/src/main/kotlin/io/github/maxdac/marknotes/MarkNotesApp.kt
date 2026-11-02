@@ -19,7 +19,6 @@ import io.github.maxdac.marknotes.data.MarkNotesDatabase
 import io.github.maxdac.marknotes.diagnostics.AndroidDiagnostics
 import io.github.maxdac.marknotes.security.AppLock
 import io.github.maxdac.marknotes.sync.DriveConnector
-import io.github.maxdac.marknotes.sync.DropboxConnector
 import io.github.maxdac.marknotes.sync.PendingSaves
 import io.github.maxdac.marknotes.sync.SyncManager
 import io.github.maxdac.marknotes.ui.editor.ImageImporter
@@ -33,15 +32,12 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 /**
- * The Application of both builds: the libre app (Dropbox only) and MarkNotes Plus, which adds its providers
- * through [extraConnectors].
+ * The Application of both builds: the libre app (offline only, no sync provider) and MarkNotes Plus, which adds
+ * its providers through [extraConnectors].
  */
 abstract class MarkNotesApp : Application() {
     lateinit var container: AppContainer
         private set
-
-    /** The Dropbox app key, also used as the `db-<key>` redirect scheme in the manifest. */
-    protected abstract val dropboxAppKey: String
 
     protected open val issueRepository: String = "MaxDac/marknotes-android"
 
@@ -55,7 +51,7 @@ abstract class MarkNotesApp : Application() {
     internal lateinit var diagnosticBackend: AndroidDiagnostics
         private set
 
-    /** Connectors for the providers this build adds to Dropbox. */
+    /** Connectors for the cloud providers this build offers; none by default (notes stay on the device). */
     protected open fun extraConnectors(context: Context, credentials: CredentialStore): List<DriveConnector> =
         emptyList()
 
@@ -71,14 +67,13 @@ abstract class MarkNotesApp : Application() {
         val diagnostics = AndroidDiagnostics(this, issueRepository)
         diagnosticBackend = diagnostics
         diagnosticReporter = diagnostics
-        container = AppContainer(this, dropboxAppKey, edition, ::extraConnectors) { deleteExtraLocalData(this) }
+        container = AppContainer(this, edition, ::extraConnectors) { deleteExtraLocalData(this) }
     }
 }
 
 /** Manual dependency container shared by the whole app. */
 class AppContainer(
     context: Context,
-    dropboxAppKey: String,
     val edition: MarkNotesEdition,
     extraConnectors: (Context, CredentialStore) -> List<DriveConnector> = { _, _ -> emptyList() },
     deleteExtraLocalData: suspend () -> Unit = {}
@@ -110,12 +105,7 @@ class AppContainer(
 
     /** Every provider this build can connect. */
     val connectors: Map<DriveProvider, DriveConnector> =
-        (
-            listOf(
-                DropboxConnector(credentials, dropboxAppKey, diagnostics)
-            ) + extraConnectors(context.applicationContext, credentials)
-            )
-            .associateBy { it.provider }
+        extraConnectors(context.applicationContext, credentials).associateBy { it.provider }
 
     private val _localRevision = MutableStateFlow(0L)
 

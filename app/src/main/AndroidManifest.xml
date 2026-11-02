@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
-    <!-- MainActivity, the Dropbox redirect and the FileProvider come from :app-shared. -->
+    <!-- MainActivity and the FileProvider come from :app-shared. -->
     <application
         android:name=".LibreApp"
         android:allowBackup="false"

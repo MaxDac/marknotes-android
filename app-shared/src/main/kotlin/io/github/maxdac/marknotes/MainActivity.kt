@@ -399,7 +399,6 @@ private fun MarkNotesNavHost(
     }
     val providers = container.connectors.values.filter { it.unavailableReason == null }
         .joinToString(", ") { it.provider.displayName }
-        .ifEmpty { stringResource(R.string.guide_no_providers) }
     GettingStartedHost(
         settings = container.settings,
         replay = replayGuide,

@@ -39,13 +39,6 @@ kotlin {
     }
 }
 
-// The library manifest keeps ${dropboxAppKey} for the apps to fill in; only this library's own test APK needs a value.
-androidComponents {
-    onVariants { variant ->
-        variant.androidTest?.manifestPlaceholders?.put("dropboxAppKey", "unconfigured")
-    }
-}
-
 dependencies {
     api(project(":core"))
     api(variantOf(libs.marknotes.sync.android) { artifactType("aar") })
@@ -78,7 +71,6 @@ dependencies {
     }
     // Prism4j generates its grammar locator with a javac annotation processor (see CodeGrammars.java).
     annotationProcessor(libs.prism4j.bundler)
-    implementation(libs.dropbox.android)
     // Text extraction from shared PDFs (see ui/importing).
     implementation(libs.pdfbox.android)
     constraints {
@@ -86,10 +78,10 @@ dependencies {
         implementation(libs.bouncycastle.bcprov.jdk15to18)
         implementation(libs.bouncycastle.bcpkix.jdk15to18)
         implementation(libs.bouncycastle.bcutil.jdk15to18)
-        // The Dropbox SDK's jackson-core 2.15 has known vulnerabilities (GHSA-r7wm-3cxj-wff9, GHSA-7hhh-6rmp-j9qf).
-        implementation(libs.jackson.core)
         // prism4j-bundler's commons-io 2.6 (GHSA-78wr-2p64-hpwj, GHSA-gwrp-pvrq-jmwv); compile time only.
         annotationProcessor(libs.commons.io)
+        // prism4j-bundler's Guava 22.0 (GHSA-xxph-c9ww-hj94, fixed in 33.7.2); compile time only.
+        annotationProcessor(libs.guava)
     }
     debugImplementation(libs.androidx.compose.ui.tooling)
 

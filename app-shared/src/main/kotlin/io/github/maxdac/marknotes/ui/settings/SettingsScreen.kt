@@ -150,31 +150,33 @@ fun SettingsScreen(
             HorizontalDivider()
             ChordSequencesSection(container.settings)
 
-            HorizontalDivider()
-            Text("Drives", style = MaterialTheme.typography.titleMedium)
-            if (state.drives.isEmpty()) Text(NO_DRIVES_TEXT)
-            state.drives.forEach { drive ->
-                DriveCard(
-                    drive,
-                    enabled = enabled,
-                    supportsReconnect = syncManager.connector(drive.account.provider).supportsReconnect,
-                    onReconnect = { reconnectModel.start(drive.account, activity) },
-                    onRemove = { removing = drive }
-                )
-            }
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedButton(onClick = onAddDrive, enabled = enabled) { Text("Add drive") }
-                Button(onClick = syncManager::syncNow, enabled = state.hasDrives && enabled) {
-                    Text("Sync now")
+            if (syncManager.providers.isNotEmpty()) {
+                HorizontalDivider()
+                Text("Drives", style = MaterialTheme.typography.titleMedium)
+                if (state.drives.isEmpty()) Text(NO_DRIVES_TEXT)
+                state.drives.forEach { drive ->
+                    DriveCard(
+                        drive,
+                        enabled = enabled,
+                        supportsReconnect = syncManager.connector(drive.account.provider).supportsReconnect,
+                        onReconnect = { reconnectModel.start(drive.account, activity) },
+                        onRemove = { removing = drive }
+                    )
                 }
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    OutlinedButton(onClick = onAddDrive, enabled = enabled) { Text("Add drive") }
+                    Button(onClick = syncManager::syncNow, enabled = state.hasDrives && enabled) {
+                        Text("Sync now")
+                    }
+                }
+                if (state.running) LinearProgressIndicator(Modifier.fillMaxWidth())
+                state.message?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
+                reconnect.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
+                if (state.conflicts.isNotEmpty()) {
+                    Button(onClick = onOpenConflicts) { Text("Resolve ${state.conflicts.size} conflict(s)") }
+                }
+                SyncOnReconnectSection(container.settings, syncManager)
             }
-            if (state.running) LinearProgressIndicator(Modifier.fillMaxWidth())
-            state.message?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
-            reconnect.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-            if (state.conflicts.isNotEmpty()) {
-                Button(onClick = onOpenConflicts) { Text("Resolve ${state.conflicts.size} conflict(s)") }
-            }
-            SyncOnReconnectSection(container.settings, syncManager)
 
             HorizontalDivider()
             ImagesSection(container, enabled = enabled)

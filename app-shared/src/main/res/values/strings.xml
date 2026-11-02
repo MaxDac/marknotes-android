@@ -36,7 +36,7 @@
     <string name="guide_drives_title">Sync only if you want to</string>
     <string name="guide_drives_body">Open Settings → Add drive, sign in, and choose the notes folder. Use the same folder in your other MarkNotes apps.\n\nSync runs on app launch and when you tap Sync now. Optionally enable Sync when reconnected while the app is open and unlocked. There is no background polling. Sync conflicts can be reviewed and resolved in the app.</string>
     <string name="guide_providers">Providers available in this edition: %1$s. No account is connected by this guide.</string>
-    <string name="guide_no_providers">none currently available</string>
+    <string name="guide_drives_body_offline">This edition keeps your notes on this device only and has no sync. They are plain Markdown files, so you can back them up or copy them yourself. MarkNotes Plus adds Dropbox, OneDrive and Proton Drive sync.</string>
     <string name="guide_help_title">Help is always here</string>
     <string name="guide_help_body">Open Settings → Help to replay this guide or read the offline Markdown reference.\n\nSkip, Finish, Close or the Android Back action dismisses the automatic guide for this installation. Closing the app, rotating the device or handling another task does not count as finishing it. You can always replay it from Help.</string>
     <string name="markdown_help_title">Markdown guide</string>

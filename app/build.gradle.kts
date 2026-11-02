@@ -3,7 +3,7 @@ plugins {
     alias(libs.plugins.kotlin.compose)
 }
 
-// The libre build: Dropbox only, every dependency free software, published on F-Droid and GitHub releases.
+// The libre build: offline only (no sync provider), every dependency free software, published on F-Droid and GitHub releases.
 android {
     namespace = "io.github.maxdac.marknotes.libre"
     compileSdk = 37
@@ -26,13 +26,6 @@ android {
         ndk {
             abiFilters += listOf("arm64-v8a", "x86_64")
         }
-
-        // MarkNotes' Dropbox app key. It is public by design (PKCE, no secret) and ships in every APK; committing it
-        // lets F-Droid build a working app from source. -Pmarknotes.dropboxAppKey overrides it for a private app.
-        val dropboxAppKey = providers.gradleProperty("marknotes.dropboxAppKey").orNull?.takeIf { it.isNotBlank() }
-            ?: "sdjefhss3elcfp3"
-        buildConfigField("String", "DROPBOX_APP_KEY", "\"$dropboxAppKey\"")
-        manifestPlaceholders["dropboxAppKey"] = dropboxAppKey
     }
 
     // Release signing is only configured when the keystore env vars are present (set by release.yml).

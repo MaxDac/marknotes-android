@@ -98,7 +98,7 @@ jobs:
           echo "$RELEASE_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.keystore"
           echo "MARKNOTES_KEYSTORE_PATH=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
       - name: Build signed release APK
-        # No -Pmarknotes.dropboxAppKey: F-Droid builds with the committed key, and the APKs must match.
+        # No signing or provider properties beyond the keystore: F-Droid builds from source, and the APKs must match.
         env:
           MARKNOTES_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
           MARKNOTES_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}

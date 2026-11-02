@@ -5,6 +5,7 @@
 - `AGENTS.md` (imported above) is the source of truth; put shared guidance there, not here.
 - This is a Windows-friendly repo: on Windows use `.\gradlew.bat`; Gradle output is long, so pass `-q` or
   `--console=plain` and read the report under `**/build/reports/` when a task fails.
+- Run the app on WayDroid with the `waydroid-test` skill (`docs/waydroid.md`); it stops and asks before any `sudo`.
 - Use `/parity-check <feature>` (`.claude/commands/parity-check.md`) before and after changing anything in
   the cross-app parity areas listed in `AGENTS.md`.
 - Read sibling repos (marknotes-electron, marknotes-web, marknotes-spec) with `gh` rather than cloning them.

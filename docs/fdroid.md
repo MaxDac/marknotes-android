@@ -24,7 +24,7 @@ checking that its own build matches it. The same APK is on F-Droid and GitHub, s
   log timestamps are not APK build inputs. Keep diagnostics out of the notes/sync tree and preserve the narrow,
   non-exported FileProvider grants. The user explicitly consents before opening a GitHub draft (which sends its
   URL payload before submission); local capture/export works offline. This introduces no automatic telemetry
-  and does not change the existing Dropbox `NonFreeNet` anti-feature or source-build recipe.
+  and does not change the source-build recipe.
 - **Licences**: F-Droid only builds free software, including every submodule. This app is GPL-3.0-or-later and
   marknotes-sync is GPL-3.0-or-later from v0.1.2 (its `LICENSE` file); keep both licensed. The `spec/` submodules
   (marknotes-spec, test fixtures only) have no licence, so the recipe deletes them with `rm:` before building.
@@ -147,8 +147,8 @@ To repeat the release smoke check on a **disposable emulator** (the script clear
 bash scripts/test-release-apk.sh app/build/outputs/apk/release/app-release-unsigned.apk
 ```
 
-The inclusion report's remaining permission entries are expected: `INTERNET` enables Dropbox, `ACCESS_NETWORK_STATE`
-supports reconnect sync, `USE_BIOMETRIC` supports optional app lock, and AndroidX's signature-protected
+The inclusion report's remaining permission entries are expected: `INTERNET` and `ACCESS_NETWORK_STATE` come from
+`:app-shared` for the cloud providers of MarkNotes Plus (this app ships none and does not use them), `USE_BIOMETRIC` supports optional app lock, and AndroidX's signature-protected
 `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` protects its receivers. Removing them to silence the report would
 break functionality or platform safeguards. Fastlane listing information, the reproducible reference APK,
 the signing-certificate identity, and ABI/size information are informational, not defects. Preserve both ABIs;
