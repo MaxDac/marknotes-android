@@ -32,6 +32,7 @@ bouncycastle = "1.86"
 commons-io = "2.22.0"
 jose4j = "0.9.7"
 jdom2 = "2.0.6.1"
+guava = "33.7.2-jre"
 
 [libraries]
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
@@ -82,6 +83,7 @@ bouncycastle-bcutil-jdk15to18 = { group = "org.bouncycastle", name = "bcutil-jdk
 commons-io = { group = "commons-io", name = "commons-io", version.ref = "commons-io" }
 jose4j = { group = "org.bitbucket.b_c", name = "jose4j", version.ref = "jose4j" }
 jdom2 = { group = "org.jdom", name = "jdom2", version.ref = "jdom2" }
+guava = { group = "com.google.guava", name = "guava", version.ref = "guava" }
 kotlin-gradle-plugin = { group = "org.jetbrains.kotlin", name = "kotlin-gradle-plugin", version.ref = "kotlin" }
 
 [plugins]

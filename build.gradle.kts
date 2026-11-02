@@ -10,6 +10,8 @@ buildscript {
             // AGP's bundletool and jetifier: GHSA-3677-xxcr-wjqv (jose4j), GHSA-2363-cqg2-863c (jdom2).
             classpath(libs.jose4j)
             classpath(libs.jdom2)
+            // AGP's transitive Guava 33.4.0: GHSA-xxph-c9ww-hj94 (fixed in 33.7.2).
+            classpath(libs.guava)
         }
     }
 }
