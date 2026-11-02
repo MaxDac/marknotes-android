@@ -150,7 +150,7 @@ fun SettingsScreen(
             HorizontalDivider()
             ChordSequencesSection(container.settings)
 
-            if (container.connectors.isNotEmpty()) {
+            if (syncManager.providers.isNotEmpty()) {
                 HorizontalDivider()
                 Text("Drives", style = MaterialTheme.typography.titleMedium)
                 if (state.drives.isEmpty()) Text(NO_DRIVES_TEXT)

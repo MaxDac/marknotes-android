@@ -80,6 +80,8 @@ dependencies {
         implementation(libs.bouncycastle.bcutil.jdk15to18)
         // prism4j-bundler's commons-io 2.6 (GHSA-78wr-2p64-hpwj, GHSA-gwrp-pvrq-jmwv); compile time only.
         annotationProcessor(libs.commons.io)
+        // prism4j-bundler's Guava 22.0 (GHSA-xxph-c9ww-hj94, fixed in 33.7.2); compile time only.
+        annotationProcessor(libs.guava)
     }
     debugImplementation(libs.androidx.compose.ui.tooling)
 
