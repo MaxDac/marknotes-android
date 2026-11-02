@@ -27,6 +27,7 @@ plugins {
 
 val ktlintVersion = libs.versions.ktlint.get()
 val bouncyCastleVersion = libs.versions.bouncycastle.get()
+val guavaVersion = libs.versions.guava.get()
 
 subprojects {
     apply(plugin = "org.jlleitschuh.gradle.ktlint")
@@ -43,6 +44,15 @@ subprojects {
             if (requested.group == "org.bouncycastle" && requested.name.endsWith("-jdk18on")) {
                 useVersion(bouncyCastleVersion)
                 because("GHSA-9pwp-9qqc-pr26, GHSA-qp49-qgx5-5m26")
+            }
+        }
+    }
+    // Guava only reaches tool classpaths (Android Lint, KSP, annotation processing), never the shipped app.
+    configurations.configureEach {
+        resolutionStrategy.eachDependency {
+            if (requested.group == "com.google.guava" && requested.name == "guava") {
+                useVersion(guavaVersion)
+                because("GHSA-xxph-c9ww-hj94")
             }
         }
     }
