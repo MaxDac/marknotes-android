@@ -15,8 +15,9 @@ data class SignedInAccount(val id: String, val provider: DriveProvider, val labe
 typealias SignInScreen = @Composable (onDone: () -> Unit, onBack: () -> Unit) -> Unit
 
 /**
- * Signs in to a cloud provider and creates [RemoteDriveStore]s for its accounts. The libre app ships the
- * Dropbox connector; MarkNotes Plus adds its own through [io.github.maxdac.marknotes.MarkNotesApp.extraConnectors].
+ * Signs in to a cloud provider and creates [RemoteDriveStore]s for its accounts. The libre app ships no
+ * connector (notes stay on the device); MarkNotes Plus adds its own through
+ * [io.github.maxdac.marknotes.MarkNotesApp.extraConnectors].
  */
 interface DriveConnector {
     val provider: DriveProvider
@@ -72,6 +73,14 @@ interface DriveConnector {
      */
     suspend fun reconnect(activity: ComponentActivity, account: DriveAccount): Boolean =
         throw UnsupportedOperationException("Reconnect is not supported by ${provider.displayName} in this build")
+
+    /**
+     * Whether [failure] is a temporary failure of this provider (rate limit, server error, provider-specific
+     * transport error) that an automatic reconnect sync may retry. Returns the back-off the provider asked for in
+     * milliseconds (0 for none), or null when this connector does not recognise the failure as temporary.
+     * Plain network failures (no connection, timeout) are already retried and need not be reported here.
+     */
+    fun retryBackoffMillis(failure: Exception): Long? = null
 
     /** Called whenever the activity resumes, which is when browser-based sign-ins return. */
     fun onActivityResumed() {}

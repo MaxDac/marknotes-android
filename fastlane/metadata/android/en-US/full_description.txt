@@ -9,9 +9,6 @@
 <li>Import from other apps: share text, web pages, Word documents, PDFs or images to MarkNotes to turn them into notes.</li>
 <li>Chord sequences for guitar and bass with a fretboard chord builder.</li>
 <li>Light, dark and Material You themes with eight accent colours.</li>
-<li>Optional two-way sync with one or more Dropbox accounts: line-by-line merge of concurrent edits, conflicted copies when edits overlap and a screen to merge them back.</li>
 </ul>
 
-<p>The same notes folder works with the MarkNotes desktop and web apps.</p>
-
-<p>Sync only runs when the app starts or when you tap <i>Sync now</i>; there is no background polling and no tracking. Sync uses Dropbox, a non-free network service, and is entirely optional.</p>
+<p>The notes are plain Markdown files on your device, and the same folder format works with the MarkNotes desktop and web apps. This edition has no cloud sync and no tracking; sync with Dropbox, OneDrive and Proton Drive is in MarkNotes Plus.</p>

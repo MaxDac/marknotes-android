@@ -491,17 +491,14 @@ class MarkNotesFlowTest {
     }
 
     @Test
-    fun settingsAndAddDriveShowProviders() {
+    fun settingsShowNoDriveOrSyncControlsInTheOfflineApp() {
         compose.onNodeWithContentDescription("Settings").performClick()
-        compose.onNodeWithText(NO_DRIVES_TEXT).assertExists()
         compose.onNodeWithText("System").assertExists()
         compose.onNodeWithText("Dark").assertExists()
-
-        compose.onNodeWithText("Add drive").performScrollTo().performClick()
-        compose.waitUntilExactlyOneExists(hasText("Dropbox"), timeoutMillis = 5_000)
-        compose.onNodeWithText("Dropbox").assertExists()
-        compose.onNodeWithText("Proton Drive").assertDoesNotExist()
-        compose.onNodeWithText("OneDrive").assertDoesNotExist()
+        compose.onNodeWithText("Drives").assertDoesNotExist()
+        compose.onNodeWithText(NO_DRIVES_TEXT).assertDoesNotExist()
+        compose.onNodeWithText("Add drive").assertDoesNotExist()
+        compose.onNodeWithText("Sync now").assertDoesNotExist()
     }
 
     @Test
