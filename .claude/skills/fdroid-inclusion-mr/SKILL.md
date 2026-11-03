@@ -12,11 +12,10 @@ description: >-
 This skill is temporary: once the MR is merged, implement
 [#21](https://github.com/MaxDac/marknotes-android/issues/21), which removes it.
 
-> **Pending change (libre 0.2.0, offline only)**: Dropbox moved to MarkNotes Plus, so the recipe drops
-> `NonFreeNet` and the description, `fdroid/inclusion-mr.md` and `fdroid/review-handover.md` must drop the Dropbox,
-> `NonFreeNet` and `INTERNET`-for-Dropbox wording. They still describe 0.1.7 on purpose: they must match the live MR
-> exactly, so change them only together with the MR after 0.2.0 is released. The reviewer asked for 3 months of
-> maintenance (2026-10-27); do not push to the MR until they answer the reopen.
+> **State (libre 0.2.0, offline only)**: Dropbox moved to MarkNotes Plus, so the recipe has no `NonFreeNet`, the
+> description, `fdroid/inclusion-mr.md` and `fdroid/review-handover.md` describe v0.2.0, and the live MR matches them
+> (2026-11-03). The reviewer asked for 3 months of maintenance on 2026-10-27 and had not answered the reopen: check
+> the MR's notes before pushing again. The fork's metadata file is in `fdroid rewritemeta` format; edit that copy.
 
 ## Where things are
 
