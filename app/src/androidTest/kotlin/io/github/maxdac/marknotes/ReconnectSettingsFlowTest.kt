@@ -1,5 +1,7 @@
 package io.github.maxdac.marknotes
 
+import android.Manifest
+import android.content.pm.PackageManager
 import androidx.compose.ui.test.junit4.createEmptyComposeRule
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithTag
@@ -9,6 +11,7 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import io.github.maxdac.marknotes.ui.settings.SYNC_ON_RECONNECT_SWITCH_TAG
 import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Before
 import org.junit.Rule
@@ -32,6 +35,9 @@ class ReconnectSettingsFlowTest {
     fun setUp() {
         container.settings.setGettingStartedConsumed(true)
         reset()
+    }
+
+    private fun launch() {
         scenario = ActivityScenario.launch(MainActivity::class.java)
     }
 
@@ -51,8 +57,23 @@ class ReconnectSettingsFlowTest {
 
     @Test
     fun theSwitchIsHiddenWhenTheEditionHasNoCloudProvider() {
+        launch()
         compose.onNodeWithContentDescription("Settings").performClick()
         compose.onNodeWithTag(SYNC_ON_RECONNECT_SWITCH_TAG).assertDoesNotExist()
         assertFalse(container.settings.syncOnReconnect.value)
+    }
+
+    /** A 0.1.x install may restore with the setting on; without ACCESS_NETWORK_STATE a callback would throw. */
+    @Test
+    fun launchesWithoutNetworkStatePermissionWhenTheSettingIsStillOn() {
+        assertFalse(container.syncManager.canWatchNetwork)
+        InstrumentationRegistry.getInstrumentation().runOnMainSync { container.settings.setSyncOnReconnect(true) }
+        launch()
+        compose.onNodeWithContentDescription("Settings").assertExists()
+        assertEquals(
+            PackageManager.PERMISSION_DENIED,
+            context.checkSelfPermission(Manifest.permission.ACCESS_NETWORK_STATE)
+        )
+        assertEquals(PackageManager.PERMISSION_DENIED, context.checkSelfPermission(Manifest.permission.INTERNET))
     }
 }

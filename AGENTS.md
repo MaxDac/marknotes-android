@@ -35,6 +35,8 @@ and `MarkNotesApp`. So:
 - changing a public API of `:core` or `:app-shared` (`DriveConnector`, `MarkNotesApp`, `AppContainer`, ...) breaks
   MarkNotes Pro until it bumps the submodule and adapts: say so in the PR and follow up there;
 - dependencies both apps use go in `gradle/libs.versions.toml` here; MarkNotes Pro reads this catalog as `libs`.
+- `:app` strips `INTERNET` and `ACCESS_NETWORK_STATE` from this offline edition; code in `:app-shared` that needs the
+  network must be gated on a provider existing (see `SyncManager.canWatchNetwork`).
 
 ## Build and test
 

@@ -147,9 +147,10 @@ To repeat the release smoke check on a **disposable emulator** (the script clear
 bash scripts/test-release-apk.sh app/build/outputs/apk/release/app-release-unsigned.apk
 ```
 
-The inclusion report's remaining permission entries are expected: `INTERNET` and `ACCESS_NETWORK_STATE` come from
-`:app-shared` for the cloud providers of MarkNotes Plus (this app ships none and does not use them), `USE_BIOMETRIC` supports optional app lock, and AndroidX's signature-protected
-`DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` protects its receivers. Removing them to silence the report would
-break functionality or platform safeguards. Fastlane listing information, the reproducible reference APK,
+The APK requests no network permissions: `:app` strips `INTERNET` and `ACCESS_NETWORK_STATE` (declared by
+`:app-shared` for the cloud providers of MarkNotes Plus) with `tools:node="remove"`, and `MainActivity` only watches the
+network when a provider exists. The inclusion report's remaining permission entries are expected: `USE_BIOMETRIC`
+supports optional app lock, and AndroidX's signature-protected `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION` protects its
+receivers. Removing them would break functionality or platform safeguards. Fastlane listing information, the reproducible reference APK,
 the signing-certificate identity, and ABI/size information are informational, not defects. Preserve both ABIs;
 code/resource shrinking, rather than ABI splitting, addresses the bulk of the old APK size.

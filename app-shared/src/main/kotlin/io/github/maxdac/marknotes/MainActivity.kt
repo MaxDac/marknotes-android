@@ -166,8 +166,12 @@ class MainActivity : ComponentActivity() {
      * background syncs once the app is back in the foreground. Nothing syncs while the app is in the background.
      */
     private fun watchNetwork() {
+        val syncManager = appContainer.syncManager
+        // Editions without a provider (libre) drop ACCESS_NETWORK_STATE, so registering would throw. This must not
+        // depend on the "Sync when reconnected" setting: it may still be on after an upgrade from 0.1.x.
+        if (!syncManager.canWatchNetwork) return
         val connectivity = getSystemService(ConnectivityManager::class.java) ?: return
-        val reconnect = appContainer.syncManager.reconnect
+        val reconnect = syncManager.reconnect
         lifecycleScope.launch { connectivity.connections().collect { reconnect.update(online = it) } }
     }
 

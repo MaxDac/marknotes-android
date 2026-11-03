@@ -27,7 +27,7 @@ MarkNotes (`io.github.maxdac.marknotes.libre`) is an offline-first Markdown note
 * Release: [`v0.1.7`](https://github.com/MaxDac/marknotes-android/releases/tag/v0.1.7), commit `e77e9c2ba65269f0b98d36d3c24766617871ec74`, versionCode 107.
 * Fastlane metadata (en-US title, summary, description, icon, screenshots, changelogs) lives upstream in `fastlane/metadata/android/en-US/`.
 * Anti-features: NonFreeNet. Sync is optional and uses Dropbox (OAuth PKCE, no client secret), only at start-up, on *Sync now* or, if the user turns it on, when the network comes back. There is no tracking, analytics, ads or Google Play Services. Error diagnostics stay on the device unless the user reviews a report and sends it themselves.
-* Permissions: `INTERNET` (Dropbox sync), `ACCESS_NETWORK_STATE` (the opt-in *Sync when reconnected*) and `USE_BIOMETRIC` (optional app lock), plus AndroidX's own `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`. Upstream CI fails if the APK requests anything else.
+* Permissions: `USE_BIOMETRIC` (optional app lock) only, plus AndroidX's own `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`. Upstream CI fails if the APK requests anything else.
 
 ### Build notes
 
@@ -45,7 +45,7 @@ MarkNotes (`io.github.maxdac.marknotes.libre`) is an offline-first Markdown note
 
 * `fdroid lint` and `fdroid rewritemeta` produce no changes.
 * All nine jobs in the fork pipeline pass: https://gitlab.com/MaxDac/fdroiddata/-/pipelines/2994097941. `fdroid build` ([job](https://gitlab.com/MaxDac/fdroiddata/-/jobs/17501534283)) builds versionCode 107 from `e77e9c2ba65269f0b98d36d3c24766617871ec74` and reports "compared built binary to supplied reference binary successfully".
-* The quality report now confirms a full-mode release R8 marker instead of warning that R8 is missing. The remaining permission entries are required for the features explained above; the Fastlane metadata, reproducible-build APK, signing key, ABI/size and R8-marker entries are informational.
+* The quality report now confirms a full-mode release R8 marker instead of warning that R8 is missing. The remaining permission entries are `USE_BIOMETRIC` (optional app lock) and AndroidX's signature-protected receiver permission; the Fastlane metadata, reproducible-build APK, signing key, ABI/size and R8-marker entries are informational.
 
 ## Checklist
 

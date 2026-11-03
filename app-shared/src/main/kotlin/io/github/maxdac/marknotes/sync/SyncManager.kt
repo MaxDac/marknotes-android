@@ -163,6 +163,9 @@ class SyncManager(
     /** The providers this build can connect, in [DriveProvider] order. */
     val providers: List<DriveProvider> get() = DriveProvider.entries.filter { it in connectors }
 
+    /** Whether network state is worth observing: only builds with a provider declare `ACCESS_NETWORK_STATE`. */
+    val canWatchNetwork: Boolean get() = providers.isNotEmpty()
+
     /** Called whenever the activity resumes, to complete browser-based sign-ins. */
     fun onActivityResumed() = connectors.values.forEach { it.onActivityResumed() }
 

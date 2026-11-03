@@ -20,7 +20,7 @@ pitfalls. Delete it with the other inclusion-only docs in
 | Release workflow | [40494238120](https://github.com/MaxDac/marknotes-android/actions/runs/40494238120): all release gates, signature pinning and signed/unsigned comparison passed |
 | Quality report | Missing-R8 warning replaced with an informational full-mode release R8 marker; required permissions and metadata/signing/ABI entries remain explained |
 | Signing certificate | SHA-256 `ffafda02fa9af06b1927095c8d843ae862173512d4cdaca09bbaaef84d1d70e4` (`AllowedAPKSigningKeys`, repo variable `RELEASE_CERT_SHA256`). It must never change |
-| Permissions | `INTERNET`, `ACCESS_NETWORK_STATE`, `USE_BIOMETRIC`, plus AndroidX's `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`. Checks / F-Droid build fails on anything else |
+| Permissions | `USE_BIOMETRIC`, plus AndroidX's `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`. Checks / F-Droid build fails on anything else |
 | Native libraries per ABI (arm64-v8a, x86_64) | `libmarknotes_sync.so` (built from source, about 0.7 MB), `libjnidispatch.so` (JNA 5.19.1 from Maven Central), `libandroidx.graphics.path.so` (AndroidX) |
 | marknotes-sync | Submodule `marknotes-sync/` at tag v0.4.1 (`5e68e80ab6f0731767334e9e7e967fd01e793450`), catalog `marknotesSync = "0.4.1"` |
 | Toolchain pins | Rust 1.99.1 (through fdroiddata's `rustup@1.29.2` srclib), cargo-ndk 4.1.2, NDK r30. Identical in `.fdroid.yml`, `scripts/build-sync-from-source.sh` and `.github/actions/setup-sync-toolchain` |
@@ -61,7 +61,7 @@ All requests below were addressed before submission. Keep them true, and expect 
 | **MR description out of date** (FPInk updated the Fastlane text instead) | Update the description in `fdroid/inclusion-mr.md` **and** give it to the maintainer to paste into the MR. Verify afterwards: the MR's `description` field from the public API must contain the new version and pipeline id |
 | Prebuilt native libraries, telemetry | Only JNA's and AndroidX's libraries are prebuilt, both from Maven repositories F-Droid trusts; no telemetry or trackers |
 | `sudo` line suggestion (`apt-get install -y …`) | Ours already uses `apt-get update` and `apt-get install -y gcc libc-dev` |
-| Testers: on-device behaviour, permissions requested when needed | Sync is optional (no network use until the user connects Dropbox); the biometric lock is opt-in |
+| Testers: on-device behaviour, permissions requested when needed | No network permissions (offline only); the biometric lock is opt-in |
 
 ## Pitfalls
 
