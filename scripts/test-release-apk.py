@@ -31,8 +31,6 @@ class ReleaseApkTest(unittest.TestCase):
                 if extra_native:
                     archive.writestr("lib/armeabi-v7a/libunexpected.so", b"ELF")
             permissions = [
-                "android.permission.INTERNET",
-                "android.permission.ACCESS_NETWORK_STATE",
                 "android.permission.USE_BIOMETRIC",
                 "io.github.maxdac.marknotes.libre.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
             ]
