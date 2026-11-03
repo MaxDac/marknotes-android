@@ -1,0 +1,1 @@
+Offline only: Dropbox sync moved to MarkNotes Plus (github.com/MaxDac/MarkNotes), so this edition no longer syncs and has no network features. Your notes stay as plain Markdown files on the device and are not changed. The Drives and Sync controls are hidden, and the Getting started guide explains it. Fixes and dependency updates.
