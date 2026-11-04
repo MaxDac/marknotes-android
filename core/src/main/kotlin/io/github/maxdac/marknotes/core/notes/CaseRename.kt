@@ -18,8 +18,12 @@ internal fun fileIdentity(file: File): String =
     Files.readAttributes(file.toPath(), BasicFileAttributes::class.java).fileKey()?.toString()
         ?: if (windows) WindowsFiles.identity(file) else throw IOException("Cannot verify file identity: $file")
 
-/** Never use Java moves here: Unix implementations may check existence then perform a replacing rename. */
-internal fun renameCaseFile(source: File, target: File) {
+/**
+ * Renames [source] to [target] without ever replacing an existing file, then checks that the exact case of the new
+ * name and the file identity survived. Never use Java moves here: Unix implementations may check existence then
+ * perform a replacing rename. Public for apps that keep their own files next to the notes (the sync base copies).
+ */
+fun renameCaseFile(source: File, target: File) {
     val identity = fileIdentity(source)
     moveFileNoReplace(source, target)
     val names = target.parentFile.list().orEmpty().toList()
