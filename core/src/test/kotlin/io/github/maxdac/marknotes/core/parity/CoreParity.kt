@@ -20,23 +20,15 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 
-/** How a marknotes-spec fixture file is run on Android. */
-sealed interface ParityMapping {
-    /**
-     * Runs each case through the real implementation. [pendingSpecIssues] maps case names to unexpected
-     * differences reported to marknotes-spec and not yet triaged there (skipped with a TODO).
-     */
-    class Run(
-        val pendingSpecIssues: Map<String, String> = emptyMap(),
-        val run: (FixtureCase) -> JsonElement
-    ) : ParityMapping
-
-    /** The logic lives outside `:core`; [where] names the test that runs the fixture. */
-    class Elsewhere(val where: String) : ParityMapping
-}
-
-/** Every marknotes-spec fixture file and the `:core` function it exercises. */
+/**
+ * Every shared spec fixture file and the `:core` function it exercises. The sync, manifest and merge fixtures
+ * ([SYNC_AREAS]) are not run here: the shared sync library is not part of this repository, so an app that
+ * syncs maps and runs them itself.
+ */
 object CoreParity {
+    /** Fixture folders owned by the sync module of the apps that sync. */
+    val SYNC_AREAS = listOf("sync/", "manifest/", "merge/")
+
     val mappings: Map<String, ParityMapping> = mapOf(
         "note-ids/validation" to ParityMapping.Run { c -> field("valid", NoteIds.isValid(c.string("value"))) },
         "front-matter/read-id" to ParityMapping.Run { c -> field("id", FrontMatter.parse(c.string("text")).id) },
@@ -79,7 +71,7 @@ object CoreParity {
             list("refs", Attachments.references(c.string("text")).sorted())
         },
         "duplicate-ids/resolve" to ParityMapping.Run(run = ::resolveDuplicates)
-    ) + ChordParity.mappings + SyncParity.mappings
+    ) + ChordParity.mappings
 
     private fun field(key: String, value: Any?): JsonObject = JsonObject(
         mapOf(

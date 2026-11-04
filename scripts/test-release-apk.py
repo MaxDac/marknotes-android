@@ -25,8 +25,8 @@ class ReleaseApkTest(unittest.TestCase):
                 value = {"min-api": 29, "compilation-mode": "debug" if debug else "release", "r8-mode": "full"}
                 archive.writestr("classes.dex", b"dex\x00" + (b"~~R8" + json.dumps(value).encode() if marker else b""))
                 for abi in ("arm64-v8a", "x86_64"):
-                    for library in ("libmarknotes_sync", "libjnidispatch", "libandroidx.graphics.path"):
-                        if not (missing_native and abi == "arm64-v8a" and library == "libmarknotes_sync"):
+                    for library in ("libjnidispatch", "libandroidx.graphics.path"):
+                        if not (missing_native and abi == "arm64-v8a" and library == "libjnidispatch"):
                             archive.writestr(f"lib/{abi}/{library}.so", b"ELF")
                 if extra_native:
                     archive.writestr("lib/armeabi-v7a/libunexpected.so", b"ELF")

@@ -15,7 +15,7 @@ import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
 /**
- * Runs marknotes-spec's `note-links/mention` fixture (mapped as "elsewhere" in `:core`'s CoreParity) against the
+ * Runs the shared spec's `note-links/mention` fixture (mapped as "elsewhere" in `:core`'s CoreParity) against the
  * editor's mention detection: the line is typed one character at a time, like the editor does, so the `@`
  * trigger and the query are tracked by [MarkdownEditing.typedMentionTrigger] and [MarkdownEditing.mentionQuery].
  */
