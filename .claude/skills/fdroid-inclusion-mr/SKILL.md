@@ -12,8 +12,7 @@ description: >-
 This skill is temporary: once the MR is merged, implement
 [#21](https://github.com/MaxDac/marknotes-android/issues/21), which removes it.
 
-> **State (libre 0.3.0, offline only, no network permissions)**: v0.3.0 is released; the fork recipe push and the MR
-> description/comment for it are pending the maintainer (see `fdroid/review-handover.md`). The reviewer asked for 3 months
+> **State (libre 0.3.0, offline only, no network permissions)**: v0.3.0 is released and the live MR matches it (2026-11-04: recipe, description and update comment posted; fork pipeline passed). The reviewer asked for 3 months
 > of maintenance on 2026-10-27: check the MR's notes before pushing again. The fork's metadata file is in
 > `fdroid rewritemeta` format; edit that copy.
 

@@ -10,8 +10,7 @@ the MR description and in sync with the recipe and the latest release: reviewers
 
 **Title**: `New app: MarkNotes`
 
-**Posting status**: The v0.3.0 description below is prepared; it is not live until the maintainer pastes it (no GitLab
-access from the agent session) and the recipe commit is pushed. The v0.2.0 description still describes the Rust build.
+**Posting status**: The v0.3.0 description below is live on the MR (posted 2026-11-04 with the recipe commit `37d36e26`); the fork pipeline passed.
 
 **Files** (nothing else): `metadata/io.github.maxdac.marknotes.libre.yml`, a copy of `.fdroid.yml` with
 `commit: vX.Y.Z` replaced by the tag's full commit hash (`git rev-parse "vX.Y.Z^{commit}"`).
@@ -44,7 +43,7 @@ MarkNotes (`io.github.maxdac.marknotes.libre`) is an offline-first Markdown note
 ### Validation
 
 * `fdroid lint` and `fdroid rewritemeta` produce no changes.
-* The fork pipeline for the v0.3.0 commit is pending (link added after it runs). The same recipe steps are built and compared in upstream CI (`fdroid build --on-server`), and the release workflow's `apksigcopier compare` against the signed APK passed: https://github.com/MaxDac/marknotes-android/actions/runs/41846713157.
+* All nine jobs in the fork pipeline pass: https://gitlab.com/MaxDac/fdroiddata/-/pipelines/3027648578. `fdroid build` ([job](https://gitlab.com/MaxDac/fdroiddata/-/jobs/17739665023)) builds versionCode 300 from `b091b82225e56f9e9fc812b99938ca739eaa63df` and reports "compared built binary to supplied reference binary successfully".
 * The remaining permission entries in the quality report are explained above; the Fastlane metadata, reproducible-build APK, signing key, ABI/size and R8-marker entries are informational.
 
 ## Checklist

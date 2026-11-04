@@ -12,10 +12,10 @@ pitfalls. Delete it with the other inclusion-only docs in
 | What | Value |
 | --- | --- |
 | MR | Open, label `New App`. On 2026-10-27 the reviewer `seekme-seekyou` closed it under the 3-month maintenance policy and the maintainer reopened it citing FPInk (!50122), offering to wait three months; no reply since. Metadata and live description are updated to v0.2.0; the public API confirms the description matches `fdroid/inclusion-mr.md`. An update comment is drafted for the maintainer to post; check the MR notes for whether it was |
-| Fork branch head | `146017843f` (v0.2.0 Rust recipe) is still what the MR has; the v0.3.0 recipe commit is **not pushed yet** (no GitLab access from the agent session). The prepared recipe is in the 0.3.0 hand-off message and `.fdroid.yml` with `commit: b091b82225e56f9e9fc812b99938ca739eaa63df`; add it as a new commit, no force-push |
-| Fork pipeline | Not run for v0.3.0 yet. Last: [3021646859](https://gitlab.com/MaxDac/fdroiddata/-/pipelines/3021646859) (v0.2.0) |
-| `fdroid build` job | v0.3.0: pending the fork pipeline. Upstream CI ran the same real `fdroid build` ([release run 41846713157](https://github.com/MaxDac/marknotes-android/actions/runs/41846713157)) and the signed/unsigned comparison passed |
-| Release to put in the MR metadata | [v0.3.0](https://github.com/MaxDac/marknotes-android/releases/tag/v0.3.0), commit `b091b82225e56f9e9fc812b99938ca739eaa63df`, versionCode 300 |
+| Fork branch head | `37d36e2618`: v0.3.0 recipe (`fc58f35a`) plus a rewritemeta formatting commit, pushed through the GitLab API on top of `146017843f`; no rebase |
+| Fork pipeline | [3027648578](https://gitlab.com/MaxDac/fdroiddata/-/pipelines/3027648578): all 9 jobs passed |
+| `fdroid build` job | [17739665023](https://gitlab.com/MaxDac/fdroiddata/-/jobs/17739665023): "compared built binary to supplied reference binary successfully" |
+| Release in the MR metadata | [v0.3.0](https://github.com/MaxDac/marknotes-android/releases/tag/v0.3.0), commit `b091b82225e56f9e9fc812b99938ca739eaa63df`, versionCode 300 |
 | Release APK | `marknotes-libre-0.3.0.apk`, 6,042,056 bytes (6.0 MB), checksum in the release's `SHA256SUMS`; signer `ffafda02…70e4` verified |
 | Release workflow | [41846713157](https://github.com/MaxDac/marknotes-android/actions/runs/41846713157): all gates and the signed/unsigned comparison passed |
 | Quality report | Missing-R8 warning replaced with an informational full-mode release R8 marker; required permissions and metadata/signing/ABI entries remain explained |
@@ -23,7 +23,7 @@ pitfalls. Delete it with the other inclusion-only docs in
 | Anti-features | None: no sync and no network feature since 0.2.0 (Dropbox moved to MarkNotes Plus, marknotes-android#61); `NonFreeNet` was removed from the recipe |
 | Permissions | `USE_BIOMETRIC`, plus AndroidX's `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`. `INTERNET` and `ACCESS_NETWORK_STATE` are removed since 0.3.0. Checks / F-Droid build fails on anything else |
 | Native libraries per ABI (arm64-v8a, x86_64) | `libjnidispatch.so` (JNA 5.19.1 from Maven Central), `libandroidx.graphics.path.so` (AndroidX). Nothing of our own |
-| Shared sync library | Not used any more: `.fdroid.yml` has no submodule, `srclibs`, `prebuild`, `build`, `ndk`, `rm` or `gradleprops`. **The MR's metadata still holds the v0.2.0 recipe with the Rust build; the v0.3.0 commit replaces it with the `.fdroid.yml` build entry** |
+| Shared sync library | Not used any more: `.fdroid.yml` has no submodule, `srclibs`, `prebuild`, `build`, `ndk`, `rm` or `gradleprops`. The MR's metadata holds the same build entry as `.fdroid.yml` since 2026-11-04 |
 | Toolchain pins | None: plain Gradle with the buildserver's JDK |
 | `rm:` | None in `.fdroid.yml` (the MR's v0.2.0 recipe still lists the old sync paths) |
 | MarkNotes Pro | Owns Dropbox since [MaxDac/MarkNotes#53](https://github.com/MaxDac/MarkNotes/pull/53); `libre/` re-pin to v0.2.0 in [MaxDac/MarkNotes#54](https://github.com/MaxDac/MarkNotes/pull/54) |
