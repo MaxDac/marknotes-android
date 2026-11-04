@@ -83,10 +83,15 @@ public final class ReleaseSmokeInstrumentation extends Instrumentation {
             click(waitFor(() -> find("Settings")));
             waitFor(() -> find("Appearance"));
             getUiAutomation().waitForIdle(500, 5000);
-            try (SQLiteDatabase database = SQLiteDatabase.openDatabase(
-                context.getDatabasePath("marknotes.db").getPath(), null, SQLiteDatabase.OPEN_READONLY
-            ); Cursor cursor = database.rawQuery("SELECT COUNT(*) FROM drive_accounts", null)) {
-                require(cursor.moveToFirst() && cursor.getInt(0) == 0, "Room account table is not readable");
+            // Libre never opens the Room database (NoSyncHooks); it exists only on devices upgraded from versions
+            // that synced, and then it must still be readable. A fresh install legitimately has no file.
+            File databaseFile = context.getDatabasePath("marknotes.db");
+            if (databaseFile.exists()) {
+                try (SQLiteDatabase database = SQLiteDatabase.openDatabase(
+                    databaseFile.getPath(), null, SQLiteDatabase.OPEN_READONLY
+                ); Cursor cursor = database.rawQuery("SELECT COUNT(*) FROM drive_accounts", null)) {
+                    require(cursor.moveToFirst() && cursor.getInt(0) == 0, "Room account table is not readable");
+                }
             }
             for (int attempt = 0; attempt < 12 && find("Turn on app lock") == null; attempt++) {
                 swipeUp(context);
