@@ -1,0 +1,1 @@
+No network permissions: the app no longer requests INTERNET or ACCESS_NETWORK_STATE, so it cannot go online. Smaller APK (about 6 MB instead of 8 MB) and a simpler build with no native code of our own. Your notes stay as plain Markdown files on the device and are not changed. Fixes and dependency updates.
