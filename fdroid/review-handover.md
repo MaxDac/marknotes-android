@@ -7,23 +7,23 @@ and the live MR description in `fdroid/inclusion-mr.md`. This file adds the stat
 pitfalls. Delete it with the other inclusion-only docs in
 [#21](https://github.com/MaxDac/marknotes-android/issues/21) once the MR is merged.
 
-## State at handover (2026-11-03)
+## State at handover (2026-11-04, v0.3.0)
 
 | What | Value |
 | --- | --- |
 | MR | Open, label `New App`. On 2026-10-27 the reviewer `seekme-seekyou` closed it under the 3-month maintenance policy and the maintainer reopened it citing FPInk (!50122), offering to wait three months; no reply since. Metadata and live description are updated to v0.2.0; the public API confirms the description matches `fdroid/inclusion-mr.md`. An update comment is drafted for the maintainer to post; check the MR notes for whether it was |
-| Fork branch head | `146017843f`: two commits on the same parent `25d23ee7ce82bd09c71f6579cd3ca2e7e7fb9117` (`New app: MarkNotes`, then `Update MarkNotes to 0.2.0`, pushed through the GitLab API); no rebase |
-| Fork pipeline | [3021646859](https://gitlab.com/MaxDac/fdroiddata/-/pipelines/3021646859): all 9 jobs passed |
-| `fdroid build` job | [17692692121](https://gitlab.com/MaxDac/fdroiddata/-/jobs/17692692121): "compared built binary to supplied reference binary successfully", unchanged allowed signer `ffafda02…70e4` |
-| Release in the MR metadata | [v0.2.0](https://github.com/MaxDac/marknotes-android/releases/tag/v0.2.0), commit `86d39a6721e9985e095398f26dcb2d26f7868c82`, versionCode 200 |
-| Release APK | `marknotes-libre-0.2.0.apk`, SHA-256 `5d38152a1a0c2049e88c3a2103d3237008be9d29751470d84e41a4751f33f7b3`, 7,898,401 bytes (7.9 MB) |
-| Release workflow | [41608941558](https://github.com/MaxDac/marknotes-android/actions/runs/41608941558): all release gates, signature pinning and signed/unsigned comparison passed |
+| Fork branch head | `146017843f` (v0.2.0 Rust recipe) is still what the MR has; the v0.3.0 recipe commit is **not pushed yet** (no GitLab access from the agent session). The prepared recipe is in the 0.3.0 hand-off message and `.fdroid.yml` with `commit: b091b82225e56f9e9fc812b99938ca739eaa63df`; add it as a new commit, no force-push |
+| Fork pipeline | Not run for v0.3.0 yet. Last: [3021646859](https://gitlab.com/MaxDac/fdroiddata/-/pipelines/3021646859) (v0.2.0) |
+| `fdroid build` job | v0.3.0: pending the fork pipeline. Upstream CI ran the same real `fdroid build` ([release run 41846713157](https://github.com/MaxDac/marknotes-android/actions/runs/41846713157)) and the signed/unsigned comparison passed |
+| Release to put in the MR metadata | [v0.3.0](https://github.com/MaxDac/marknotes-android/releases/tag/v0.3.0), commit `b091b82225e56f9e9fc812b99938ca739eaa63df`, versionCode 300 |
+| Release APK | `marknotes-libre-0.3.0.apk`, 6,042,056 bytes (6.0 MB), checksum in the release's `SHA256SUMS`; signer `ffafda02…70e4` verified |
+| Release workflow | [41846713157](https://github.com/MaxDac/marknotes-android/actions/runs/41846713157): all gates and the signed/unsigned comparison passed |
 | Quality report | Missing-R8 warning replaced with an informational full-mode release R8 marker; required permissions and metadata/signing/ABI entries remain explained |
 | Signing certificate | SHA-256 `ffafda02fa9af06b1927095c8d843ae862173512d4cdaca09bbaaef84d1d70e4` (`AllowedAPKSigningKeys`, repo variable `RELEASE_CERT_SHA256`). It must never change |
 | Anti-features | None: no sync and no network feature since 0.2.0 (Dropbox moved to MarkNotes Plus, marknotes-android#61); `NonFreeNet` was removed from the recipe |
-| Permissions | `INTERNET`, `ACCESS_NETWORK_STATE`, `USE_BIOMETRIC`, plus AndroidX's `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`. `INTERNET` and `ACCESS_NETWORK_STATE` are merged in from `:app-shared` and unused by this edition; the MR description says removal is planned. Checks / F-Droid build fails on anything else |
-| Native libraries per ABI (arm64-v8a, x86_64) | `libjnidispatch.so` (JNA 5.19.1 from Maven Central), `libandroidx.graphics.path.so` (AndroidX). The MR's v0.2.0 build also had a Rust library of ours; later releases do not (see below) |
-| Shared sync library | Not used any more, it became private: `.fdroid.yml` has no submodule, `srclibs`, `prebuild`, `build`, `ndk`, `rm` or `gradleprops`. **The MR's metadata still holds the v0.2.0 recipe with the Rust build: replace it with `.fdroid.yml` when the first release without the sync library is submitted** |
+| Permissions | `USE_BIOMETRIC`, plus AndroidX's `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`. `INTERNET` and `ACCESS_NETWORK_STATE` are removed since 0.3.0. Checks / F-Droid build fails on anything else |
+| Native libraries per ABI (arm64-v8a, x86_64) | `libjnidispatch.so` (JNA 5.19.1 from Maven Central), `libandroidx.graphics.path.so` (AndroidX). Nothing of our own |
+| Shared sync library | Not used any more: `.fdroid.yml` has no submodule, `srclibs`, `prebuild`, `build`, `ndk`, `rm` or `gradleprops`. **The MR's metadata still holds the v0.2.0 recipe with the Rust build; the v0.3.0 commit replaces it with the `.fdroid.yml` build entry** |
 | Toolchain pins | None: plain Gradle with the buildserver's JDK |
 | `rm:` | None in `.fdroid.yml` (the MR's v0.2.0 recipe still lists the old sync paths) |
 | MarkNotes Pro | Owns Dropbox since [MaxDac/MarkNotes#53](https://github.com/MaxDac/MarkNotes/pull/53); `libre/` re-pin to v0.2.0 in [MaxDac/MarkNotes#54](https://github.com/MaxDac/MarkNotes/pull/54) |
@@ -46,7 +46,8 @@ Before acting, check this is still true: compare the MR's head SHA and the lates
 - v0.1.7 fixed the folder drawer opening and white screen transitions in dark mode.
 - v0.2.0 removed Dropbox sync (moved to MarkNotes Plus, marknotes-android#61): no sync provider, no `NonFreeNet`,
   APK 7.9 MB. The recipe's `AntiFeatures` block was removed; the build entry and `CurrentVersion` moved to 0.2.0 / 200.
-- After v0.2.0 the shared sync library and fixtures became private repositories, so libre dropped every dependency on
+- v0.3.0 removed the `INTERNET` and `ACCESS_NETWORK_STATE` permissions and the sync library: APK 6.0 MB, plain Gradle recipe.
+- Before v0.3.0 the shared sync library and fixtures became private repositories, so libre dropped every dependency on
   them: no submodules, no Rust or NDK in the recipe, no extra native library of our own. Sync lives in MarkNotes Plus.
 
 ## Lessons from FPInk (fdroid/fdroiddata!50122, same author, merged)
