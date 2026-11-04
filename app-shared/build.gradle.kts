@@ -4,8 +4,8 @@ plugins {
     alias(libs.plugins.ksp)
 }
 
-// Everything the libre (F-Droid) and Pro apps share: Compose UI, sync wiring, Room, Dropbox and shared-content
-// import. Provider-specific apps add their DriveConnectors through MarkNotesApp (see sync/DriveConnector.kt).
+// Everything the libre (F-Droid) and Plus apps share: Compose UI, Room and shared-content import. Cloud sync is not
+// part of this repository: an app that has it provides SyncHooks through MarkNotesApp (see sync/SyncHooks.kt).
 android {
     namespace = "io.github.maxdac.marknotes.shared"
     compileSdk = 37
@@ -41,7 +41,6 @@ kotlin {
 
 dependencies {
     api(project(":core"))
-    api(variantOf(libs.marknotes.sync.android) { artifactType("aar") })
     api(variantOf(libs.jna) { artifactType("aar") })
 
     api(libs.androidx.core.ktx)
@@ -87,18 +86,18 @@ dependencies {
 
     testImplementation(libs.junit)
     testImplementation(libs.kotlinx.coroutines.test)
-    // marknotes-spec fixture loader (core/src/testFixtures).
+    // shared spec fixture loader (core/src/testFixtures).
     testImplementation(testFixtures(project(":core")))
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.runner)
 }
 
-// The spec/ submodule sits next to this module, both in marknotes-android and when the Pro app includes it.
-val specDir = file("../spec")
+// The shared fixtures (the shared spec) are not part of this public repository, see :core.
+val specDir = providers.gradleProperty("marknotes.specDir").map { file(it) }.getOrElse(file("../spec"))
 
 tasks.withType<Test>().configureEach {
-    // MentionParityTest runs a marknotes-spec fixture from the spec/ submodule; the parity CI job sets
-    // -Pmarknotes.parity.required=true so a missing submodule fails instead of skipping.
+    // MentionParityTest runs a shared spec fixture from specDir; -Pmarknotes.parity.required=true makes
+    // missing fixtures fail instead of skip.
     systemProperty("marknotes.specDir", specDir.absolutePath)
     systemProperty(
         "marknotes.parity.required",

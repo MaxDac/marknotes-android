@@ -77,7 +77,7 @@ import io.github.maxdac.marknotes.core.notes.NoteEntry
 import io.github.maxdac.marknotes.core.notes.NotePaths
 import io.github.maxdac.marknotes.shared.R
 import io.github.maxdac.marknotes.sync.FolderRemovalNotice
-import io.github.maxdac.marknotes.sync.SyncState
+import io.github.maxdac.marknotes.sync.SyncUiState
 import io.github.maxdac.marknotes.ui.MarkNotesLogo
 import io.github.maxdac.marknotes.ui.chords.EnableChordSequencesDialog
 import kotlinx.coroutines.launch
@@ -175,7 +175,7 @@ fun BrowserScreen(
                         IconButton(onClick = { dialog = BrowserDialog.NewFolder }) {
                             Icon(Icons.Filled.CreateNewFolder, contentDescription = "New folder")
                         }
-                        if (container.syncManager.providers.isNotEmpty()) {
+                        if (container.syncHooks.available) {
                             IconButton(onClick = vm::sync, enabled = !sync.running && sync.hasDrives) {
                                 Icon(Icons.Filled.Sync, contentDescription = "Sync now")
                             }
@@ -294,7 +294,7 @@ private fun BrowserContent(
     entries: List<NoteEntry>,
     chordPaths: Set<String>,
     chordsEnabled: Boolean,
-    sync: SyncState,
+    sync: SyncUiState,
     onOpenConflicts: () -> Unit,
     onAcknowledgeFolderNotice: (FolderRemovalNotice) -> Unit,
     onOpen: (NoteEntry) -> Unit,
@@ -303,7 +303,7 @@ private fun BrowserContent(
     Column(Modifier.padding(padding).fillMaxSize()) {
         if (sync.running) LinearProgressIndicator(Modifier.fillMaxWidth())
         sync.folderNotices.firstOrNull()?.let { FolderNoticeCard(it, onAcknowledgeFolderNotice) }
-        if (sync.conflicts.isNotEmpty()) {
+        if (sync.conflictCount > 0) {
             Card(
                 onClick = onOpenConflicts,
                 modifier = Modifier.fillMaxWidth().padding(12.dp),
@@ -312,7 +312,7 @@ private fun BrowserContent(
                 Row(Modifier.padding(16.dp), verticalAlignment = Alignment.CenterVertically) {
                     Icon(Icons.Filled.Warning, contentDescription = null)
                     Text(
-                        "${sync.conflicts.size} sync conflict(s). Tap to resolve.",
+                        "${sync.conflictCount} sync conflict(s). Tap to resolve.",
                         modifier = Modifier.padding(start = 12.dp)
                     )
                 }

@@ -42,11 +42,6 @@ jobs:
             echo "::error::Release from main (F-Droid builds the tagged main commit)."
             exit 1
           fi
-          if [ -f gradle/marknotes-sync-source.properties ]; then
-            echo "::error::Promote the development sync source pin to a published matching release tag before releasing."
-            exit 1
-          fi
-          python3 scripts/sync-contract.py --release
           read -r version code < <(scripts/app-version.sh)
           echo "Releasing $version (versionCode $code)"
           if git rev-parse -q --verify "refs/tags/v$version" > /dev/null; then
@@ -79,14 +74,9 @@ jobs:
       APK: marknotes-libre-${{ needs.validate.outputs.version }}.apk
     steps:
       - uses: actions/checkout@v7
-        with:
-          submodules: true
       - uses: ./.github/actions/setup-android-build
-      - uses: ./.github/actions/setup-sync-toolchain
       - name: Install apksigcopier
         run: pipx install apksigcopier==1.1.1
-      - name: Build marknotes-sync from source
-        run: scripts/build-sync-from-source.sh
       - name: Decode signing keystore
         env:
           RELEASE_KEYSTORE_BASE64: ${{ secrets.RELEASE_KEYSTORE_BASE64 }}
@@ -98,14 +88,12 @@ jobs:
           echo "$RELEASE_KEYSTORE_BASE64" | base64 --decode > "$RUNNER_TEMP/release.keystore"
           echo "MARKNOTES_KEYSTORE_PATH=$RUNNER_TEMP/release.keystore" >> "$GITHUB_ENV"
       - name: Build signed release APK
-        # No signing or provider properties beyond the keystore: F-Droid builds from source, and the APKs must match.
+        # No signing properties beyond the keystore: F-Droid builds from source, and the APKs must match.
         env:
           MARKNOTES_KEYSTORE_PASSWORD: ${{ secrets.RELEASE_KEYSTORE_PASSWORD }}
           MARKNOTES_KEY_ALIAS: ${{ secrets.RELEASE_KEY_ALIAS }}
           MARKNOTES_KEY_PASSWORD: ${{ secrets.RELEASE_KEY_PASSWORD }}
-        run: >-
-          ./gradlew :app:assembleRelease --no-build-cache
-          -Pmarknotes.sync.fromSource=marknotes-sync
+        run: ./gradlew :app:assembleRelease --no-build-cache
       - name: Remove signing keystore
         if: always()
         run: rm -f "$RUNNER_TEMP/release.keystore"

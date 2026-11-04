@@ -14,12 +14,9 @@ dependencyResolutionManagement {
     }
 }
 
-extra["marknotesSyncOwner"] = settingsDir
-apply(from = file("gradle/marknotes-sync.settings.gradle"))
-
 rootProject.name = "MarkNotes"
 
 include(":core")
-// Everything the libre app shares with MarkNotes Pro (MaxDac/MarkNotes), which includes :core and :app-shared.
+// Everything the libre app shares with MarkNotes Plus (MaxDac/MarkNotes), which includes :core and :app-shared.
 include(":app-shared")
 include(":app")

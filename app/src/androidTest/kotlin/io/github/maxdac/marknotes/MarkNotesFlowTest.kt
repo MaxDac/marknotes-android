@@ -59,7 +59,6 @@ import io.github.maxdac.marknotes.ui.editor.EDITOR_NOTICE_TAG
 import io.github.maxdac.marknotes.ui.editor.PREVIEW_TAG
 import io.github.maxdac.marknotes.ui.settings.CHORD_SEQUENCES_SWITCH_TAG
 import io.github.maxdac.marknotes.ui.settings.DELETE_ALL_LOCAL_DATA_TEXT
-import io.github.maxdac.marknotes.ui.settings.NO_DRIVES_TEXT
 import java.io.File
 import org.junit.After
 import org.junit.Assert.assertEquals
@@ -70,6 +69,9 @@ import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+
+/** The text MarkNotes Plus shows in Settings when no drive is connected; the offline app must never show it. */
+private const val NO_DRIVES_TEXT = "No drives connected. Notes are only stored on this device."
 
 /** End-to-end UI tests that drive [MainActivity] against the real app-private note store. */
 @OptIn(ExperimentalTestApi::class)

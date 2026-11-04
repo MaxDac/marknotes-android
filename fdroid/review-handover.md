@@ -22,10 +22,10 @@ pitfalls. Delete it with the other inclusion-only docs in
 | Signing certificate | SHA-256 `ffafda02fa9af06b1927095c8d843ae862173512d4cdaca09bbaaef84d1d70e4` (`AllowedAPKSigningKeys`, repo variable `RELEASE_CERT_SHA256`). It must never change |
 | Anti-features | None: no sync and no network feature since 0.2.0 (Dropbox moved to MarkNotes Plus, marknotes-android#61); `NonFreeNet` was removed from the recipe |
 | Permissions | `INTERNET`, `ACCESS_NETWORK_STATE`, `USE_BIOMETRIC`, plus AndroidX's `DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION`. `INTERNET` and `ACCESS_NETWORK_STATE` are merged in from `:app-shared` and unused by this edition; the MR description says removal is planned. Checks / F-Droid build fails on anything else |
-| Native libraries per ABI (arm64-v8a, x86_64) | `libmarknotes_sync.so` (built from source, about 0.7 MB), `libjnidispatch.so` (JNA 5.19.1 from Maven Central), `libandroidx.graphics.path.so` (AndroidX) |
-| marknotes-sync | Submodule `marknotes-sync/` at tag v0.4.1 (`5e68e80ab6f0731767334e9e7e967fd01e793450`), catalog `marknotesSync = "0.4.1"` |
-| Toolchain pins | Rust 1.99.1 (through fdroiddata's `rustup@1.29.2` srclib), cargo-ndk 4.1.2, NDK r30. Identical in `.fdroid.yml`, `scripts/build-sync-from-source.sh` and `.github/actions/setup-sync-toolchain` |
-| `rm:` | `spec`, `marknotes-sync/spec`, `marknotes-sync/bindings/npm`, `marknotes-sync/package.json`, and the sync Kotlin bindings' `gradle-wrapper.jar`, `gradlew` and `gradlew.bat` |
+| Native libraries per ABI (arm64-v8a, x86_64) | `libjnidispatch.so` (JNA 5.19.1 from Maven Central), `libandroidx.graphics.path.so` (AndroidX). The MR's v0.2.0 build also had a Rust library of ours; later releases do not (see below) |
+| Shared sync library | Not used any more, it became private: `.fdroid.yml` has no submodule, `srclibs`, `prebuild`, `build`, `ndk`, `rm` or `gradleprops`. **The MR's metadata still holds the v0.2.0 recipe with the Rust build: replace it with `.fdroid.yml` when the first release without the sync library is submitted** |
+| Toolchain pins | None: plain Gradle with the buildserver's JDK |
+| `rm:` | None in `.fdroid.yml` (the MR's v0.2.0 recipe still lists the old sync paths) |
 | MarkNotes Pro | Owns Dropbox since [MaxDac/MarkNotes#53](https://github.com/MaxDac/MarkNotes/pull/53); `libre/` re-pin to v0.2.0 in [MaxDac/MarkNotes#54](https://github.com/MaxDac/MarkNotes/pull/54) |
 
 Before acting, check this is still true: compare the MR's head SHA and the latest GitHub release with the table.
@@ -34,20 +34,20 @@ Before acting, check this is still true: compare the MR's head SHA and the lates
 
 - v0.1.0 to v0.1.5 were released for this MR. Each release replaced the single build entry in the fork's metadata
   (amend and force-push) and the MR description.
-- v0.1.2 requested `READ_PHONE_STATE` and the storage permissions: the marknotes-sync natives AAR had no
-  `<uses-sdk>`, so the manifest merger added implied permissions. Fixed at the root in marknotes-sync, and CI now
+- v0.1.2 requested `READ_PHONE_STATE` and the storage permissions: the shared sync library's natives AAR had no
+  `<uses-sdk>`, so the manifest merger added implied permissions. Fixed at the root in that library, and CI now
   asserts the exact permission list.
-- v0.1.5 adopted marknotes-sync v0.4.1 and strict Gradle dependency verification (#46,
-  `gradle/verification-metadata.xml`, `gradle/marknotes-sync-fdroid-prune.txt`). The real fdroidserver deletes
-  `gradlew`/`gradlew.bat` during its Gradle cleanup and scanner run, so those paths went into `rm:` and into the
-  reviewed prune profile. The prune profile allows only deletions; `scripts/check-sync-pin.sh` rejects any other
-  change to the sync checkout.
+- v0.1.5 adopted a newer sync library release and strict Gradle dependency verification (#46). The real fdroidserver
+  deletes `gradlew`/`gradlew.bat` during its Gradle cleanup and scanner run, so those paths went into `rm:`. All of
+  this is gone with the sync library (see below).
 - v0.1.6 enabled full-mode R8 and resource shrinking, reducing the signed APK by 87.90% while preserving
   permissions, both ABIs and signing identity. The final minified APK is exercised on an emulator, and CI checks
   its R8 marker, native libraries and exact permissions. No sync/spec pins or public APIs changed.
 - v0.1.7 fixed the folder drawer opening and white screen transitions in dark mode.
 - v0.2.0 removed Dropbox sync (moved to MarkNotes Plus, marknotes-android#61): no sync provider, no `NonFreeNet`,
   APK 7.9 MB. The recipe's `AntiFeatures` block was removed; the build entry and `CurrentVersion` moved to 0.2.0 / 200.
+- After v0.2.0 the shared sync library and fixtures became private repositories, so libre dropped every dependency on
+  them: no submodules, no Rust or NDK in the recipe, no extra native library of our own. Sync lives in MarkNotes Plus.
 
 ## Lessons from FPInk (fdroid/fdroiddata!50122, same author, merged)
 
@@ -60,11 +60,11 @@ All requests below were addressed before submission. Keep them true, and expect 
 | Reproducible builds | `Binaries` plus `AllowedAPKSigningKeys`; checked in the fork pipeline and in three upstream CI jobs |
 | `subdir` set, no `output` | `subdir: app`, no `output` |
 | Full commit hash, not a tag | Yes, in the fork. `.fdroid.yml` keeps `vX.Y.Z` on purpose |
-| Is `ndk:` needed? | Yes: r30 for cargo-ndk |
+| Is `ndk:` needed? | No longer: there is no native build (the v0.2.0 recipe needed r30 for cargo-ndk) |
 | Stale build steps left after an upstream change | None today. Re-check `rm`, `sudo`, `prebuild`, `build` and `gradleprops` against the tagged tree after every change |
 | **MR description out of date** (FPInk updated the Fastlane text instead) | Update the description in `fdroid/inclusion-mr.md` **and** give it to the maintainer to paste into the MR. Verify afterwards: the MR's `description` field from the public API must contain the new version and pipeline id |
 | Prebuilt native libraries, telemetry | Only JNA's and AndroidX's libraries are prebuilt, both from Maven repositories F-Droid trusts; no telemetry or trackers |
-| `sudo` line suggestion (`apt-get install -y …`) | Ours already uses `apt-get update` and `apt-get install -y gcc libc-dev` |
+| `sudo` line suggestion (`apt-get install -y …`) | The recipe no longer needs a `sudo` step (it installed gcc for the Rust build) |
 | Testers: on-device behaviour, permissions requested when needed | No network use at all since 0.2.0 (no sync feature); the biometric lock is opt-in |
 
 ## Pitfalls
@@ -93,13 +93,10 @@ All requests below were addressed before submission. Keep them true, and expect 
 - **Upstream changes that alter the APK** need a new release (Prepare release, merge its PR, then Release on
   `main`). The release PR is opened by a bot, so its CI runs through a workflow_dispatch "PR CI" run. Roll forward
   only; versionCode can't go down.
-- **marknotes-sync changes** need a sync release tag and the submodule moved to it in the same commit as the
-  catalog bump (`scripts/fdroid-lint.sh` and `scripts/check-sync-pin.sh` check it), then
-  `gradle/verification-metadata.xml` updated for the new assets.
 - **Known CI flakes**: the emulator job ("Unable to connect to adb daemon") and Dependency submission's KSP plugin
   resolution. Rerun the failed jobs once before investigating.
-- **Shared code**: `:core` and `:app-shared` are also built by MarkNotes Pro. Tell the Pro side (or open a Pro PR)
-  when a public API or the dependency verification changes.
+- **Shared code**: `:core` and `:app-shared` are also built by MarkNotes Plus. Tell the Plus side (or open a Plus PR)
+  when a public API (`SyncHooks`, `MarkNotesApp`, ...) changes.
 
 ## Reply style
 

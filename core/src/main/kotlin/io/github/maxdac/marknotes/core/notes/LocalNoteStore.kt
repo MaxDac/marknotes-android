@@ -1,6 +1,5 @@
 package io.github.maxdac.marknotes.core.notes
 
-import io.github.maxdac.marknotes.sync.foldCase
 import java.io.File
 import java.io.FileOutputStream
 import java.io.IOException

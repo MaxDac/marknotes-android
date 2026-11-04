@@ -166,7 +166,7 @@ class DiagnosticsFlowTest {
     fun deletingAllLocalDataIncludesDiagnosticsAndSnapshots() = runBlocking {
         diagnostics.report(DiagnosticCode.NOTE_WRITE, IOException("private"))
         assertNotNull(diagnostics.shareIntent())
-        container.syncManager.deleteAllLocalData()
+        container.syncHooks.deleteAllLocalData()
         assertTrue(diagnostics.draft().body.contains("No events included."))
         assertFalse(File(context.cacheDir, "diagnostic-exports").listFiles().orEmpty().any())
     }
