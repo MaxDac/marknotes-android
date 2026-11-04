@@ -40,6 +40,8 @@ only use that interface, the libre app uses `NoSyncHooks` (no sync UI), and Plus
 - dependencies both apps use go in `gradle/libs.versions.toml` here; MarkNotes Plus reads this catalog as `libs`;
 - the Room schema (`data/SyncDatabase.kt`) keeps the sync tables, so the database of users upgrading from versions
   that synced, and Plus, keep working.
+- `:app` strips `INTERNET` and `ACCESS_NETWORK_STATE` from this offline edition (Plus keeps them through
+  `:app-shared`), so code that needs the network must live behind `SyncHooks`; `NoSyncHooks` never touches it.
 
 ## Build and test
 

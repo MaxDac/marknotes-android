@@ -41,8 +41,6 @@ def check(apk: Path, aapt2: Path) -> None:
     ).stdout
     actual = set(re.findall(r"^uses-permission: name='([^']+)'", permissions, re.MULTILINE))
     expected_permissions = {
-        "android.permission.INTERNET",
-        "android.permission.ACCESS_NETWORK_STATE",
         "android.permission.USE_BIOMETRIC",
         "io.github.maxdac.marknotes.libre.DYNAMIC_RECEIVER_NOT_EXPORTED_PERMISSION",
     }
