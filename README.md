@@ -1,7 +1,6 @@
 # MarkNotes
 
-Simple Android markdown notes app with folders, offline-first. This libre edition has no cloud sync; sync with Dropbox, OneDrive and Proton Drive is in
-[MarkNotes Plus](https://github.com/MaxDac/MarkNotes).
+Simple Android markdown notes app with folders, offline-first. This libre edition is offline only: it has no cloud sync and requests no network permission.
 
 This is the libre build of MarkNotes, published on [F-Droid](https://f-droid.org/packages/io.github.maxdac.marknotes.libre/)
 and on [GitHub Releases](https://github.com/MaxDac/marknotes-android/releases): free software only, built from source,
@@ -49,14 +48,10 @@ submodule) with OneDrive and Proton Drive sync added, released on GitHub only. T
   asks whether to turn it on; the setting never changes your notes.
 - **Appearance** (Settings): theme **System** (default), **Light** or **Dark**, and an accent colour chosen
   from 8 palettes or **Dynamic** (Material You, Android 12+).
-- **No cloud sync**: the notes stay on this device as plain `.md` files, so you can back them up or copy them
-  yourself. Two-way sync (Dropbox, OneDrive, Proton Drive) with the same note format is in
-  [MarkNotes Plus](https://github.com/MaxDac/MarkNotes), which builds on this repo's `:core` and `:app-shared`
-  modules. Versions before 0.2.0 shipped Dropbox sync here.
-- **Delete local data** (Settings → Privacy): **Delete all local data** disconnects every drive, then deletes the
-  notes, images, sync state and cached files stored on this device. When you disconnect the last drive you can
-  also tick **Also delete the notes stored on this device**. Nothing is ever deleted from a drive: the deletion is
-  local only and is not synced.
+- **Offline only**: the notes stay on this device as plain `.md` files, so you can back them up or copy them
+  yourself. The APK requests no network permission (`INTERNET` and `ACCESS_NETWORK_STATE` are removed).
+- **Delete local data** (Settings → Privacy): **Delete all local data** deletes the notes, images and cached files
+  stored on this device (and any state left by versions before 0.2.0).
 
 The app is fully local and every dependency is free software, so it has no anti-features.
 
