@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Builds the checked-out commit with the real `fdroid build --on-server` in F-Droid's buildserver image, the way
-# fdroiddata's `fdroid build` CI job does, using the recipe in .fdroid.yml (with the marknotes-sync submodule). The unsigned APK
+# fdroiddata's `fdroid build` CI job does, using the recipe in .fdroid.yml. The unsigned APK
 # must be byte-identical to the Checks / F-Droid build, or F-Droid won't publish our signed release APK.
 #
 #   scripts/fdroid-server-build.sh OUTPUT_DIR
@@ -51,7 +51,6 @@ data="$home_vagrant"
 mkdir -p "$data/metadata" "$data/srclibs" "$data/build" "$data/tmp" "$data/unsigned" "$data/logs"
 git config --system --add safe.directory "*"
 git clone --quiet --mirror /src "$data/source.git"
-curl --silent --fail -o "$data/srclibs/rustup.yml" https://gitlab.com/fdroid/fdroiddata/-/raw/master/srclibs/rustup.yml
 
 # The last build entry of the recipe, pinned to this commit and version and cloned from the local mirror. Binaries
 # and the update fields are dropped: there is no signed release to compare against yet.

@@ -78,21 +78,16 @@ import io.github.maxdac.marknotes.data.ThemeColor
 import io.github.maxdac.marknotes.data.ThemeMode
 import io.github.maxdac.marknotes.security.DeviceAuth
 import io.github.maxdac.marknotes.shared.R
-import io.github.maxdac.marknotes.sync.DriveStatus
-import io.github.maxdac.marknotes.sync.SyncManager
+import io.github.maxdac.marknotes.sync.SyncHooks
 import io.github.maxdac.marknotes.ui.MarkNotesLogo
-import io.github.maxdac.marknotes.ui.drives.ReconnectDriveViewModel
 import io.github.maxdac.marknotes.ui.swatch
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-const val NO_DRIVES_TEXT = "No drives connected. Notes are only stored on this device."
 const val CHORD_SEQUENCES_SWITCH_TAG = "chord-sequences-switch"
-const val SYNC_ON_RECONNECT_SWITCH_TAG = "sync-on-reconnect-switch"
 const val DELETE_ALL_LOCAL_DATA_TEXT = "Delete all local data"
-const val DELETE_LOCAL_NOTES_TEXT = "Also delete the notes stored on this device"
 const val TURN_ON_APP_LOCK_TEXT = "Turn on app lock"
 const val TURN_OFF_APP_LOCK_TEXT = "Turn off app lock"
 const val LOCK_NOW_TEXT = "Lock now"
@@ -108,22 +103,40 @@ fun SettingsScreen(
     onOpenConflicts: () -> Unit,
     onBack: () -> Unit,
     onLocalDataDeleted: () -> Unit = onBack,
-    syncManager: SyncManager = LocalContext.current.appContainer.syncManager,
+    syncHooks: SyncHooks = LocalContext.current.appContainer.syncHooks,
     onOpenHelp: (() -> Unit)? = null
 ) {
     val container = LocalContext.current.appContainer
-    val state by syncManager.state.collectAsStateWithLifecycle()
-    var removing by remember { mutableStateOf<DriveStatus?>(null) }
-    val activity = LocalActivity.current as ComponentActivity
-    val reconnectModel = viewModel { ReconnectDriveViewModel(syncManager, container.diagnostics) }
-    val reconnect by reconnectModel.state.collectAsStateWithLifecycle()
-    val enabled = !state.running && !reconnect.busy
-    reconnect.screen?.let { screen ->
-        BackHandler { reconnectModel.cancel() }
-        screen({ reconnectModel.complete(activity) }, { reconnectModel.cancel() })
-        return
+    val state by syncHooks.state.collectAsStateWithLifecycle()
+    syncHooks.SettingsPage { busy ->
+        SettingsContent(
+            container = container,
+            syncHooks = syncHooks,
+            enabled = !state.running && !busy,
+            busy = busy,
+            onAddDrive = onAddDrive,
+            onOpenConflicts = onOpenConflicts,
+            onBack = onBack,
+            onLocalDataDeleted = onLocalDataDeleted,
+            onOpenHelp = onOpenHelp
+        )
     }
+}
 
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+@Suppress("LongParameterList")
+private fun SettingsContent(
+    container: AppContainer,
+    syncHooks: SyncHooks,
+    enabled: Boolean,
+    busy: Boolean,
+    onAddDrive: () -> Unit,
+    onOpenConflicts: () -> Unit,
+    onBack: () -> Unit,
+    onLocalDataDeleted: () -> Unit,
+    onOpenHelp: (() -> Unit)?
+) {
     Scaffold(
         topBar = {
             TopAppBar(
@@ -150,39 +163,13 @@ fun SettingsScreen(
             HorizontalDivider()
             ChordSequencesSection(container.settings)
 
-            if (syncManager.providers.isNotEmpty()) {
-                HorizontalDivider()
-                Text("Drives", style = MaterialTheme.typography.titleMedium)
-                if (state.drives.isEmpty()) Text(NO_DRIVES_TEXT)
-                state.drives.forEach { drive ->
-                    DriveCard(
-                        drive,
-                        enabled = enabled,
-                        supportsReconnect = syncManager.connector(drive.account.provider).supportsReconnect,
-                        onReconnect = { reconnectModel.start(drive.account, activity) },
-                        onRemove = { removing = drive }
-                    )
-                }
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    OutlinedButton(onClick = onAddDrive, enabled = enabled) { Text("Add drive") }
-                    Button(onClick = syncManager::syncNow, enabled = state.hasDrives && enabled) {
-                        Text("Sync now")
-                    }
-                }
-                if (state.running) LinearProgressIndicator(Modifier.fillMaxWidth())
-                state.message?.let { Text(it, style = MaterialTheme.typography.bodyMedium) }
-                reconnect.error?.let { Text(it, color = MaterialTheme.colorScheme.error) }
-                if (state.conflicts.isNotEmpty()) {
-                    Button(onClick = onOpenConflicts) { Text("Resolve ${state.conflicts.size} conflict(s)") }
-                }
-                SyncOnReconnectSection(container.settings, syncManager)
-            }
+            with(syncHooks) { DrivesSection(busy, onAddDrive, onOpenConflicts, onLocalDataDeleted) }
 
             HorizontalDivider()
             ImagesSection(container, enabled = enabled)
 
             HorizontalDivider()
-            PrivacySection(syncManager, enabled = enabled, onDeleted = onLocalDataDeleted)
+            PrivacySection(syncHooks, enabled = enabled, onDeleted = onLocalDataDeleted)
             AppLockSection(container)
 
             HorizontalDivider()
@@ -194,7 +181,7 @@ fun SettingsScreen(
                 MarkNotesLogo(size = 48.dp)
                 Text(stringResource(R.string.app_name), style = MaterialTheme.typography.titleLarge)
             }
-            container.connectors.values.mapNotNull { it.notice }.forEach { notice ->
+            syncHooks.aboutNotices.forEach { notice ->
                 Text(notice, style = MaterialTheme.typography.bodyMedium)
             }
             Text(
@@ -204,16 +191,6 @@ fun SettingsScreen(
             TipSection()
             OtherAppsSection(MarkNotesPeer.others(container.edition))
         }
-    }
-
-    removing?.let { drive ->
-        RemoveDriveDialog(
-            drive,
-            lastDrive = state.drives.size == 1,
-            syncManager = syncManager,
-            onDismiss = { removing = null },
-            onLocalDataDeleted = onLocalDataDeleted
-        )
     }
 }
 
@@ -297,30 +274,6 @@ private fun AppearanceSection(settings: AppSettings) {
 }
 
 @Composable
-private fun SyncOnReconnectSection(settings: AppSettings, syncManager: SyncManager) {
-    val enabled by settings.syncOnReconnect.collectAsStateWithLifecycle()
-    val status by syncManager.reconnectStatus.collectAsStateWithLifecycle()
-    Row(
-        Modifier
-            .fillMaxWidth()
-            .toggleable(value = enabled, role = Role.Switch, onValueChange = settings::setSyncOnReconnect)
-            .testTag(SYNC_ON_RECONNECT_SWITCH_TAG),
-        verticalAlignment = Alignment.CenterVertically
-    ) {
-        Column(Modifier.weight(1f)) {
-            Text("Sync when reconnected", style = MaterialTheme.typography.bodyLarge)
-            Text(
-                "Off by default. When the network comes back, syncs while the app is open and unlocked; " +
-                    "temporary failures retry after 5, 15 and 30 seconds. Never syncs while the app is closed.",
-                style = MaterialTheme.typography.bodySmall
-            )
-        }
-        Switch(checked = enabled, onCheckedChange = null, modifier = Modifier.padding(start = 12.dp))
-    }
-    status?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
-}
-
-@Composable
 private fun ChordSequencesSection(settings: AppSettings) {
     val enabled by settings.chordSequencesEnabled.collectAsStateWithLifecycle()
     Row(
@@ -370,43 +323,6 @@ private fun ColorSwatch(color: ThemeColor, selected: Boolean, onClick: () -> Uni
         when {
             selected -> Icon(Icons.Filled.Check, contentDescription = null, tint = Color.White)
             color == ThemeColor.DYNAMIC -> Icon(Icons.Filled.AutoAwesome, contentDescription = null, tint = Color.White)
-        }
-    }
-}
-
-@Composable
-private fun DriveCard(
-    drive: DriveStatus,
-    enabled: Boolean,
-    supportsReconnect: Boolean,
-    onReconnect: () -> Unit,
-    onRemove: () -> Unit
-) {
-    val account = drive.account
-    Card(Modifier.fillMaxWidth()) {
-        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(account.provider.displayName, style = MaterialTheme.typography.titleSmall)
-            Text(account.label, style = MaterialTheme.typography.bodyMedium)
-            Text("Folder: /${account.syncFolder}", style = MaterialTheme.typography.bodySmall)
-            if (drive.lastSyncAt > 0) {
-                Text(
-                    "Last sync: " + DateUtils.getRelativeTimeSpanString(drive.lastSyncAt),
-                    style = MaterialTheme.typography.bodySmall
-                )
-            }
-            drive.message?.let { Text(it, style = MaterialTheme.typography.bodySmall) }
-            drive.unavailableReason?.let {
-                Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-            }
-            Row(Modifier.align(Alignment.End)) {
-                // Signs in to the same account again, keeping the drive's folder, options and sync history.
-                if (supportsReconnect) {
-                    TextButton(onClick = onReconnect, enabled = enabled && drive.unavailableReason == null) {
-                        Text("Reconnect")
-                    }
-                }
-                TextButton(onClick = onRemove, enabled = enabled) { Text("Disconnect") }
-            }
         }
     }
 }
@@ -464,52 +380,7 @@ private fun ImagesSection(container: AppContainer, enabled: Boolean) {
 }
 
 @Composable
-private fun RemoveDriveDialog(
-    drive: DriveStatus,
-    lastDrive: Boolean,
-    syncManager: SyncManager,
-    onDismiss: () -> Unit,
-    onLocalDataDeleted: () -> Unit
-) {
-    var deleteLocal by remember { mutableStateOf(false) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text("Disconnect ${drive.account.provider.displayName}?") },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                val keep = if (lastDrive) {
-                    "Nothing is deleted from the drive."
-                } else {
-                    "Notes stay on this device and on the drive."
-                }
-                Text("${drive.account.label} will no longer be synced and you will be signed out. $keep")
-                if (lastDrive) {
-                    Row(
-                        Modifier
-                            .fillMaxWidth()
-                            .toggleable(value = deleteLocal, role = Role.Checkbox) { deleteLocal = it },
-                        verticalAlignment = Alignment.CenterVertically
-                    ) {
-                        Checkbox(checked = deleteLocal, onCheckedChange = null)
-                        Text(DELETE_LOCAL_NOTES_TEXT, Modifier.padding(start = 8.dp))
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = {
-                val wipe = lastDrive && deleteLocal
-                onDismiss()
-                syncManager.removeDrive(drive.account, deleteLocalData = wipe)
-                if (wipe) onLocalDataDeleted()
-            }) { Text("Disconnect") }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text("Cancel") } }
-    )
-}
-
-@Composable
-private fun PrivacySection(syncManager: SyncManager, enabled: Boolean, onDeleted: () -> Unit) {
+private fun PrivacySection(syncHooks: SyncHooks, enabled: Boolean, onDeleted: () -> Unit) {
     val diagnostics = LocalContext.current.appContainer.diagnostics
     val scope = rememberCoroutineScope()
     var confirming by remember { mutableStateOf(false) }
@@ -546,7 +417,7 @@ private fun PrivacySection(syncManager: SyncManager, enabled: Boolean, onDeleted
                         error = null
                         scope.launch {
                             val deleted = try {
-                                syncManager.deleteAllLocalData()
+                                syncHooks.deleteAllLocalData()
                                 true
                             } catch (e: CancellationException) {
                                 throw e

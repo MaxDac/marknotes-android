@@ -5,7 +5,7 @@ import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
 
-/** Runs every marknotes-spec fixture case mapped to `:core` (see [CoreParity]) against the real implementation. */
+/** Runs every shared spec fixture case mapped to `:core` (see [CoreParity]) against the real implementation. */
 @RunWith(Parameterized::class)
 class SpecParityTest(private val case: FixtureCase) {
     @Test
@@ -29,7 +29,10 @@ class SpecParityTest(private val case: FixtureCase) {
 class SpecCoverageTest {
     @Test
     fun everyFixtureIsMapped() {
-        assertEquals(SpecFixtures.ids(), CoreParity.mappings.keys.sorted())
+        assertEquals(
+            SpecFixtures.ids().filterNot { id -> CoreParity.SYNC_AREAS.any(id::startsWith) },
+            CoreParity.mappings.keys.sorted()
+        )
     }
 
     @Test

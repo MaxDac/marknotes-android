@@ -29,7 +29,7 @@ def check(apk: Path, aapt2: Path) -> None:
         expected = {
             f"lib/{abi}/{library}.so"
             for abi in ("arm64-v8a", "x86_64")
-            for library in ("libmarknotes_sync", "libjnidispatch", "libandroidx.graphics.path")
+            for library in ("libjnidispatch", "libandroidx.graphics.path")
         }
         if libraries != expected:
             raise ValueError(f"Unexpected native libraries: {sorted(libraries ^ expected)}")
@@ -48,7 +48,7 @@ def check(apk: Path, aapt2: Path) -> None:
     }
     if actual != expected_permissions:
         raise ValueError(f"Unexpected permission changes: {sorted(actual ^ expected_permissions)}")
-    print(f"Optimized APK: {apk.stat().st_size:,} bytes; R8, permissions and both native ABIs verified")
+    print(f"Optimized APK: {apk.stat().st_size:,} bytes; R8, permissions and native libraries verified")
 
 
 if __name__ == "__main__":

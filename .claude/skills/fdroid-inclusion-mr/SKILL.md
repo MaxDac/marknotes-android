@@ -87,7 +87,6 @@ The MR keeps only the latest build entry, so every release (README, "Releasing")
    diff; for example, it wants the `Binaries:` URL on the line after the key.
 5. Update `fdroid/inclusion-mr.md` in a PR here:
    - the release link, commit and versionCode;
-   - the marknotes-sync tag in *Build notes*, if it changed;
    - the pipeline and `fdroid build` job links in *Validation*.
 6. Give the maintainer the whole description block to paste into the MR, plus a short MR comment, for example:
    "Updated to vX.Y.Z (versionCode N): <one line on what changed>. Pipeline: <link>."
@@ -96,7 +95,7 @@ The MR keeps only the latest build entry, so every release (README, "Releasing")
 
 1. Read every discussion (endpoint above) and list the unresolved threads. On FPInk the reviewers were `linsui`
    and `mezinster`. Notes with `"system": true` are only history.
-2. For each comment, decide whether to change the recipe, change upstream (this repo or marknotes-sync), or
+2. For each comment, decide whether to change the recipe, change upstream (this repo), or
    explain why not.
    - A recipe change goes in **both** `.fdroid.yml` (a PR here) and the fork's metadata file (amend and
      force-push). Also update the description if it mentions that part.
@@ -113,8 +112,7 @@ What fdroiddata reviewers usually ask for. All of these already hold here; keep 
 - reproducible builds: `Binaries` and `AllowedAPKSigningKeys`;
 - `subdir` set, and no `output`;
 - the full commit hash;
-- upstream code as submodules, not srclibs (the only srclib is fdroiddata's `rustup`);
-- `ndk:` only because the native build needs r30;
+- no submodules, srclibs or native build: plain Gradle;
 - no stale `prebuild` or `build` steps;
 - only the latest version;
 - a description that matches the metadata;

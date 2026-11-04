@@ -13,14 +13,14 @@ import io.github.maxdac.marknotes.auth.CredentialStore
 import io.github.maxdac.marknotes.auth.KeystoreCrypto
 import io.github.maxdac.marknotes.core.diagnostics.DiagnosticReporter
 import io.github.maxdac.marknotes.core.notes.LocalNoteStore
-import io.github.maxdac.marknotes.core.sync.DriveProvider
 import io.github.maxdac.marknotes.data.AppSettings
 import io.github.maxdac.marknotes.data.MarkNotesDatabase
 import io.github.maxdac.marknotes.diagnostics.AndroidDiagnostics
 import io.github.maxdac.marknotes.security.AppLock
-import io.github.maxdac.marknotes.sync.DriveConnector
+import io.github.maxdac.marknotes.sync.NoSyncHooks
 import io.github.maxdac.marknotes.sync.PendingSaves
-import io.github.maxdac.marknotes.sync.SyncManager
+import io.github.maxdac.marknotes.sync.SyncHooks
+import io.github.maxdac.marknotes.sync.SyncHost
 import io.github.maxdac.marknotes.ui.editor.ImageImporter
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
@@ -32,8 +32,8 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.launch
 
 /**
- * The Application of both builds: the libre app (offline only, no sync provider) and MarkNotes Plus, which adds
- * its providers through [extraConnectors].
+ * The Application of both builds: the libre app (offline only, no sync) and MarkNotes Plus, which adds its sync
+ * through [createSyncHooks].
  */
 abstract class MarkNotesApp : Application() {
     lateinit var container: AppContainer
@@ -51,14 +51,15 @@ abstract class MarkNotesApp : Application() {
     internal lateinit var diagnosticBackend: AndroidDiagnostics
         private set
 
-    /** Connectors for the cloud providers this build offers; none by default (notes stay on the device). */
-    protected open fun extraConnectors(context: Context, credentials: CredentialStore): List<DriveConnector> =
-        emptyList()
+    /**
+     * The sync of this build; none by default (notes stay on the device). An app that syncs returns its own
+     * implementation, built from what [host] gives it.
+     */
+    protected open fun createSyncHooks(host: SyncHost): SyncHooks = NoSyncHooks(host)
 
     /**
-     * Deletes the data this build keeps on the device besides the notes, the sync state and what its connectors
-     * clear in [DriveConnector.deleteLocalData], when the user deletes all local data. Drives are already
-     * disconnected; nothing may be deleted from them.
+     * Deletes the data this build keeps on the device besides the notes, the sync state and what its sync clears
+     * itself, when the user deletes all local data. Drives are already disconnected; nothing may be deleted from them.
      */
     protected open suspend fun deleteExtraLocalData(context: Context) {}
 
@@ -67,7 +68,7 @@ abstract class MarkNotesApp : Application() {
         val diagnostics = AndroidDiagnostics(this, issueRepository)
         diagnosticBackend = diagnostics
         diagnosticReporter = diagnostics
-        container = AppContainer(this, edition, ::extraConnectors) { deleteExtraLocalData(this) }
+        container = AppContainer(this, edition, ::createSyncHooks) { deleteExtraLocalData(this) }
     }
 }
 
@@ -75,7 +76,7 @@ abstract class MarkNotesApp : Application() {
 class AppContainer(
     context: Context,
     val edition: MarkNotesEdition,
-    extraConnectors: (Context, CredentialStore) -> List<DriveConnector> = { _, _ -> emptyList() },
+    createSyncHooks: (SyncHost) -> SyncHooks = ::NoSyncHooks,
     deleteExtraLocalData: suspend () -> Unit = {}
 ) {
     val diagnostics = (context.applicationContext as MarkNotesApp).diagnosticBackend
@@ -103,10 +104,6 @@ class AppContainer(
     private val database = MarkNotesDatabase.create(context)
     private val credentials = CredentialStore(context, KeystoreCrypto(diagnostics = diagnostics))
 
-    /** Every provider this build can connect. */
-    val connectors: Map<DriveProvider, DriveConnector> =
-        extraConnectors(context.applicationContext, credentials).associateBy { it.provider }
-
     private val _localRevision = MutableStateFlow(0L)
 
     /** Bumped whenever the note tree changes (browser actions, sync, conflict resolution). */
@@ -119,28 +116,29 @@ class AppContainer(
     /** Unsaved editor edits, written before every sync. */
     val pendingSaves = PendingSaves(diagnostics)
 
-    val syncManager = SyncManager(
-        context = context.applicationContext,
-        notes = notes,
-        records = database.syncRecords(),
-        accounts = database.driveAccounts(),
-        connectors = connectors,
-        settings = settings,
-        scope = appScope,
-        beforeSync = pendingSaves::flushAll,
-        onLocalChanged = ::notifyLocalChanged,
-        discardPendingSaves = pendingSaves::discardAll,
-        deleteExtraLocalData = {
-            deleteExtraLocalData()
-            diagnostics.clear()
-        },
-        diagnostics = diagnostics
+    /** The sync of this build, see [SyncHooks]; none in the libre app. */
+    val syncHooks: SyncHooks = createSyncHooks(
+        SyncHost(
+            context = context.applicationContext,
+            notes = notes,
+            database = database,
+            credentials = credentials,
+            settings = settings,
+            scope = appScope,
+            diagnostics = diagnostics,
+            pendingSaves = pendingSaves,
+            onLocalChanged = ::notifyLocalChanged,
+            deleteExtraLocalData = {
+                deleteExtraLocalData()
+                diagnostics.clear()
+            }
+        )
     )
 
     init {
         appScope.launch {
             combine(settings.syncOnReconnect, appLock.locked, ::Pair).collect { (enabled, locked) ->
-                syncManager.reconnect.update(enabled = enabled, unlocked = !locked)
+                syncHooks.updateReconnectPolicy(enabled = enabled, unlocked = !locked)
             }
         }
     }

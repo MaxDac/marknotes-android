@@ -14,11 +14,6 @@ import androidx.room.Transaction
 import androidx.room.Upsert
 import androidx.room.migration.Migration
 import androidx.sqlite.db.SupportSQLiteDatabase
-import io.github.maxdac.marknotes.core.sync.DriveAccount
-import io.github.maxdac.marknotes.core.sync.DriveProvider
-import io.github.maxdac.marknotes.core.sync.FolderNotice
-import io.github.maxdac.marknotes.core.sync.SyncMetadataStore
-import io.github.maxdac.marknotes.core.sync.SyncRecord
 import java.io.IOException
 import kotlinx.coroutines.flow.Flow
 
@@ -37,8 +32,8 @@ data class SyncRecordEntity(
 )
 
 /**
- * A manual-removal notice for a folder deleted locally that a drive can't remove (see
- * [io.github.maxdac.marknotes.core.sync.FolderNotice]). The auto-increment [generation] is never reused.
+ * A manual-removal notice for a folder deleted locally that a drive can't remove. The auto-increment [generation]
+ * is never reused.
  */
 @Entity(tableName = "folder_notices")
 data class FolderNoticeEntity(
@@ -48,14 +43,13 @@ data class FolderNoticeEntity(
     val remoteId: String,
     val acknowledged: Boolean,
     val active: Boolean
-) {
-    fun toNotice() = FolderNotice(path, remoteId, generation, acknowledged, active)
-}
+)
 
 /** Remote identity of a preserved folder whose record was retired because the folder was recreated locally. */
 @Entity(tableName = "recreated_folder_identities", primaryKeys = ["driveId", "path"])
 data class RecreatedFolderIdentityEntity(val driveId: String, val path: String, val remoteId: String)
 
+/** A drive connected by an app that syncs; the libre app keeps the table, so the database schema is shared. */
 @Entity(tableName = "drive_accounts")
 data class DriveAccountEntity(
     @PrimaryKey val id: String,
@@ -66,25 +60,7 @@ data class DriveAccountEntity(
     val rootFolderName: String,
     val lastSyncAt: Long,
     val lastMessage: String?
-) {
-    fun toAccount(): DriveAccount? {
-        val provider = DriveProvider.entries.firstOrNull { it.name == provider } ?: return null
-        return DriveAccount(id, provider, label, remoteFolder, createRootFolder, rootFolderName)
-    }
-
-    companion object {
-        fun from(account: DriveAccount, lastSyncAt: Long = 0L, lastMessage: String? = null) = DriveAccountEntity(
-            account.id,
-            account.provider.name,
-            account.label,
-            account.remoteFolder,
-            account.createRootFolder,
-            account.rootFolderName,
-            lastSyncAt,
-            lastMessage
-        )
-    }
-}
+)
 
 @Dao
 @Suppress("TooManyFunctions")
@@ -323,61 +299,4 @@ abstract class MarkNotesDatabase : RoomDatabase() {
                 .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
                 .build()
     }
-}
-
-/** Sync metadata of a single drive. */
-@Suppress("TooManyFunctions")
-class RoomSyncMetadataStore(private val dao: SyncRecordDao, private val driveId: String) : SyncMetadataStore {
-    override suspend fun all(): List<SyncRecord> = dao.all(driveId).map {
-        SyncRecord(
-            it.path,
-            it.isFolder,
-            it.remoteId,
-            it.remoteVersion,
-            it.localHash,
-            it.syncedAt,
-            it.localDeleted,
-            it.remoteFolderPreserved
-        )
-    }
-
-    override suspend fun upsert(record: SyncRecord) = dao.upsert(entity(record))
-
-    override suspend fun delete(path: String) = dao.delete(driveId, path)
-
-    override suspend fun rename(path: String, toPath: String) = dao.rename(driveId, path, toPath)
-
-    override suspend fun clear() = dao.clear(driveId)
-
-    override suspend fun folderNotices(): List<FolderNotice> = dao.notices(driveId).map { it.toNotice() }
-
-    override suspend fun recreatedFolderIdentities(): Map<String, String> =
-        dao.recreatedIdentities(driveId).associate { it.path to it.remoteId }
-
-    override suspend fun preserveFolder(path: String, remoteId: String) = dao.preserveFolder(driveId, path, remoteId)
-
-    override suspend fun retireRecreatedFolders(paths: List<String>) = dao.retireRecreatedFolders(driveId, paths)
-
-    override suspend fun saveFolder(record: SyncRecord) =
-        dao.saveFolder(entity(record.copy(isFolder = true, localDeleted = false, remoteFolderPreserved = false)))
-
-    override suspend fun retireFolderDescendants(path: String) = dao.retireFolderDescendants(driveId, path)
-
-    override suspend fun forget(paths: List<String>) = dao.forget(driveId, paths)
-
-    override suspend fun acknowledgeFolderNotice(generation: Long) {
-        if (dao.acknowledgeNotice(driveId, generation) == 0) throw IOException("folder notice not found")
-    }
-
-    private fun entity(record: SyncRecord) = SyncRecordEntity(
-        driveId,
-        record.path,
-        record.isFolder,
-        record.remoteId,
-        record.remoteVersion,
-        record.localHash,
-        record.syncedAt,
-        record.localDeleted,
-        record.remoteFolderPreserved
-    )
 }

@@ -18,24 +18,17 @@ import android.util.Log;
 import android.view.InputDevice;
 import android.view.MotionEvent;
 import android.view.accessibility.AccessibilityNodeInfo;
-import io.github.maxdac.marknotes.sync.Action;
-import io.github.maxdac.marknotes.sync.LocalEntry;
-import io.github.maxdac.marknotes.sync.Marknotes_syncKt;
-import io.github.maxdac.marknotes.sync.MergeResult;
-import io.github.maxdac.marknotes.sync.RemoteFolderDeletion;
-import io.github.maxdac.marknotes.sync.SyncInput;
 import java.io.File;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
-import java.util.Collections;
 import java.util.Objects;
 import java.util.function.Predicate;
 import java.util.function.Supplier;
 
 /**
  * Platform-only runner: a debug AndroidX/Kotlin test runner cannot link against an obfuscated release.
- * Only the explicitly kept UniFFI API is referenced; UI, persistence and import use Android APIs.
+ * It only uses Android APIs: UI, persistence and import.
  */
 public final class ReleaseSmokeInstrumentation extends Instrumentation {
     @Override
@@ -58,14 +51,6 @@ public final class ReleaseSmokeInstrumentation extends Instrumentation {
     }
 
     private void smoke() throws Exception {
-        MergeResult merged = Marknotes_syncKt.merge3("a\nb\nc\n", "A\nb\nc\n", "a\nb\nC\n");
-        require(!merged.getHasConflicts() && merged.getText().equals("A\nb\nC\n"), "Native merge failed");
-        require(Marknotes_syncKt.plan(new SyncInput(
-            Collections.singletonList(new LocalEntry("n.md", false, 1L, "hash")),
-            Collections.emptyList(), Collections.emptyList(), null, RemoteFolderDeletion.ATOMIC_EMPTY_ONLY
-        )).getActions().stream().anyMatch(action ->
-            action instanceof Action.UploadNew && ((Action.UploadNew) action).getPath().equals("n.md")
-        ), "Native sync plan failed");
         Context context = getTargetContext();
         File note = new File(context.getFilesDir(), "notes/R8 smoke.md");
         Files.createDirectories(note.toPath().getParent());

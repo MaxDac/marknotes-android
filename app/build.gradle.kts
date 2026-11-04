@@ -22,7 +22,7 @@ android {
         } else {
             "androidx.test.runner.AndroidJUnitRunner"
         }
-        // marknotes-sync's native library is built for devices (arm64) and emulators (x86_64) only.
+        // Only devices (arm64) and emulators (x86_64) get the native libraries (JNA, graphics path).
         ndk {
             abiFilters += listOf("arm64-v8a", "x86_64")
         }

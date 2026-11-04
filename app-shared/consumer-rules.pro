@@ -1,9 +1,8 @@
 # Rules required by applications that shrink :app-shared.
 
-# marknotes-sync: the UniFFI binding calls the Rust core through JNA, which uses reflection.
+# JNA maps its library interfaces by reflection (core/notes/CaseRename.kt).
 -keep class com.sun.jna.** { *; }
 -keep class * extends com.sun.jna.** { *; }
--keep class io.github.maxdac.marknotes.sync.** { *; }
 -dontwarn java.awt.**
 
 # Markwon probes for optional SVG/GIF decoders; note attachments use its built-in bitmap decoder.

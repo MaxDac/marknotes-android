@@ -32,14 +32,14 @@ MarkNotes (`io.github.maxdac.marknotes.libre`) is an offline-first Markdown note
 
 ### Build notes
 
-* The sync core is [marknotes-sync](https://github.com/MaxDac/marknotes-sync) (Rust, with UniFFI Kotlin bindings; GPL-3.0-or-later, same author), a git submodule at its release tag `v0.4.1`. It's used for local note handling and is built from source in `build` by upstream's `scripts/build-sync-from-source.sh`. That uses a pinned Rust toolchain (1.99.1, installed through the `rustup` srclib), cargo-ndk 4.1.2 and NDK r30, with `--remap-path-prefix`, no build ID and `SOURCE_DATE_EPOCH`, so the native libraries are reproducible. Gradle then takes the bindings from that checkout (`gradleprops: marknotes.sync.fromSource=marknotes-sync`) instead of the GitHub release assets.
-* `rm` deletes what isn't built or isn't free: the `spec/` submodules (shared test fixtures, unlicensed), marknotes-sync's npm bindings and `package.json`, and its Kotlin bindings' Gradle wrapper (`gradle-wrapper.jar`, `gradlew`, `gradlew.bat`; the build uses `gradle`).
-* Native code is arm64-v8a and x86_64, under 1 MB per ABI: `libmarknotes_sync.so` (built here), plus `libjnidispatch.so` from JNA 5.19.1 (Maven Central, LGPL-2.1/Apache-2.0, which the UniFFI Kotlin bindings use) and `libandroidx.graphics.path.so` from AndroidX (Compose). The signed APK is 7,898,401 bytes (about 7.9 MB). An ABI split would save little because the native libraries are a small part of the APK.
-* Release builds use full-mode R8 optimization and resource shrinking. Upstream CI checks the final APK's R8 marker, exact permissions and both native ABIs, and exercises the actual minified APK on an emulator, including native sync bindings, notes, storage and PDF import.
+* There are no submodules, srclibs or native build steps: the build is plain Gradle (`gradle: [yes]`, `subdir: app`) with dependencies from Google Maven, Maven Central and the Gradle Plugin Portal only. Local note handling is plain Kotlin in `:core`.
+* There is no `rm`, `prebuild`, `build` or `ndk` entry.
+* Native code is arm64-v8a and x86_64, under 1 MB per ABI, all from Maven Central: `libjnidispatch.so` from JNA 5.19.1 (LGPL-2.1/Apache-2.0, used for the no-replace rename of notes) and `libandroidx.graphics.path.so` from AndroidX (Compose). An ABI split would save little because the native libraries are a small part of the APK.
+* Release builds use full-mode R8 optimization and resource shrinking. Upstream CI checks the final APK's R8 marker, exact permissions and exact native libraries, and exercises the actual minified APK on an emulator, including notes, storage and PDF import.
 
 ### Auto update and reproducible builds
 
-* **Auto update:** `UpdateCheckMode: Tags` with `AutoUpdateMode: Version`. `versionName`/`versionCode` are literals in `app/build.gradle.kts`, set by the release workflow, and the build block has no version-specific values, so checkupdates can copy it unchanged. A marknotes-sync update comes with the tagged commit's submodule.
+* **Auto update:** `UpdateCheckMode: Tags` with `AutoUpdateMode: Version`. `versionName`/`versionCode` are literals in `app/build.gradle.kts`, set by the release workflow, and the build block has no version-specific values, so checkupdates can copy it unchanged.
 * **Reproducible builds:** enabled. `Binaries` points at the signed GitHub release APK and `AllowedAPKSigningKeys` holds its certificate. Upstream CI builds the APK three ways on every change and requires identical results: the recipe's steps on a runner, the same at another path and time zone, and the real `fdroid build --on-server` in `fdroidserver:buildserver-trixie`. The release workflow publishes only if `apksigcopier compare` verifies the signed APK against that build.
 
 ### Validation
@@ -80,7 +80,7 @@ MarkNotes (`io.github.maxdac.marknotes.libre`) is an offline-first Markdown note
 * [x] Releases are tagged and auto update is enabled unless there is a special reason.
 * [x] There is an issue tracker and contact info of the author so that we can report bugs and contact the author.
 * [x] An AuthorName must be added. It doesn't need to be the real name.
-* [x] External repos are added as git submodules instead of srclibs. You can update git submodules without opening an MR in this repo and the submodule is covered by our scanner. marknotes-sync is a submodule; the only srclib is fdroiddata's `rustup`, for the Rust toolchain.
+* [x] External repos are added as git submodules instead of srclibs. Not applicable: the app has no external source repositories.
 * [x] Enable [Reproducible Builds](https://f-droid.org/docs/Reproducible_Builds). We'll use your signature for improved security/reliability, also allowing users to switch between different channels. Do note that if you don't enable reproducible build then the apk will be signed with our key so you can't enable it later. If you can't enable this, please add the reasons here.
 * [x] Setup abi split if the APK is large and the splitted ones can be much smaller. Not needed: the native libraries are under 1 MB per ABI.
 * [x] Only the latest versions should be kept in the metadata before it's merged. If you update the metadata, please replace the old versions with the new ones.

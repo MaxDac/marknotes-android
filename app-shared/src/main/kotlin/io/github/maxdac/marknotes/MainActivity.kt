@@ -3,7 +3,6 @@ package io.github.maxdac.marknotes
 import android.content.Intent
 import android.graphics.Color
 import android.graphics.drawable.ColorDrawable
-import android.net.ConnectivityManager
 import android.net.Uri
 import android.os.Bundle
 import android.view.WindowManager
@@ -45,16 +44,12 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
 import androidx.navigation.navArgument
-import io.github.maxdac.marknotes.core.sync.DriveProvider
 import io.github.maxdac.marknotes.data.ThemeMode
 import io.github.maxdac.marknotes.security.DeviceAuth
 import io.github.maxdac.marknotes.shared.R
-import io.github.maxdac.marknotes.sync.connections
 import io.github.maxdac.marknotes.ui.MarkNotesTheme
 import io.github.maxdac.marknotes.ui.NoteScreen
 import io.github.maxdac.marknotes.ui.browser.BrowserScreen
-import io.github.maxdac.marknotes.ui.conflicts.ConflictsScreen
-import io.github.maxdac.marknotes.ui.drives.AddDriveScreen
 import io.github.maxdac.marknotes.ui.help.GettingStartedHost
 import io.github.maxdac.marknotes.ui.help.HelpScreen
 import io.github.maxdac.marknotes.ui.help.MarkdownHelpScreen
@@ -83,14 +78,14 @@ class MainActivity : ComponentActivity() {
         sharedContent.value = SharedContent.from(intent)
         if (savedInstanceState == null) {
             // Sync once per launch; no periodic polling.
-            appContainer.syncManager.syncIfConnected()
+            appContainer.syncHooks.syncIfConnected()
             if (sharedContent.value != null) shareRequests.value++
         }
         val settings = appContainer.settings
         val appLock = appContainer.appLock
         applySecureScreen()
         lifecycleScope.launch { repeatOnLifecycle(Lifecycle.State.STARTED) { lockWhenIdle() } }
-        watchNetwork()
+        appContainer.syncHooks.watchNetwork(this)
         setContent {
             val mode by settings.themeMode.collectAsStateWithLifecycle()
             val color by settings.themeColor.collectAsStateWithLifecycle()
@@ -161,16 +156,6 @@ class MainActivity : ComponentActivity() {
         }
     }
 
-    /**
-     * Feeds the network state to "Sync when reconnected" while the activity exists, so a reconnect seen in the
-     * background syncs once the app is back in the foreground. Nothing syncs while the app is in the background.
-     */
-    private fun watchNetwork() {
-        val connectivity = getSystemService(ConnectivityManager::class.java) ?: return
-        val reconnect = appContainer.syncManager.reconnect
-        lifecycleScope.launch { connectivity.connections().collect { reconnect.update(online = it) } }
-    }
-
     /** Locks the app after the idle timeout while it is in the foreground. */
     private suspend fun lockWhenIdle() {
         val settings = appContainer.settings
@@ -212,21 +197,21 @@ class MainActivity : ComponentActivity() {
             Toast.makeText(this, APP_LOCK_TURNED_OFF_TEXT, Toast.LENGTH_LONG).show()
         }
         appContainer.appLock.onStart()
-        appContainer.syncManager.reconnect.update(foreground = true)
+        appContainer.syncHooks.onForeground(true)
     }
 
     override fun onStop() {
         super.onStop()
         if (!isChangingConfigurations) {
             appContainer.appLock.onStop()
-            appContainer.syncManager.reconnect.update(foreground = false)
+            appContainer.syncHooks.onForeground(false)
         }
     }
 
     override fun onDestroy() {
         super.onDestroy()
         // The next launch syncs anyway; a reconnect seen before it must not add a second sync.
-        if (isFinishing) appContainer.syncManager.reconnect.reset()
+        if (isFinishing) appContainer.syncHooks.onActivityFinishing()
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -240,8 +225,8 @@ class MainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        // Completes a pending browser-based sign-in (Dropbox, ...) when returning from the browser.
-        appContainer.syncManager.onActivityResumed()
+        // Completes a pending browser-based sign-in of the app's sync, if it has one.
+        appContainer.syncHooks.onActivityResumed()
         if (appContainer.appLock.consumePromptRequest()) promptUnlock()
     }
 }
@@ -257,7 +242,6 @@ object Routes {
     const val BROWSER = "browser?path={path}"
     const val EDITOR = "editor?path={path}"
     const val SETTINGS = "settings"
-    const val SIGN_IN = "sign_in/{provider}"
     const val CONFLICTS = "conflicts"
     const val ADD_DRIVE = "add_drive"
     const val IMPORT = "import"
@@ -266,7 +250,6 @@ object Routes {
 
     fun browser(path: String) = "browser?path=${Uri.encode(path)}"
     fun editor(path: String) = "editor?path=${Uri.encode(path)}"
-    fun signIn(provider: DriveProvider) = "sign_in/${provider.name}"
 }
 
 @Composable
@@ -348,26 +331,7 @@ private fun MarkNotesNavHost(
                 }
             )
         }
-        composable(Routes.ADD_DRIVE) {
-            AddDriveScreen(
-                onProviderSignIn = { navController.navigate(Routes.signIn(it)) },
-                onDone = { navController.popBackStack(Routes.ADD_DRIVE, inclusive = true) },
-                onBack = { navController.navigateUp() }
-            )
-        }
-        composable(Routes.SIGN_IN, arguments = listOf(navArgument("provider") { type = NavType.StringType })) { entry ->
-            val name = entry.arguments?.getString("provider")
-            val provider = DriveProvider.entries.firstOrNull { it.name == name }
-            val screen = provider?.let { LocalContext.current.appContainer.connectors[it]?.signInScreen }
-            if (screen == null) {
-                LaunchedEffect(Unit) { navController.popBackStack() }
-            } else {
-                screen({ navController.navigateUp() }, { navController.navigateUp() })
-            }
-        }
-        composable(Routes.CONFLICTS) {
-            ConflictsScreen(onBack = { navController.navigateUp() })
-        }
+        with(container.syncHooks) { syncDestinations(navController) }
         composable(Routes.IMPORT) {
             val content by sharedContent.collectAsStateWithLifecycle()
             val current = content
@@ -397,8 +361,6 @@ private fun MarkNotesNavHost(
             MarkdownHelpScreen(onBack = { navController.navigateUp() })
         }
     }
-    val providers = container.connectors.values.filter { it.unavailableReason == null }
-        .joinToString(", ") { it.provider.displayName }
     GettingStartedHost(
         settings = container.settings,
         replay = replayGuide,
@@ -406,7 +368,7 @@ private fun MarkNotesNavHost(
         unlocked = unlocked,
         safeDestination = guideDestination,
         pendingShare = shareRequest > handledShare,
-        providers = providers,
+        providers = container.syncHooks.providerNames,
         onMarkdown = { navController.navigate(Routes.MARKDOWN_HELP) }
     )
 }

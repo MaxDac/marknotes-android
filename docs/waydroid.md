@@ -61,7 +61,7 @@ Walk through this after any UI, `:app-shared` or `DriveConnector` change:
   sequences, images, privacy (**Delete all local data**), app lock, diagnostics and About are present.
 - Editor: autosave, preview, `@` note links, an image from the gallery, a shared text/PDF import.
 - Rotate or resize the window: no crash, no lost edit.
-- `adb logcat -d | grep -i marknotes` shows no exception from `SyncManager` or `AppContainer` on start.
+- `adb logcat -d | grep -i marknotes` shows no exception from `SyncHooks` or `AppContainer` on start.
 
 For MarkNotes Plus (the `libre/` submodule checkout in MaxDac/MarkNotes) also check that the drives UI is back
 and that Dropbox sign-in returns through the `db-<key>` redirect.

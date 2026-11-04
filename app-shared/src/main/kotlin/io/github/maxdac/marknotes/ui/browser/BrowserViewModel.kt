@@ -35,9 +35,9 @@ class BrowserViewModel(private val container: AppContainer, val folder: String) 
     private val _error = MutableStateFlow<String?>(null)
     val error: StateFlow<String?> = _error
 
-    val syncState = container.syncManager.state
+    val syncState = container.syncHooks.state
 
-    fun acknowledgeFolderNotice(notice: FolderRemovalNotice) = container.syncManager.acknowledgeFolderNotice(notice)
+    fun acknowledgeFolderNotice(notice: FolderRemovalNotice) = container.syncHooks.acknowledgeFolderNotice(notice)
 
     // Refreshes run one at a time in call order, so a slow listing can't overwrite a newer one (e.g. after a wipe).
     private val refreshLock = Mutex()
@@ -89,7 +89,7 @@ class BrowserViewModel(private val container: AppContainer, val folder: String) 
 
     fun delete(entry: NoteEntry) = act { notes.delete(entry.path) }
 
-    fun sync() = container.syncManager.syncNow()
+    fun sync() = container.syncHooks.syncNow()
 
     fun clearError() {
         _error.value = null

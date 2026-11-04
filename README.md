@@ -50,9 +50,9 @@ submodule) with OneDrive and Proton Drive sync added, released on GitHub only. T
 - **Appearance** (Settings): theme **System** (default), **Light** or **Dark**, and an accent colour chosen
   from 8 palettes or **Dynamic** (Material You, Android 12+).
 - **No cloud sync**: the notes stay on this device as plain `.md` files, so you can back them up or copy them
-  yourself. Two-way sync (Dropbox, OneDrive, Proton Drive) with the same note format and the shared Rust sync core
-  [marknotes-sync](https://github.com/MaxDac/marknotes-sync) is in [MarkNotes Plus](https://github.com/MaxDac/MarkNotes),
-  which builds on this repo's `:core` and `:app-shared` modules. Versions before 0.2.0 shipped Dropbox sync here.
+  yourself. Two-way sync (Dropbox, OneDrive, Proton Drive) with the same note format is in
+  [MarkNotes Plus](https://github.com/MaxDac/MarkNotes), which builds on this repo's `:core` and `:app-shared`
+  modules. Versions before 0.2.0 shipped Dropbox sync here.
 - **Delete local data** (Settings → Privacy): **Delete all local data** disconnects every drive, then deletes the
   notes, images, sync state and cached files stored on this device. When you disconnect the last drive you can
   also tick **Also delete the notes stored on this device**. Nothing is ever deleted from a drive: the deletion is
@@ -99,8 +99,8 @@ The app is fully local and every dependency is free software, so it has no anti-
 - R8/ProGuard is off on purpose, so F-Droid can reproduce the release APK byte for byte.
 
 The on-disk note format (IDs, note links, images, chord sequences) is shared with the desktop and web apps and
-described in [marknotes-spec](https://github.com/MaxDac/marknotes-spec/blob/main/note-format.md), checked out at
-`spec/` as a git submodule (`git submodule update --init`).
+described in the shared spec, which lives in a private repository; this repository does not depend on it (see
+[AGENTS.md](AGENTS.md), "Cross-app parity").
 
 ## Other MarkNotes apps
 
@@ -123,59 +123,35 @@ the external website under its own terms and privacy policy.
 
 | Module | What it contains |
 | --- | --- |
-| `:core` | Pure Kotlin/JVM: local note store, sync engine (single and multi-drive) executing the plans of the shared [marknotes-sync](https://github.com/MaxDac/marknotes-sync) core, `RemoteDriveStore` interface. Fully unit tested. |
-| `:app-shared` | Android library with the whole app: Jetpack Compose + Material 3, Navigation Compose, MVVM with `StateFlow`, Room, manual DI. Providers plug in through `DriveConnector`; MarkNotes Plus adds OneDrive and Proton Drive this way. |
-| `:app` | The libre application (`io.github.maxdac.marknotes.libre`): `LibreApp`, which adds no connector (offline only). |
+| `:core` | Pure Kotlin/JVM: local note store, note IDs and links, attachments, chord sequences, import conversion, diagnostics. Fully unit tested. |
+| `:app-shared` | Android library with the whole app: Jetpack Compose + Material 3, Navigation Compose, MVVM with `StateFlow`, Room, manual DI. Sync plugs in through `SyncHooks`; MarkNotes Plus returns its own implementation (Dropbox, OneDrive, Proton Drive) this way. |
+| `:app` | The libre application (`io.github.maxdac.marknotes.libre`): `LibreApp`, which has no sync (offline only). |
 
 ## Build
 
-Requirements: JDK 21+ (Android Studio's bundled JBR works) and the Android SDK with platform 37
+Requirements: JDK 17+ (CI uses 21; Android Studio's bundled JBR works) and the Android SDK with platform 37
 (compileSdk 37, targetSdk 36, minSdk 29). The Gradle wrapper (9.8.2, AGP 9.4 with built-in Kotlin 2.4) is included:
 
 ```sh
 ./gradlew assembleDebug                      # build the debug APK
 ./gradlew ktlintCheck detekt lintDebug       # ktlint, detekt and Android Lint (ktlintFormat auto-fixes style)
 ./gradlew testDebugUnitTest :core:test       # unit tests (:core is a plain JVM module)
-./gradlew :core:parityTest                   # marknotes-spec fixtures (git submodule update --init first)
+./gradlew :core:parityTest -Pmarknotes.specDir=<path>  # shared fixtures, if you have a checkout; otherwise skipped
 ./gradlew :app:connectedDebugAndroidTest :app-shared:connectedDebugAndroidTest # UI and image-loader tests on a device
 ```
 
-By default the build downloads marknotes-sync (the Kotlin bindings and the native library) from its
-[GitHub releases](https://github.com/MaxDac/marknotes-sync/releases), at the version in `gradle/libs.versions.toml`.
+The build is plain Gradle: no Rust, NDK, submodule or private repository is involved. See
+[the dependency map](docs/dependencies.md).
 
-The current sync integration is the released **0.4.1**, not a required development source pin.
-Gradle verifies the Kotlin JAR, host natives JAR and Android AAR against reviewed checked-in SHA256 entries.
-An optional `gradle/marknotes-sync-source.properties` can pin an unreleased API; when present, CI builds it
-with Rust 1.99.1, cargo-ndk 4.1.2 and NDK 30.0.16248370. `-Pmarknotes.sync.fromSource=<checkout>` overrides
-that default. Source builds require a fresh ignored build receipt and validate the actual selected checkout.
-No native binaries are committed. Development pins are rejected by signed release validation, not unsigned
-`assembleRelease` development checks. See [the dependency map](docs/dependencies.md) for source receipts,
-local experiments, offline resolution, checksum trust limits, Pro root integration and regression commands.
+### Building like F-Droid
 
-On Windows, use a Visual Studio developer terminal with Git Bash, the same pinned Rust/NDK tools, and
-`READELF="$ANDROID_NDK_HOME/toolchains/llvm/prebuilt/windows-x86_64/bin/llvm-readelf.exe"`.
-Install both Android targets for the pinned toolchain (`rustup target add --toolchain 1.99.1
-aarch64-linux-android x86_64-linux-android`). Set `CARGO_TARGET_X86_64_PC_WINDOWS_MSVC_LINKER` to the
-developer terminal's `link.exe` so Git Bash does not select `/usr/bin/link`.
-Run `scripts/build-sync-from-source.sh` in Git Bash, then `.\gradlew.bat` for the Android build.
-The source prerequisite packages the matching host library as well as both Android ABIs; an empty native
-JAR/AAR is not a usable substitute.
-
-
-### Building from source, like F-Droid
-
-F-Droid doesn't accept prebuilt binaries, so it builds marknotes-sync from source too. On Linux, with rustup, the
-Rust toolchain and NDK pinned in `scripts/build-sync-from-source.sh` and cargo-ndk, from the `marknotes-sync/`
-submodule (checked out at the release tag `marknotesSync` in `gradle/libs.versions.toml` names):
+F-Droid doesn't accept prebuilt binaries, and the build here has none of its own: with the JDK and the Android SDK,
 
 ```sh
-rustup toolchain install 1.99.1 --profile minimal --target aarch64-linux-android,x86_64-linux-android
-cargo +1.99.1 install cargo-ndk --version 4.1.2 --locked
-sdkmanager "ndk;30.0.16248370"
-git submodule update --init marknotes-sync
-scripts/build-sync-from-source.sh
-./gradlew :app:assembleRelease --no-build-cache -Pmarknotes.sync.fromSource=marknotes-sync
+./gradlew :app:assembleRelease --no-build-cache
 ```
+
+builds the unsigned release APK that F-Droid rebuilds.
 
 The F-Droid recipe is [`.fdroid.yml`](.fdroid.yml); see
 [docs/fdroid.md](docs/fdroid.md) for how the app is published there.
@@ -184,11 +160,10 @@ The F-Droid recipe is [`.fdroid.yml`](.fdroid.yml); see
 
 The checks live in the reusable `.github/workflows/checks.yml` and are required by the `main` ruleset:
 "Lint (ktlint, detekt, Android Lint)", "Unit tests", "Instrumented tests (emulator)", "Build debug APK",
-"Parity (marknotes-spec fixtures)" and the three F-Droid checks:
+and the three F-Droid checks:
 
 - **F-Droid build** lints the recipe with `fdroid lint` (and checks it is in `fdroid rewritemeta` format and matches
-  the app version and the pinned marknotes-sync version), builds marknotes-sync and the release APK from source the
-  way F-Droid does, and scans the APK with `fdroid scanner`;
+  the app version), builds the release APK from source the way F-Droid does, and scans the APK with `fdroid scanner`;
 - **Reproducible build** rebuilds the release APK on another runner, at another path, in another time zone, and
   fails unless both APKs are identical;
 - **F-Droid server build (fdroid build)** runs the real `fdroid build --on-server` with the recipe in F-Droid's
@@ -211,7 +186,7 @@ between the F-Droid and GitHub APKs without reinstalling.
    `fastlane/metadata/android/en-US/changelogs/<versionCode>.txt`. PRs opened with the default `GITHUB_TOKEN` don't
       trigger `pull_request` workflows, so it also dispatches PR CI on the release branch; its checks report on the
       PR's head commit.
-2. Merge it, then run Actions → **Release** on `main`. It reruns the checks, builds marknotes-sync and the APK
+2. Merge it, then run Actions → **Release** on `main`. It reruns the checks, builds the APK
    from source, signs it, checks the signer against `AllowedAPKSigningKeys` in `.fdroid.yml` and the
    `RELEASE_CERT_SHA256` variable, checks with `apksigcopier compare` that F-Droid's build (the Checks' F-Droid
    build) verifies against it, and publishes `marknotes-libre-X.Y.Z.apk` and `SHA256SUMS` in the `vX.Y.Z` release.
