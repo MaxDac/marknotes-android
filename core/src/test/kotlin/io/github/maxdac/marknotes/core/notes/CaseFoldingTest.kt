@@ -12,6 +12,14 @@ class CaseFoldingTest {
     }
 
     @Test
+    fun foldingsAddedInUnicode151JoinTheirTargets() {
+        // The JVM's upper-then-lower mapping lacks these; the shared sync library folds them.
+        assertEquals(foldCase("\u0390.md"), foldCase("\u1FD3.md"))
+        assertEquals(foldCase("\u03B0.md"), foldCase("\u1FE3.md"))
+        assertEquals(foldCase("\uFB06.md"), foldCase("\uFB05.md"))
+    }
+
+    @Test
     fun dottedAndDotlessIAreNotFoldedToI() {
         assertNotEquals(foldCase("İ.md"), foldCase("i.md"))
         assertNotEquals(foldCase("ı.md"), foldCase("i.md"))

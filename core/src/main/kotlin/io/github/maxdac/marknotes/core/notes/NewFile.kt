@@ -7,10 +7,11 @@ import java.nio.file.Files
 import java.nio.file.StandardOpenOption
 import java.nio.file.attribute.FileTime
 
-internal enum class NewFileStage { BYTES_WRITTEN, MTIME_SET, FLUSHED, PUBLISHED }
+/** The steps of [writeNewFile], reported to its `checkpoint` so tests can interrupt it after each one. */
+enum class NewFileStage { BYTES_WRITTEN, MTIME_SET, FLUSHED, PUBLISHED }
 
 /** Only complete, timestamped, flushed bytes may become visible at the create-only destination. */
-internal fun writeNewFile(
+fun writeNewFile(
     target: File,
     bytes: ByteArray,
     modifiedMillis: Long,
