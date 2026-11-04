@@ -1,0 +1,1 @@
+Internal change for the Plus edition: the file helpers it needs are now public, and case-only rename detection matches the sync library for a few rare Greek and Latin characters. Nothing changes for your notes.
