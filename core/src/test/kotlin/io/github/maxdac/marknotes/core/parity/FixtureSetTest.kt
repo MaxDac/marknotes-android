@@ -54,6 +54,15 @@ class FixtureSetTest {
     }
 
     @Test
+    fun proAlsoRunsFilesListingOnlyAndroid() {
+        val dir = fixtures()
+        write(dir, "libre/only", """["android"]""")
+        assertTrue(FixtureSet(dir, SpecFixtures.PRO_KEY).isApplicable("libre/only"))
+        assertTrue(FixtureSet(dir).isApplicable("libre/only"))
+        assertEquals(false, FixtureSet(dir, "web").isApplicable("libre/only"))
+    }
+
+    @Test
     fun anUnmappedFileStillFails() {
         // The coverage rule of SpecCoverageTest: applicable ids must equal the mapped ones.
         val set = FixtureSet(fixtures())

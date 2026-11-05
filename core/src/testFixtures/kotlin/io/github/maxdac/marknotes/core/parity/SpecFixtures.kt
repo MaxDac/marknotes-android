@@ -67,7 +67,11 @@ class FixtureSet(private val dir: File, val edition: String = SpecFixtures.APP_K
         id: String
     ): Set<String>? = root(id)["appliesTo"]?.jsonArray?.map { it.jsonPrimitive.content }?.toSet()
 
-    fun isApplicable(id: String): Boolean = appliesTo(id)?.contains(edition) ?: true
+    /** `android` covers Libre and Pro, so Pro (`android-pro`) also runs files that list only `android`. */
+    fun isApplicable(id: String): Boolean {
+        val keys = appliesTo(id) ?: return true
+        return edition in keys || (edition == SpecFixtures.PRO_KEY && SpecFixtures.APP_KEY in keys)
+    }
 
     /** Ids of the files this edition must run (or map as "elsewhere"). */
     fun ids(): List<String> = allIds().filter(::isApplicable)
