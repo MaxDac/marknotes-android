@@ -90,6 +90,8 @@ dependencies {
     testImplementation(testFixtures(project(":core")))
     androidTestImplementation(libs.androidx.test.ext.junit)
     androidTestImplementation(libs.androidx.test.runner)
+    androidTestImplementation(libs.androidx.compose.ui.test.junit4)
+    debugImplementation(libs.androidx.compose.ui.test.manifest)
 }
 
 // The shared fixtures (the shared spec) are not part of this public repository, see :core.

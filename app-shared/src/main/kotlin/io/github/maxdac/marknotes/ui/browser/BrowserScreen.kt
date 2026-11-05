@@ -4,6 +4,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -116,7 +117,9 @@ fun BrowserScreen(
     onOpenNote: (String) -> Unit,
     onOpenSettings: () -> Unit,
     onOpenConflicts: () -> Unit,
-    onBack: () -> Unit
+    onBack: () -> Unit,
+    /** Extra block after the folder tree in the drawer; see [SyncHooks.DrawerSection]. */
+    drawerSection: @Composable ColumnScope.() -> Unit = {}
 ) {
     val container = LocalContext.current.appContainer
     val vm: BrowserViewModel = viewModel { BrowserViewModel(container, folder) }
@@ -136,7 +139,12 @@ fun BrowserScreen(
         drawerContent = {
             // A closed drawer stays composed; hide its items from semantics so they don't duplicate the list.
             val showTree = drawerState.isOpen || drawerState.isAnimationRunning
-            FolderDrawer(sortedFolders, current = folder, inSemantics = showTree) { target ->
+            FolderDrawer(
+                sortedFolders,
+                current = folder,
+                inSemantics = showTree,
+                drawerSection = drawerSection
+            ) { target ->
                 scope.launch { drawerState.close() }
                 if (target != folder) onJumpToFolder(target)
             }
@@ -441,10 +449,11 @@ private fun BrowserDialogs(
 
 /** Folder tree; folders are collapsed except the ancestors of [current]. */
 @Composable
-private fun FolderDrawer(
+internal fun FolderDrawer(
     folders: List<String>,
     current: String,
     inSemantics: Boolean,
+    drawerSection: @Composable ColumnScope.() -> Unit = {},
     onSelect: (String) -> Unit
 ) {
     var expanded by rememberSaveable(current) {
@@ -457,7 +466,8 @@ private fun FolderDrawer(
     }
     ModalDrawerSheet(modifier = if (inSemantics) Modifier else Modifier.clearAndSetSemantics {}) {
         Text("Folders", style = MaterialTheme.typography.titleMedium, modifier = Modifier.padding(16.dp))
-        LazyColumn {
+        // fill = false: the tree keeps its natural height (unchanged without a section) and scrolls above the section.
+        LazyColumn(Modifier.weight(1f, fill = false)) {
             item {
                 NavigationDrawerItem(
                     label = { Text("All notes") },
@@ -490,6 +500,7 @@ private fun FolderDrawer(
                 )
             }
         }
+        drawerSection()
     }
 }
 

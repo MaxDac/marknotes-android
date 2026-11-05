@@ -124,6 +124,14 @@ interface SyncHooks {
         onLocalDataDeleted: () -> Unit
     ) {
     }
+
+    /**
+     * An extra block of the left drawer, shown after the notes tree (inside the drawer's column). The libre app and
+     * [NoSyncHooks] show nothing; an app can add its own section, which may navigate with [navController].
+     */
+    @Composable
+    fun ColumnScope.DrawerSection(navController: NavController) {
+    }
 }
 
 /**
