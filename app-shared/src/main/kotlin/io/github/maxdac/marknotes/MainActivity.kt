@@ -309,7 +309,8 @@ private fun MarkNotesNavHost(
                 onOpenNote = { navController.navigate(Routes.editor(it)) },
                 onOpenSettings = { navController.navigate(Routes.SETTINGS) },
                 onOpenConflicts = { navController.navigate(Routes.CONFLICTS) },
-                onBack = { navController.navigateUp() }
+                onBack = { navController.navigateUp() },
+                drawerSection = { with(container.syncHooks) { DrawerSection(navController) } }
             )
         }
         composable(Routes.EDITOR, arguments = pathArg) { entry ->
