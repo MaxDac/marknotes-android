@@ -1,6 +1,7 @@
 package io.github.maxdac.marknotes.core.parity
 
 import org.junit.Assert.assertEquals
+import org.junit.Assume.assumeTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.junit.runners.Parameterized
@@ -33,6 +34,15 @@ class SpecCoverageTest {
             SpecFixtures.ids().filterNot { id -> CoreParity.SYNC_AREAS.any(id::startsWith) },
             CoreParity.mappings.keys.sorted()
         )
+    }
+
+    @Test
+    fun filesExcludedByAppliesToAreSkipped() {
+        val skipped = SpecFixtures.skippedIds()
+        assumeTrue("every fixture file applies to Libre", skipped.isNotEmpty())
+        // Recognised, not run and not unmapped.
+        assertEquals(emptyList<String>(), skipped.filter(CoreParity.mappings::containsKey))
+        assumeTrue("Skipped by appliesTo for ${SpecFixtures.APP_KEY}: $skipped", false)
     }
 
     @Test
