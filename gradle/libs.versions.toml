@@ -13,7 +13,7 @@ serializationJson = "1.12.0"
 coroutines = "1.11.0"
 markwon = "4.6.2"
 # Import of shared content: HTML parsing (:core) and PDF text extraction (:app).
-jsoup = "1.23.2"
+jsoup = "1.24.1"
 pdfboxAndroid = "2.0.27.0"
 prism4j = "2.0.0"
 # JNA calls the no-replace rename (core/notes/CaseRename.kt).
