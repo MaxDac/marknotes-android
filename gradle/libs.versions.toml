@@ -26,7 +26,7 @@ ktlintPlugin = "14.2.0"
 ktlint = "1.8.0"
 detekt = "1.23.8"
 # Only on the build classpath (AGP and plugins pull it in); pinned above their transitive version for security fixes.
-bouncycastle = "1.86"
+bouncycastle = "1.87"
 # Vulnerable transitive build-tool dependencies (AGP's bundletool/jetifier, prism4j-bundler), not shipped.
 commons-io = "2.22.0"
 jose4j = "0.9.7"
